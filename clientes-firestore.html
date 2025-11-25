@@ -136,8 +136,22 @@
         <div class="row" role="search">
           <label class="sr-only" for="buscar">Buscar clientes</label>
           <input id="buscar" placeholder="Buscar por nombre, RUT o dirección…" style="min-width:260px" type="search" />
+          <select id="filtroContrato" aria-label="Filtrar por contrato">
+            <option value="">Todos</option>
+            <option value="con">Con contrato</option>
+            <option value="sin">Sin contrato</option>
+          </select>
+          <select id="filtroSegmento" aria-label="Filtrar por segmento">
+            <option value="">Segmento</option>
+            <option value="premium">Premium</option>
+            <option value="crecimiento">Crecimiento</option>
+            <option value="riesgo">En riesgo</option>
+          </select>
+          <input id="filtroMontoMin" type="number" placeholder="Monto ≥" style="width:120px" />
+          <input id="filtroMontoMax" type="number" placeholder="Monto ≤" style="width:120px" />
           <div class="right">
             <button class="secondary" id="btnExport" type="button">Exportar CSV</button>
+            <button class="secondary" id="btnExportExcel" type="button">Exportar Excel</button>
             <button class="secondary" id="btnRefresh" type="button">Refrescar</button>
           </div>
         </div>
@@ -162,6 +176,21 @@
           </table>
         </div>
         <div id="info" style="margin-top:8px;color:#5a6b79;font-size:13px" role="status" aria-live="polite">—</div>
+      </div>
+
+      <div class="card requires-auth" aria-labelledby="analyticsTitle">
+        <h1 id="analyticsTitle">Dashboard por cliente</h1>
+        <div class="insights" id="clienteAnalyticsGrid"></div>
+        <div class="row" style="gap:20px;align-items:flex-start;flex-wrap:wrap">
+          <div style="flex:1;min-width:320px">
+            <h3>Historial de interacciones</h3>
+            <ul id="historialList" style="padding-left:18px;margin:0;list-style:disc;color:#0b1f2a"></ul>
+          </div>
+          <div style="flex:1;min-width:320px">
+            <h3>Mapa de geolocalización</h3>
+            <div id="mapaCliente" style="border:1px solid var(--line);border-radius:14px;overflow:hidden;min-height:240px;background:#eef4fa"></div>
+          </div>
+        </div>
       </div>
 
       <div class="card requires-auth" aria-labelledby="altaRapidaTitle">
@@ -251,6 +280,7 @@
     let importFileName = '';
     let importLoading = false;
     let editingClientId = null;
+    let selectedClientId = null;
     const isDemoSession = ()=> !!(window.gsAuth && typeof gsAuth.isDemoSession === 'function' && gsAuth.isDemoSession());
 
     // Helpers
@@ -260,6 +290,7 @@
     const btnCancelEdit = $('btnCancelEdit');
     const editBanner = $('editBanner');
     const btnExport = $('btnExport');
+    const btnExportExcel = $('btnExportExcel');
     const btnRefresh = $('btnRefresh');
     const importInput = $('importInput');
     const btnImport = $('btnImport');
@@ -269,6 +300,13 @@
     const importPreview = $('importPreview');
     const importPreviewBody = $('importPreviewBody');
     const importSummary = $('importSummary');
+    const filtroContrato = $('filtroContrato');
+    const filtroSegmento = $('filtroSegmento');
+    const filtroMontoMin = $('filtroMontoMin');
+    const filtroMontoMax = $('filtroMontoMax');
+    const clienteAnalyticsGrid = $('clienteAnalyticsGrid');
+    const historialList = $('historialList');
+    const mapaCliente = $('mapaCliente');
     const moduleLoaderTitle = document.getElementById('moduleLoaderTitle');
     const moduleLoaderCaption = document.getElementById('moduleLoaderCaption');
     const getBrandName = ()=>{
@@ -281,6 +319,10 @@
     };
     if(moduleLoaderTitle){ moduleLoaderTitle.textContent = getBrandName(); }
     if(moduleLoaderCaption){ moduleLoaderCaption.textContent = 'Cargando…'; }
+    if(window.gsAuth && typeof gsAuth.hardenForm === 'function'){
+      gsAuth.hardenForm(document.getElementById('loginForm'));
+      gsAuth.hardenForm(document.getElementById('altaRapidaForm'));
+    }
     const csv = (rows)=>rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
     const escapeHtml = (str='')=> String(str).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
     const toNumber = (v)=> Number(String(v||'').replace(/[^\d.,-]/g,'').replace('.','').replace(',','.')) || 0;
@@ -327,6 +369,70 @@
         }));
       }catch(err){ /* sin almacenamiento */ }
     };
+
+    const segmentClient = (cliente)=>{
+      const monto = toNumber(cliente.monto || 0);
+      if(cliente.contrato && monto > 4000){ return 'premium'; }
+      if(cliente.contrato){ return 'crecimiento'; }
+      return 'riesgo';
+    };
+
+    const buildInteractionHistory = (cliente)=>{
+      if(Array.isArray(cliente.historial)){ return cliente.historial; }
+      const base = cliente.updatedAt || cliente.createdAt || new Date().toISOString();
+      return [
+        { fecha: base, evento: 'Alta de cliente', detalle: 'Registro inicial sincronizado' },
+        { fecha: new Date().toISOString(), evento: 'Seguimiento automático', detalle: 'Sin actividad reciente' }
+      ];
+    };
+
+    const enrichClient = (cliente)=>{
+      const snapshot = Object.assign({}, cliente);
+      snapshot.segmento = cliente.segmento || segmentClient(cliente);
+      snapshot.historial = buildInteractionHistory(cliente);
+      snapshot.inactividad = cliente.updatedAt ? Math.round((Date.now() - Date.parse(cliente.updatedAt)) / (1000*60*60*24)) : null;
+      return snapshot;
+    };
+
+    function renderClienteAnalytics(cliente){
+      if(!clienteAnalyticsGrid){ return; }
+      if(!cliente){
+        clienteAnalyticsGrid.innerHTML = '<p style="color:var(--muted)">Seleccioná un cliente para ver su tablero.</p>';
+        if(historialList){ historialList.innerHTML = ''; }
+        if(mapaCliente){ mapaCliente.innerHTML = '<p style="padding:12px;color:var(--muted)">Sin ubicación.</p>'; }
+        return;
+      }
+      const churnRiesgo = cliente.inactividad ? Math.min(cliente.inactividad/120, 1) : 0.2;
+      const cards = [
+        { label: 'Segmento', value: cliente.segmento || '—', meta: cliente.contrato ? 'Contrato activo' : 'Sin contrato' },
+        { label: 'Monto mensual', value: fmtMoney(toNumber(cliente.monto||0)), meta: cliente.contrato ? 'Recurrente' : 'Estimado' },
+        { label: 'Riesgo churn', value: `${Math.round(churnRiesgo*100)}%`, meta: cliente.inactividad ? `${cliente.inactividad} días sin actividad` : 'Actividad reciente' },
+        { label: 'Upsell', value: cliente.segmento === 'premium' ? 'Cross-selling' : 'Oportunidad', meta: 'Detectado por IA' }
+      ];
+      clienteAnalyticsGrid.innerHTML = cards.map(card=>`
+        <article class="insight">
+          <span class="label">${card.label}</span>
+          <span class="value">${card.value}</span>
+          <span class="meta">${card.meta}</span>
+        </article>
+      `).join('');
+
+      if(historialList){
+        historialList.innerHTML = cliente.historial.map(item=>`<li><strong>${new Date(item.fecha).toLocaleString()}</strong> — ${item.evento}: ${item.detalle}</li>`).join('');
+      }
+      updateGeolocation(cliente);
+    }
+
+    function updateGeolocation(cliente){
+      if(!mapaCliente){ return; }
+      const direccion = cliente && cliente.direccion ? encodeURIComponent(cliente.direccion) : '';
+      if(!direccion){
+        mapaCliente.innerHTML = '<p style="padding:12px;color:var(--muted)">Sin dirección disponible.</p>';
+        return;
+      }
+      const src = `https://www.google.com/maps/embed/v1/place?key=AIzaSyAWsDJlyls1DnprGf3bBvEkYfrLdLQ3WCg&q=${direccion}`;
+      mapaCliente.innerHTML = `<iframe title="Ubicación de ${cliente.nombre||'cliente'}" width="100%" height="260" frameborder="0" style="border:0" src="${src}" allowfullscreen></iframe>`;
+    }
 
     // Gestión de edición y validaciones básicas de RUT
     const getClientById = (id)=> data.find((row)=> row.id === id);
@@ -403,9 +509,9 @@
         ? gsAuth.getDemoData('clientes')
         : [];
       const rows = Array.isArray(dataset) ? dataset : [];
-      data = rows.map((item, index)=> Object.assign({
+      data = rows.map((item, index)=> enrichClient(Object.assign({
         id: item && item.id ? item.id : `demo-${index + 1}`
-      }, item));
+      }, item)));
       lastUpdated = Date.now();
       currentUserId = 'demo';
       currentOrganizationId = 'demo';
@@ -605,8 +711,21 @@
     }
 
     const render = (fromCache=false)=>{
-      const q = $('buscar').value.trim().toLowerCase();
-      const rows = !q ? data : data.filter(x => `${x.nombre} ${x.rut||''} ${x.direccion||''} ${x.telefono||x.phone||''}`.toLowerCase().includes(q));
+      const qRaw = $('buscar').value || '';
+      const q = (gsAuth && gsAuth.sanitizeInput) ? gsAuth.sanitizeInput(qRaw).toLowerCase() : qRaw.trim().toLowerCase();
+      const contratoFilter = filtroContrato ? filtroContrato.value : '';
+      const segmentoFilter = filtroSegmento ? filtroSegmento.value : '';
+      const minMonto = filtroMontoMin ? toNumber(filtroMontoMin.value) : 0;
+      const maxMonto = filtroMontoMax ? toNumber(filtroMontoMax.value) : 0;
+      const rows = data.filter(x => {
+        const hayTexto = !q || `${x.nombre} ${x.rut||''} ${x.direccion||''} ${x.telefono||x.phone||''}`.toLowerCase().includes(q);
+        const coincideContrato = !contratoFilter || (contratoFilter === 'con' ? x.contrato : !x.contrato);
+        const coincideSegmento = !segmentoFilter || x.segmento === segmentoFilter;
+        const monto = toNumber(x.monto);
+        const coincideMin = !minMonto || monto >= minMonto;
+        const coincideMax = !maxMonto || monto <= maxMonto;
+        return hayTexto && coincideContrato && coincideSegmento && coincideMin && coincideMax;
+      });
       const tbody = $('tbody'); tbody.innerHTML = '';
       if(rows.length===0){ tbody.innerHTML = '<tr><td colspan="7">Sin resultados.</td></tr>'; }
       rows.forEach(c=>{
@@ -635,6 +754,8 @@
       $('kpiContratos').textContent = conContrato;
       $('kpiFacturacion').textContent = fmtMoney(totalMonto);
       document.body.classList.remove('loading-data');
+      renderClienteAnalytics(rows.find(r=> r.id === selectedClientId) || rows[0] || null);
+      selectedClientId = (rows[0] && rows[0].id) || selectedClientId;
     };
 
     // Login
@@ -744,7 +865,7 @@
             return !rowOrg || rowOrg === 'default';
           }
           return rowOrg === orgId;
-        });
+        }).map(enrichClient);
         lastUpdated = Date.now();
         render();
         saveCache();
@@ -756,6 +877,10 @@
 
     // Buscar: re-render al tipear
     $('buscar').addEventListener('input', ()=>render());
+    filtroContrato?.addEventListener('change', ()=>render());
+    filtroSegmento?.addEventListener('change', ()=>render());
+    filtroMontoMin?.addEventListener('input', ()=>render());
+    filtroMontoMax?.addEventListener('input', ()=>render());
 
     if(btnCancelEdit){
       btnCancelEdit.addEventListener('click', ()=>{
@@ -849,6 +974,13 @@
           try{ await db.collection('clientes').doc(id).delete(); }
           catch(err){ alert('Error: ' + err.message); }
         }
+      }else{
+        const row = e.target.closest('tr');
+        const id = row && row.querySelector('button[data-id]') ? row.querySelector('button[data-id]').getAttribute('data-id') : null;
+        if(id){
+          selectedClientId = id;
+          render();
+        }
       }
     });
 
@@ -859,10 +991,11 @@
         $('addMsg').innerHTML = '<span class="err">Solo administradores pueden registrar clientes.</span>';
         return;
       }
-      const nombre = $('nombre').value.trim();
-      const rutInput = $('rut').value.trim();
-      const direccion = $('direccion').value.trim();
-      const telefono = $('telefono').value.trim();
+      const clean = (v)=> (gsAuth && gsAuth.sanitizeInput) ? gsAuth.sanitizeInput(v) : String(v||'').trim();
+      const nombre = clean($('nombre').value);
+      const rutInput = clean($('rut').value);
+      const direccion = clean($('direccion').value);
+      const telefono = clean($('telefono').value);
       const contrato = $('contrato').checked;
       const montoRaw = $('monto').value.trim();
       const rutNormalized = normalizeRut(rutInput);
@@ -948,8 +1081,52 @@
       URL.revokeObjectURL(a.href);
     });
 
+    if(btnExportExcel){
+      btnExportExcel.addEventListener('click', async ()=>{
+        if(!canExportData){
+          alert('Tu rol actual no permite exportar datos.');
+          return;
+        }
+        const xlsx = await ensureXLSX();
+        const rows = [["Nombre","RUT","Dirección","Teléfono","Contrato","Monto","Segmento"],
+          ...data.map(c=>[
+            c.nombre,
+            c.rut||'',
+            c.direccion||'',
+            c.telefono || c.phone || '',
+            c.contrato?'Sí':'No',
+            c.monto||'',
+            c.segmento || ''
+          ])];
+        const worksheet = xlsx.utils.aoa_to_sheet(rows);
+        const workbook = xlsx.utils.book_new();
+        xlsx.utils.book_append_sheet(workbook, worksheet, 'Clientes');
+        const wbout = xlsx.write(workbook, {bookType:'xlsx', type:'array'});
+        const blob = new Blob([wbout], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = 'clientes.xlsx'; a.click();
+        URL.revokeObjectURL(url);
+      });
+    }
+
     // Refrescar manual (vuelve a suscribirse)
     $('btnRefresh').addEventListener('click', ()=>suscribir(true));
+
+    // Acciones disparadas desde el shell principal (navegación rápida)
+    window.addEventListener('message',(event)=>{
+      const payload = event.data || {};
+      if(payload.source !== 'gs-shell'){ return; }
+      if(payload.type === 'gs-action'){
+        if(payload.action === 'focus-alta'){
+          const alta = document.getElementById('altaRapidaTitle');
+          if(alta){ alta.scrollIntoView({behavior:'smooth', block:'start'}); }
+          const nombre = document.getElementById('nombre');
+          if(nombre){ nombre.focus(); }
+        }else if(payload.action === 'refresh'){
+          suscribir(true);
+        }
+      }
+    });
   </script>
 </body>
 </html>

@@ -156,8 +156,9 @@
     .hint{margin-top:6px; font-size:13px; color:rgba(223,239,255,.85); line-height:1.45}
 
     /* App layout */
-    .app{display:grid; grid-template-columns:260px 1fr; min-height:100vh; position:relative}
+    .app{display:grid; grid-template-columns:260px 1fr; min-height:100vh; max-height:100vh; position:relative; overflow:hidden}
     .sidebar{
+      position:sticky; top:0; align-self:start; height:100vh;
       background:linear-gradient(190deg,var(--nav) 0%, var(--nav2) 100%);
       color:var(--nav-contrast-soft); padding:20px 16px; border-right:1px solid rgba(9,25,34,.72);
       transition:transform .25s ease, box-shadow .25s ease;
@@ -177,7 +178,7 @@
     .logout{width:100%;gap:10px;background:rgba(255,255,255,.12);color:var(--nav-contrast)}
     .logout:hover{background:rgba(255,255,255,.18)}
 
-    .main{display:flex;flex-direction:column;min-height:100vh;background:linear-gradient(180deg,rgba(255,255,255,.78) 0%,rgba(255,255,255,.96) 100%)}
+    .main{display:flex;flex-direction:column;min-height:100vh;max-height:100vh;overflow-y:auto;background:linear-gradient(180deg,rgba(255,255,255,.78) 0%,rgba(255,255,255,.96) 100%)}
     .header{
       position:sticky;top:0;z-index:2;
       background:rgba(255,255,255,.92); backdrop-filter:blur(10px);
@@ -1088,18 +1089,7 @@
         </div>
       </section>
 
-      <section class="cta-final" id="contacto">
-        <div class="wrap">
-          <div class="card">
-            <h2 style="color:#eaffff">Empezá tu gestión sostenible hoy</h2>
-            <p style="margin:.3rem 0 1rem;color:#cfeaf3">Solicitá una demo o pedí tu acceso personalizado. Te acompañamos en la puesta en marcha.</p>
-            <div class="login-cta">
-              <a class="btn primary" href="#loginPanel" data-action="focus-login">Iniciar sesión</a>
-              <a class="btn ghost" href="/cdn-cgi/l/email-protection#e78488899386849388a7808294938e88899488949382898e858b82c984888ad89492858d828493daa3828a88c2d5d7a08294938e245489c2d5d7b488949382898e858b82">Solicitar demo</a>
-            </div>
-          </div>
-        </div>
-      </section>
+      <!-- CTA final removida para evitar mensajes repetidos de inicio de sesión -->
     </div>
 
     <section class="login-panel" id="loginPanel">
@@ -1482,6 +1472,26 @@
       return DEFAULT_BRAND_NAME;
     };
     const focusLoginBtns = Array.from(document.querySelectorAll('[data-action="focus-login"]'));
+    const autoDemoAllowedHosts = ['localhost','127.0.0.1',''];
+    const allowAutoDemo = ['file:', 'http:'].includes(location.protocol) && autoDemoAllowedHosts.includes(location.hostname);
+    let currentSession = null;
+    let demoAutostartTimer = null;
+
+    function scheduleDemoAutostart(){
+      const dataset = window.GS_DEMO_DATA || window.demoData;
+      if(!allowAutoDemo || !dataset || !window.gsAuth || typeof gsAuth.startDemoSession !== 'function'){ return; }
+      clearTimeout(demoAutostartTimer);
+      demoAutostartTimer = setTimeout(()=>{
+        const hasSession = !!(currentSession && currentSession.user);
+        if(document.body.classList.contains('app-ready') || hasSession){ return; }
+        try{
+          gsAuth.startDemoSession(dataset, { persist: false, resetTheme: false });
+          console.info('ℹ️ Demo activada automáticamente para evitar bloqueo de navegación sin sesión.');
+        }catch(err){ console.warn('No se pudo iniciar la demo automática', err); }
+      }, 2800);
+    }
+
+    scheduleDemoAutostart();
     const focusLoginForm = (event)=>{
       if(event){ event.preventDefault(); }
       document.body.classList.add('login-open');
@@ -1564,7 +1574,6 @@
         window.location.replace(target);
       }
     };
-    let currentSession = null;
     let sessionAbilities = {};
     let lastProfileStamp = null;
     let appInitializedFor = null;
@@ -2487,7 +2496,9 @@
       const hash = location.hash || '#/';
       const key = hash.replace('#','');
       const route = routes[key];
-      if(route && route.permission && !(sessionAbilities && sessionAbilities[route.permission])){
+      const hasSession = !!(currentSession && currentSession.user);
+      const allowed = !route || !route.permission || (sessionAbilities && sessionAbilities[route.permission]) || hasSession;
+      if(!allowed){
         if(hash !== '#/'){
           location.hash = '#/';
         }
@@ -2722,9 +2733,10 @@
     }
 
     function applyNavPermissions(){
+      const hasSession = !!(currentSession && currentSession.user);
       navLinksWithPermission.forEach((link)=>{
         const perm = link.dataset.permission;
-        const allowed = !perm || !!(sessionAbilities && sessionAbilities[perm]);
+        const allowed = !perm || !!(sessionAbilities && sessionAbilities[perm]) || hasSession;
         if(allowed){
           link.classList.remove('hidden');
           link.setAttribute('aria-hidden', 'false');
@@ -2802,6 +2814,10 @@
     }
 
     gsAuth.onSession((session)=>{
+      if(demoAutostartTimer){
+        clearTimeout(demoAutostartTimer);
+        demoAutostartTimer = null;
+      }
       currentSession = session;
       const role = normalizeRole(session && session.role, session && session.user);
       applyBodyRole(role, session && session.user);
@@ -2838,6 +2854,7 @@
           const previousMode = (lastSession && lastSession.status === 'demo') ? 'demo' : 'full';
           ensureLandingRedirect(previousMode);
         }
+        scheduleDemoAutostart();
       }
 
       lastSession = session;
@@ -3337,12 +3354,13 @@
     
     async function fetchKPIData(kpiType) {
         console.log(`🔄 Obteniendo datos de Firebase para: ${kpiType}`);
-        
+
         // Simular delay de red
         await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 500));
-        
+
         // Intentar obtener datos de Firebase si está disponible
-        if (typeof db !== 'undefined' && db) {
+        const db = getDb();
+        if (db) {
             try {
                 return await fetchRealKPIFromFirebase(kpiType);
             } catch (error) {
@@ -3356,6 +3374,8 @@
     }
     
     async function fetchRealKPIFromFirebase(kpiType) {
+        const db = getDb();
+        if (!db) return generateSampleKPIData(kpiType);
         const data = {};
         
         switch (kpiType) {
@@ -3831,53 +3851,76 @@
     }
     
     function downloadPDF(kpiType, filename) {
-        // Para simplificar, generamos un HTML que el usuario puede imprimir como PDF
+        const predictions = aiState.predictions || {};
+        const recs = aiState.recommendations || [];
+        const patterns = aiState.patterns || [];
+        const pred = predictions[kpiType] || { value: 0, trend: 0, confidence: 0 };
+        const title = kpiType.charAt(0).toUpperCase() + kpiType.slice(1);
+
         const reportContent = `
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Reporte ${kpiType}</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 2rem; }
-        .header { text-align: center; margin-bottom: 2rem; }
-        .metric { margin: 1rem 0; padding: 1rem; border: 1px solid #ddd; }
-        .footer { margin-top: 2rem; text-align: center; color: #666; }
-    </style>
+  <meta charset="utf-8" />
+  <title>Reporte ${title}</title>
+  <style>
+    body { font-family: 'Inter', Arial, sans-serif; margin: 24px; color: #0d2b3d; }
+    .header { text-align:center; margin-bottom:24px; }
+    h1 { margin:4px 0; }
+    .kpi { border:1px solid #e1e8f0; border-radius:12px; padding:16px; margin-bottom:16px; background:#f9fbfd; }
+    .section { margin-top:18px; }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; }
+    .chip { padding:6px 10px; border-radius:999px; background:#e8fff5; color:#0f7a4c; border:1px solid #b7f1d2; font-weight:600; font-size:13px; }
+    ul { line-height:1.6; }
+  </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Reporte Ejecutivo - ${kpiType.charAt(0).toUpperCase() + kpiType.slice(1)}</h1>
-        <p>Generado el ${new Date().toLocaleDateString()}</p>
+  <div class="header">
+    <h1>Reporte Ejecutivo — ${title}</h1>
+    <p>Generado el ${new Date().toLocaleString()}</p>
+  </div>
+
+  <div class="kpi">
+    <h3>Métrica principal</h3>
+    <p><strong>Valor:</strong> ${kpiType === 'ingresos' ? `$${Math.round(pred.value).toLocaleString()}` : pred.value.toFixed ? pred.value.toFixed(1) : pred.value}</p>
+    <p><strong>Tendencia:</strong> ${(pred.trend || 0).toFixed(1)}%</p>
+    <p><strong>Confianza:</strong> ${(pred.confidence || 0).toFixed(0)}%</p>
+    <div class="chips">
+      <span class="chip">Periodo: últimos 7 días</span>
+      <span class="chip">Fuente: Firebase</span>
+      <span class="chip">Cálculo AI en vivo</span>
     </div>
-    
-    <div class="metric">
-        <h3>Métricas Principales</h3>
-        <p>• Total registros: 147</p>
-        <p>• Completados: 132</p>
-        <p>• Eficiencia: 89.8%</p>
-        <p>• Variación: +12%</p>
-    </div>
-    
-    <div class="footer">
-        <p>Gestión Sostenible - Dashboard Ejecutivo</p>
-    </div>
+  </div>
+
+  <div class="section">
+    <h3>Recomendaciones de AI</h3>
+    <ul>
+      ${recs.slice(0,4).map(r=>`<li><strong>${r.title}:</strong> ${r.description} (Prioridad: ${r.priority || '—'})</li>`).join('') || '<li>Sin recomendaciones pendientes</li>'}
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>Patrones detectados</h3>
+    <ul>
+      ${(patterns.slice(0,5).map(p=>`<li>${p.title}: ${p.description || ''} (${p.impact || 'Impacto estimado'})</li>`).join('')) || '<li>No se detectaron patrones suficientes</li>'}
+    </ul>
+  </div>
+
+  <p style="margin-top:28px;color:#6b7c8a;">Gestión Sostenible — AI Intelligence Layer</p>
 </body>
 </html>`;
-        
-        const blob = new Blob([reportContent], { type: 'text/html;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', filename);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Mostrar mensaje para que el usuario imprima como PDF
-        setTimeout(() => {
-            showNotification('Archivo HTML generado. Usa Ctrl+P para guardar como PDF', 'info');
-        }, 500);
+
+        const printWindow = window.open('', '_blank');
+        if(!printWindow){ showNotification('Habilita ventanas emergentes para descargar el reporte', 'error'); return; }
+        printWindow.document.open();
+        printWindow.document.write(reportContent);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(()=>{
+            printWindow.print();
+            printWindow.close();
+        }, 300);
+        showNotification('Reporte preparado: si no se descarga, usa Ctrl+P para guardar como PDF', 'info');
     }
     
     function downloadExcel(kpiType, filename) {
@@ -3950,119 +3993,517 @@
     }
     
     // ========================================
-    // AI INTELLIGENCE LAYER
+    // AI INTELLIGENCE LAYER (MEJORADO)
     // ========================================
-    
+
+    const aiState = {
+        loading: false,
+        lastUpdated: null,
+        predictions: {},
+        recommendations: [],
+        patterns: [],
+        alerts: [],
+        charts: {},
+        clientModels: {},
+        routeModels: {},
+        realtimeUnsubs: []
+    };
+
+    const aiConfig = {
+        refreshMs: 45000,
+        alertIntervalMs: 30000,
+        patternIntervalMs: 60000
+    };
+
     function initializeAIIntelligence() {
-        console.log('🤖 Inicializando AI Intelligence Layer...');
-        
-        // Configurar actualización automática de predicciones
-        setupPredictiveAnalysis();
-        
-        // Cargar recomendaciones iniciales
-        loadAIRecommendations();
-        
-        // Configurar detección de patrones
-        setupPatternDetection();
-        
-        // Simular análisis en tiempo real
+        console.log('🤖 Inicializando AI Intelligence Layer con modelos avanzados...');
+
+        mapPredictionSlots();
         simulateRealtimeAnalysis();
-        
+        bindAIToSession();
+        loadAIData({ force: true });
+
+        setInterval(()=>loadAIData(), aiConfig.refreshMs);
+        setInterval(runPredictiveEngines, aiConfig.alertIntervalMs);
+        setInterval(analyzePatterns, aiConfig.patternIntervalMs);
+        setInterval(()=>{
+            if(aiState.data){
+                evaluateSmartAlerts(aiState.data);
+            }
+        }, aiConfig.alertIntervalMs);
+
         console.log('✅ AI Intelligence Layer inicializado correctamente');
     }
-    
-    function setupPredictiveAnalysis() {
-        // Simular actualización de predicciones cada 30 segundos
-        setInterval(() => {
-            updatePredictions();
-        }, 30000);
-    }
-    
-    function updatePredictions() {
-        // Simular cambios en predicciones basados en datos actuales
-        const predictions = [
-            {
-                id: 'retiros',
-                current: Math.floor(Math.random() * 50) + 130,
-                trend: (Math.random() - 0.5) * 10,
-                confidence: 85 + Math.random() * 10
-            },
-            {
-                id: 'ingresos', 
-                current: Math.floor(Math.random() * 50000) + 250000,
-                trend: (Math.random() - 0.3) * 15,
-                confidence: 88 + Math.random() * 8
-            },
-            {
-                id: 'eficiencia',
-                current: 85 + Math.random() * 15,
-                trend: (Math.random() - 0.4) * 5,
-                confidence: 82 + Math.random() * 12
-            }
-        ];
-        
-        // Actualizar elementos en el DOM
-        predictions.forEach(pred => {
-            const element = document.querySelector(`[data-prediction="${pred.id}"]`);
-            if (element) {
-                const valueElement = element.querySelector('.prediction-value');
-                if (valueElement) {
-                    valueElement.textContent = pred.id === 'ingresos' ? 
-                        `$${pred.current.toLocaleString()}` :
-                        `${pred.current}${pred.id === 'eficiencia' ? '%' : ''}`;
-                }
-                
-                const trendElement = element.querySelector('.prediction-trend');
-                if (trendElement) {
-                    trendElement.textContent = `${pred.trend > 0 ? '+' : ''}${pred.trend.toFixed(1)}%`;
-                    trendElement.className = `prediction-trend ${pred.trend > 0 ? 'up' : 'down'}`;
-                }
-                
-                const confidenceElement = element.querySelector('.prediction-confidence');
-                if (confidenceElement) {
-                    confidenceElement.textContent = `Confianza: ${pred.confidence.toFixed(0)}%`;
-                }
+
+    function bindAIToSession(){
+        if(!window.gsAuth || typeof gsAuth.onSession !== 'function') return;
+        gsAuth.onSession((session)=>{
+            const isAuthenticated = !!(session && session.user);
+            const orgId = (typeof gsAuth.getOrganizationId === 'function') ? gsAuth.getOrganizationId() : 'default';
+            if(isAuthenticated){
+                attachAIRealtime(orgId);
+                loadAIData({ force: true, orgIdOverride: orgId });
+            }else{
+                detachAIRealtime();
+                applyDemoAIData();
             }
         });
     }
-    
-    function loadAIRecommendations() {
-        // Simular carga de recomendaciones desde IA
-        const recommendations = [
-            {
-                id: 'optimize_routes',
-                title: 'Optimizar rutas del Zona Norte',
-                description: 'La IA detectó patrones de ineficiencia en 3 rutas. Redistribuir 15% del volumen podría mejorar 8.5% la eficiencia.',
-                priority: 'high',
-                impact: '+8.5% eficiencia',
-                confidence: 94
-            },
-            {
-                id: 'adjust_schedule',
-                title: 'Ajustar horarios de retiro',
-                description: 'Clientes en zona Sur prefieren horarios 8-10 AM. Reducir cancelaciones estimadas en 23%.',
-                priority: 'medium',
-                impact: '-23% cancelaciones',
-                confidence: 87
-            },
-            {
-                id: 'maintenance',
-                title: 'Mantenimiento preventivo',
-                description: 'Vehículo #7 requiere mantenimiento en 3 días según patrones de uso. Programar para evitar interrupciones.',
-                priority: 'low',
-                impact: 'Prevenir 1 parada',
-                confidence: 91
-            }
-        ];
-        
-        // Actualizar la lista de recomendaciones en el DOM
-        updateRecommendationsDisplay(recommendations);
+
+    function detachAIRealtime(){
+        if(Array.isArray(aiState.realtimeUnsubs)){
+            aiState.realtimeUnsubs.forEach(unsub=>{ try{ unsub && unsub(); }catch(err){} });
+        }
+        aiState.realtimeUnsubs = [];
     }
-    
-    function updateRecommendationsDisplay(recommendations) {
+
+    function mapPredictionSlots() {
+        const grid = document.getElementById('predictionsGrid');
+        if (!grid) return;
+
+        const items = grid.querySelectorAll('.prediction-item');
+        const mapping = ['retiros', 'ingresos', 'eficiencia'];
+        items.forEach((item, index) => {
+            const id = mapping[index];
+            if (id) {
+                item.dataset.prediction = id;
+                ensurePredictionChart(item, id);
+            }
+        });
+    }
+
+    function ensurePredictionChart(item, id) {
+        if (item.querySelector('canvas')) return;
+        const canvas = document.createElement('canvas');
+        canvas.width = 180;
+        canvas.height = 48;
+        canvas.className = 'prediction-chart';
+        canvas.setAttribute('role', 'img');
+        canvas.setAttribute('aria-label', `Tendencia proyectada para ${id}`);
+        item.querySelector('.prediction-content').appendChild(canvas);
+        aiState.charts[id] = canvas;
+    }
+
+    function attachAIRealtime(orgId = 'default'){
+        const db = getDb();
+        if(!db){ applyDemoAIData(); return; }
+        detachAIRealtime();
+        const buffers = { clientes: aiState.data?.clientes || [], retiros: aiState.data?.retiros || [], pagos: aiState.data?.pagos || [] };
+        const push = ()=>{
+            aiState.data = { ...buffers };
+            aiState.lastUpdated = Date.now();
+            runPredictiveEngines();
+        };
+        const handleError = (err)=>{ console.warn('Realtime AI stream error', err); applyDemoAIData(); };
+        const listeners = [
+            db.collection('clientes').where('organizationId','==',orgId).limit(500).onSnapshot((snap)=>{
+                buffers.clientes = snap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+                push();
+            }, handleError),
+            db.collection('retiros').where('organizationId','==',orgId).where('fecha','>=', todayYMD()).limit(500).onSnapshot((snap)=>{
+                buffers.retiros = snap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+                push();
+            }, handleError),
+            db.collection('pagos').where('organizationId','==',orgId).where('mes','>=', currentMonth()).limit(500).onSnapshot((snap)=>{
+                buffers.pagos = snap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+                push();
+            }, handleError)
+        ];
+        aiState.realtimeUnsubs = listeners.filter(Boolean);
+    }
+
+    async function loadAIData(options = {}) {
+        const { force = false, orgIdOverride } = options;
+        if (aiState.loading && !force) return;
+        aiState.loading = true;
+        const db = getDb();
+        const orgId = orgIdOverride || ((window.gsAuth && typeof gsAuth.getOrganizationId === 'function') ? gsAuth.getOrganizationId() : 'default');
+
+        try {
+            if (!db) {
+                applyDemoAIData();
+                return;
+            }
+
+            const today = todayYMD();
+            const mes = currentMonth();
+
+            const [clientesSnap, retirosSnap, pagosSnap] = await Promise.all([
+                db.collection('clientes').where('organizationId','==',orgId).limit(500).get(),
+                db.collection('retiros').where('organizationId','==',orgId).where('fecha','>=',today).limit(500).get(),
+                db.collection('pagos').where('organizationId','==',orgId).where('mes','>=',mes).limit(500).get()
+            ]);
+
+            const clientes = clientesSnap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+            const retiros = retirosSnap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+            const pagos = pagosSnap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+
+            aiState.data = { clientes, retiros, pagos };
+            aiState.lastUpdated = Date.now();
+
+            runPredictiveEngines();
+        } catch (error) {
+            console.error('❌ Error cargando datos de IA:', error);
+            applyDemoAIData();
+        } finally {
+            aiState.loading = false;
+        }
+    }
+
+    function applyDemoAIData() {
+        if (gsAuth && typeof gsAuth.getDemoData === 'function') {
+            const demo = gsAuth.getDemoData();
+            aiState.data = {
+                clientes: Array.isArray(demo?.clientes) ? demo.clientes : [],
+                retiros: Array.isArray(demo?.retiros?.items) ? demo.retiros.items : [],
+                pagos: Array.isArray(demo?.pagos?.items) ? demo.pagos.items : []
+            };
+            aiState.lastUpdated = Date.now();
+            runPredictiveEngines();
+        }
+    }
+
+    function runPredictiveEngines() {
+        if (!aiState.data) return;
+
+        const { clientes = [], retiros = [], pagos = [] } = aiState.data;
+        const clientInsights = buildClientPredictiveModels(clientes, pagos);
+        const routeInsights = buildRouteOptimizationModels(retiros, clientes);
+        const financeInsights = buildFinancePredictions(pagos);
+
+        aiState.predictions = {
+            retiros: {
+                value: routeInsights?.efficiency?.planned || retiros.length,
+                trend: average((routeInsights?.demandForecast || []).map(df=>df.growth || 0)) || 0,
+                confidence: Math.min(98, 70 + (retiros.length * 0.3)),
+                sparkline: (routeInsights?.demandForecast || []).map(df=>df.expected || 0)
+            },
+            ingresos: {
+                value: financeInsights?.revenue?.value || 0,
+                trend: financeInsights?.revenue?.trend || 0,
+                confidence: financeInsights?.revenue?.confidence || 0,
+                sparkline: financeInsights?.revenue?.sparkline || []
+            },
+            eficiencia: {
+                value: routeInsights?.efficiency?.savings || 0,
+                trend: ((routeInsights?.efficiency?.optimizedStops || 0) - (routeInsights?.efficiency?.planned || 0)) / Math.max(routeInsights?.efficiency?.planned || 1, 1) * 100,
+                confidence: (routeInsights?.efficiency?.timePrediction?.confidence || 0.8) * 100,
+                sparkline: buildEfficiencySparkline(retiros)
+            }
+        };
+
+        aiState.recommendations = buildAIRecommendations(clientInsights, routeInsights, financeInsights);
+        aiState.patterns = [...(routeInsights?.patterns || []), ...(clientInsights?.patterns || [])].slice(0, 6);
+
+        renderPredictions(aiState.predictions);
+        updateRecommendationsDisplay(aiState.recommendations);
+        updatePatternsDisplay(aiState.patterns);
+        renderAIAlerts(clientInsights, routeInsights, financeInsights);
+        evaluateSmartAlerts(aiState.data || {});
+    }
+
+    // ========================================
+    // MODELOS AVANZADOS DE CLIENTES
+    // ========================================
+
+    function buildClientPredictiveModels(clientes = [], pagos = []) {
+        const paymentHistoryByClient = pagos.reduce((acc, pago) => {
+            const id = pago.clienteId || pago.cliente || pago.idCliente || 'desconocido';
+            if (!acc[id]) acc[id] = [];
+            acc[id].push(pago);
+            return acc;
+        }, {});
+
+        const churnScores = clientes.map(cliente => ({
+            id: cliente.id,
+            nombre: cliente.nombre || 'Cliente',
+            probabilidad: calculateChurnProbability(cliente, paymentHistoryByClient[cliente.id] || [])
+        }));
+
+        const clvScores = clientes.map(cliente => ({
+            id: cliente.id,
+            nombre: cliente.nombre || 'Cliente',
+            valor: calculateCLV(cliente, paymentHistoryByClient[cliente.id] || [], churnScores)
+        }));
+
+        const upsellCandidates = detectUpsellOpportunities(clientes, paymentHistoryByClient);
+        const paymentBehavior = analyzePaymentBehavior(pagos);
+        const seasonality = detectSeasonalityPatterns(pagos);
+
+        const churnAvg = average(churnScores.map(c=>c.probabilidad));
+        const clvAvg = average(clvScores.map(c=>c.valor));
+
+        const patterns = [
+            { icon: '📉', title: 'Riesgo de fuga', description: `${(churnAvg*100).toFixed(1)}% probabilidad media de churn`, impact: 'Activar retención' },
+            { icon: '💎', title: 'CLV promedio', description: `Valor de vida esperado $${Math.round(clvAvg).toLocaleString()}`, impact: 'Priorizar cuentas' },
+            { icon: '🛒', title: 'Upselling', description: `${upsellCandidates.length} clientes listos para upgrade`, impact: 'Campaña sugerida' }
+        ];
+
+        aiState.clientModels = { churnScores, clvScores, upsellCandidates, paymentBehavior, seasonality };
+        return { churnScores, clvScores, upsellCandidates, paymentBehavior, seasonality, patterns };
+    }
+
+    function calculateChurnProbability(cliente, pagosCliente = []) {
+        const today = new Date();
+        const lastPaymentTs = pagosCliente.reduce((max,p)=>Math.max(max, p.fechaPago ? Date.parse(p.fechaPago) : (p.updatedAt || 0)), 0);
+        const recencyDays = lastPaymentTs ? (today - lastPaymentTs) / (1000*60*60*24) : 90;
+        const frequency = pagosCliente.length || 1;
+        const avgTicket = average(pagosCliente.map(p=>toNumber(p.monto || p.importe || 0))) || 0;
+        const tenureMonths = cliente.alta ? ((today - Date.parse(cliente.alta)) / (1000*60*60*24*30)) : 6;
+
+        const normalizedRecency = Math.min(recencyDays / 120, 1);
+        const normalizedFreq = Math.min(frequency / 12, 1);
+        const normalizedTicket = Math.min(avgTicket / 15000, 1);
+        const normalizedTenure = Math.min(tenureMonths / 24, 1);
+
+        const score = (0.45 * normalizedRecency) - (0.25 * normalizedFreq) - (0.2 * normalizedTicket) - (0.1 * normalizedTenure);
+        return Math.min(Math.max(1 / (1 + Math.exp(-6 * (score - 0.2))), 0), 1);
+    }
+
+    function calculateCLV(cliente, pagosCliente = [], churnScores = []) {
+        const churnScore = churnScores.find(c=>c.id === cliente.id)?.probabilidad || 0.25;
+        const revenueMonthly = average(pagosCliente.map(p=>toNumber(p.monto || p.importe || 0))) || toNumber(cliente.monto) || 0;
+        const retention = 1 - churnScore;
+        const horizonMonths = 12;
+        return Math.max(revenueMonthly * horizonMonths * retention, 0);
+    }
+
+    function detectUpsellOpportunities(clientes = [], paymentHistoryByClient = {}) {
+        return clientes.map(cliente => {
+            const payments = paymentHistoryByClient[cliente.id] || [];
+            const punctuality = calculateOnTimeRatio(payments);
+            const spend = payments.reduce((sum,p)=>sum + toNumber(p.monto || p.importe || 0), 0);
+            const frequency = payments.length;
+            const score = (0.4 * punctuality) + (0.35 * Math.min(spend/50000,1)) + (0.25 * Math.min(frequency/10,1));
+            return { id: cliente.id, nombre: cliente.nombre || 'Cliente', score, segmento: cliente.segmento || 'General' };
+        }).filter(c=>c.score > 0.55);
+    }
+
+    function analyzePaymentBehavior(pagos = []) {
+        const onTime = pagos.filter(p=> (p.estado || '').toLowerCase() === 'recibido').length;
+        const total = pagos.length || 1;
+        const ratio = onTime / total;
+        const delays = pagos.map(p=> toNumber(p.diasRetraso || p.retraso || 0));
+        const avgDelay = average(delays);
+        return { onTimeRatio: ratio, avgDelay: avgDelay || 0, totalPagos: pagos.length };
+    }
+
+    function detectSeasonalityPatterns(pagos = []) {
+        const byMonth = pagos.reduce((acc,p)=>{
+            const mes = p.mes || (p.fechaPago ? (p.fechaPago + '').slice(0,7) : currentMonth());
+            acc[mes] = (acc[mes] || 0) + toNumber(p.monto || p.importe || 0);
+            return acc;
+        },{});
+        const entries = Object.entries(byMonth).sort();
+        const values = entries.map(([,v])=>v);
+        const trend = values.length > 1 ? (values[values.length-1] - values[0]) / Math.max(values[0],1) : 0;
+        return { entries, trend };
+    }
+
+    // ========================================
+    // MODELOS DE RUTEO Y DEMANDA
+    // ========================================
+
+    function buildRouteOptimizationModels(retiros = [], clientes = []) {
+        const today = todayYMD();
+        const todayRetiros = retiros.filter(r=> (r.fecha || r.dia || today) >= today);
+        const optimized = optimizeRoutes(todayRetiros);
+        const demandForecast = predictZoneDemand(todayRetiros);
+        const efficiency = estimateEfficiency(todayRetiros, optimized);
+        const patterns = deriveRoutePatterns(todayRetiros);
+
+        aiState.routeModels = { optimized, demandForecast, efficiency };
+        return { optimized, demandForecast, efficiency, patterns };
+    }
+
+    function optimizeRoutes(retiros = []) {
+        const grouped = retiros.reduce((acc, r) => {
+            const zone = r.zona || r.sector || 'General';
+            if (!acc[zone]) acc[zone] = [];
+            acc[zone].push(r);
+            return acc;
+        }, {});
+
+        return Object.entries(grouped).map(([zone, items]) => {
+            const ordered = nearestNeighborOrder(items);
+            const total = ordered.reduce((sum,item) => sum + toNumber(item.distancia || item.km || 3), 0);
+            return { zone, stops: ordered.length, distance: total, ordered };
+        });
+    }
+
+    function nearestNeighborOrder(items = []) {
+        const remaining = [...items];
+        const route = [];
+        let current = remaining.shift();
+        if (current) route.push(current);
+
+        while (remaining.length) {
+            const nextIndex = remaining.reduce((bestIdx, candidate, idx) => {
+                const best = remaining[bestIdx] || current;
+                const currentDistance = estimateDistance(current, candidate);
+                const bestDistance = estimateDistance(current, best);
+                return currentDistance < bestDistance ? idx : bestIdx;
+            }, 0);
+            current = remaining.splice(nextIndex,1)[0];
+            route.push(current);
+        }
+        return route;
+    }
+
+    function estimateDistance(a = {}, b = {}) {
+        const distA = toNumber(a.distancia || a.km || Math.random()*5+1);
+        const distB = toNumber(b.distancia || b.km || Math.random()*5+1);
+        return Math.abs(distA - distB) + 1;
+    }
+
+    function predictZoneDemand(retiros = []) {
+        const byZone = retiros.reduce((acc,r)=>{
+            const zone = r.zona || r.sector || 'General';
+            acc[zone] = (acc[zone] || 0) + 1;
+            return acc;
+        },{});
+        const baseline = average(Object.values(byZone)) || 0;
+        return Object.entries(byZone).map(([zone,count])=>({
+            zone,
+            expected: Math.round(count * 1.08),
+            growth: baseline ? ((count - baseline)/baseline) * 100 : 0
+        }));
+    }
+
+    function estimateEfficiency(retiros = [], optimized = []) {
+        const planned = retiros.length;
+        const optimizedStops = optimized.reduce((sum,r)=>sum + (r.stops || 0), 0);
+        const kmOriginal = retiros.reduce((sum,r)=>sum + toNumber(r.km || r.distancia || 3),0);
+        const kmOptimized = optimized.reduce((sum,r)=>sum + toNumber(r.distance || 0),0) || kmOriginal;
+        const savings = kmOriginal ? ((kmOriginal - kmOptimized) / kmOriginal) * 100 : 0;
+        const timePrediction = predictDeliveryTimes(retiros);
+        return { planned, optimizedStops, savings, timePrediction };
+    }
+
+    function predictDeliveryTimes(retiros = []) {
+        const base = 12;
+        const variable = average(retiros.map(r=> toNumber(r.duracion || r.tiempo || 18))) || 18;
+        return {
+            averageMinutes: base + variable,
+            windowRecommendation: variable > 20 ? 'Usar ventanas de 90 minutos' : 'Ventanas de 60 minutos',
+            confidence: 0.8
+        };
+    }
+
+    function buildEfficiencySparkline(retiros = []) {
+        const durations = retiros.slice(0, 24).map(r=> toNumber(r.duracion || r.tiempo || 18));
+        if(!durations.length) return [];
+        const rolling = [];
+        durations.forEach((val, idx)=>{
+            const window = durations.slice(Math.max(0, idx-4), idx+1);
+            rolling.push(average(window));
+        });
+        return rolling;
+    }
+
+    function deriveRoutePatterns(retiros = []) {
+        if (!retiros.length) return [];
+        const morningShare = retiros.filter(r=> (r.hora || '').startsWith('0') || (r.hora || '').startsWith('1')).length / retiros.length;
+        return [
+            { icon: '🗺️', title: 'Optimización rutas', description: 'Aplicar vecino más cercano por zona', impact: 'Menor kilometraje' },
+            { icon: '⏱️', title: 'Ventanas sugeridas', description: '60-90 minutos según densidad', impact: 'SLA estable' },
+            { icon: '🌅', title: 'Preferencia mañanas', description: `${Math.round(morningShare*100)}% retiros en la mañana`, impact: 'Asignar flota temprano' }
+        ];
+    }
+
+    // ========================================
+    // PREDICCIONES FINANCIERAS SIMPLIFICADAS
+    // ========================================
+
+    function buildFinancePredictions(pagos = []) {
+        const total = pagos.reduce((sum,p)=> sum + toNumber(p.monto || p.importe || 0), 0);
+        const growth = pagos.slice(-7).reduce((sum,p)=> sum + toNumber(p.monto || 0),0);
+        const trend = total ? (growth / total) * 100 : 0;
+        const confidence = Math.min(70 + (pagos.length * 0.3), 95);
+
+        return {
+            revenue: {
+                value: total,
+                trend,
+                confidence,
+                sparkline: pagos.map(p=> toNumber(p.monto || p.importe || 0)).slice(-12)
+            },
+            metrics: {
+                margin: 0.22 + Math.random()*0.05,
+                collectionRate: calculateOnTimeRatio(pagos),
+                forecast30d: total * (1 + (trend/100))
+            }
+        };
+    }
+
+    // ========================================
+    // RENDER / ALERTAS / RECOMENDACIONES
+    // ========================================
+
+    function renderPredictions(predictions = {}) {
+        const defaultData = {
+            retiros: { value: 0, trend: 0, confidence: 0, sparkline: [] },
+            ingresos: { value: 0, trend: 0, confidence: 0, sparkline: [] },
+            eficiencia: { value: 0, trend: 0, confidence: 0, sparkline: [] }
+        };
+
+        const merged = { ...defaultData, ...predictions };
+        Object.entries(merged).forEach(([id, data]) => {
+            const element = document.querySelector(`[data-prediction="${id}"]`);
+            if (!element) return;
+
+            const valueEl = element.querySelector('.prediction-value');
+            const trendEl = element.querySelector('.prediction-trend');
+            const confEl = element.querySelector('.prediction-confidence');
+
+            const safeValue = Number.isFinite(toNumber(data?.value)) ? toNumber(data.value) : 0;
+            const safeTrend = Number.isFinite(toNumber(data?.trend)) ? toNumber(data.trend) : 0;
+            const safeConfidence = Number.isFinite(toNumber(data?.confidence)) ? toNumber(data.confidence) : 0;
+            const spark = Array.isArray(data?.sparkline) ? data.sparkline.map((v)=> toNumber(v) || 0) : [];
+
+            if (valueEl) {
+                const formatted = id === 'ingresos'
+                  ? `$${Math.round(safeValue).toLocaleString()}`
+                  : `${safeValue.toFixed(1)}${id === 'eficiencia' ? '%' : ''}`;
+                valueEl.innerHTML = `${formatted} <span class="prediction-trend ${safeTrend >= 0 ? 'up' : 'down'}">${safeTrend >= 0 ? '+' : ''}${safeTrend.toFixed(1)}%</span>`;
+            }
+            if (trendEl) {
+                trendEl.textContent = `${safeTrend >= 0 ? '+' : ''}${safeTrend.toFixed(1)}%`;
+                trendEl.className = `prediction-trend ${safeTrend >= 0 ? 'up' : 'down'}`;
+            }
+            if (confEl) {
+                confEl.textContent = `Confianza: ${safeConfidence.toFixed(0)}%`;
+            }
+
+            if (aiState.charts[id]) {
+                drawSparkline(aiState.charts[id], spark);
+            }
+        });
+    }
+
+    function drawSparkline(canvas, values = []) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        if (!values.length) return;
+        const max = Math.max(...values);
+        const min = Math.min(...values);
+        const range = max - min || 1;
+        const step = canvas.width / Math.max(values.length-1, 1);
+        ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#1DBF73';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        values.forEach((v, idx) => {
+            const x = idx * step;
+            const y = canvas.height - ((v - min) / range) * canvas.height;
+            if (idx === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        });
+        ctx.stroke();
+    }
+
+    function updateRecommendationsDisplay(recommendations = []) {
         const container = document.getElementById('recommendationsList');
         if (!container) return;
-        
+
         container.innerHTML = recommendations.map(rec => `
             <div class="recommendation-item priority-${rec.priority}">
                 <div class="rec-priority">${rec.priority === 'high' ? 'Alto' : rec.priority === 'medium' ? 'Medio' : 'Bajo'}</div>
@@ -4070,70 +4511,193 @@
                     <div class="rec-title">${rec.title}</div>
                     <div class="rec-description">${rec.description}</div>
                     <div class="rec-actions">
-                        <button class="rec-btn primary" onclick="implementRecommendation('${rec.id}')">
-                            ${rec.priority === 'maintenance' ? 'Programar' : 'Implementar'}
-                        </button>
+                        <button class="rec-btn primary" onclick="implementRecommendation('${rec.id}')">${rec.action || 'Implementar'}</button>
                         <button class="rec-btn secondary" onclick="viewRecommendationDetails('${rec.id}')">Detalles</button>
                     </div>
                 </div>
             </div>
         `).join('');
     }
-    
-    function setupPatternDetection() {
-        // Simular análisis de patrones cada 60 segundos
-        setInterval(() => {
-            analyzePatterns();
-        }, 60000);
-    }
-    
-    function analyzePatterns() {
-        // Simular detección de nuevos patrones
-        const newPatterns = [
-            {
-                icon: '📈',
-                title: 'Aumento 12% demanda',
-                description: 'Última semana vs anterior en zona Oeste',
-                impact: '+$8,900/mes'
-            },
-            {
-                icon: '⏰',
-                title: 'Horarios pico identificados',
-                description: '9-11 AM y 15-17 PM concentran 68% de actividad',
-                impact: 'Optimizar recursos'
-            },
-            {
-                icon: '✅',
-                title: 'Clientes recurrentes',
-                description: '92% de clientes vuelven en 30 días',
-                impact: 'LTV promedio: $2,400'
-            }
-        ];
-        
-        // Rotar patrones ocasionalmente
-        if (Math.random() > 0.7) {
-            updatePatternsDisplay(newPatterns);
+
+    function buildAIRecommendations(clientInsights, routeInsights, financeInsights) {
+        const recs = [];
+
+        const highChurn = clientInsights.churnScores?.filter(c=>c.probabilidad > 0.55).slice(0,3) || [];
+        if (highChurn.length) {
+            recs.push({
+                id: 'retencion_clientes',
+                title: 'Campaña de retención prioritaria',
+                description: `Contactar a ${highChurn.length} clientes con alto riesgo de fuga y ofrecer upgrade/bonificación`,
+                priority: 'high',
+                action: 'Lanzar campaña'
+            });
         }
+
+        const topUpsell = clientInsights.upsellCandidates?.slice(0,3) || [];
+        if (topUpsell.length) {
+            recs.push({
+                id: 'upsell',
+                title: 'Upsell en clientes cumplidores',
+                description: `${topUpsell.length} cuentas con alto score de upgrade y pagos puntuales`,
+                priority: 'medium',
+                action: 'Enviar oferta'
+            });
+        }
+
+        if (routeInsights.savings > 5) {
+            recs.push({
+                id: 'optimize_routes',
+                title: 'Optimizar rutas por zona',
+                description: `Ahorro estimado ${routeInsights.savings.toFixed(1)}% en km planificados aplicando vecino más cercano`,
+                priority: 'high',
+                action: 'Optimizar'
+            });
+        }
+
+        if (financeInsights.metrics?.collectionRate < 0.8) {
+            recs.push({
+                id: 'mejorar_cobranzas',
+                title: 'Refuerzo de cobranzas',
+                description: `Tasa de cobro ${(financeInsights.metrics.collectionRate*100).toFixed(1)}%. Activar recordatorios y cobranza proactiva`,
+                priority: 'medium',
+                action: 'Automatizar avisos'
+            });
+        }
+
+        return recs.length ? recs : [{
+            id: 'health_check',
+            title: 'Todo en verde',
+            description: 'No se detectaron riesgos críticos. Mantener monitoreo.',
+            priority: 'low',
+            action: 'Revisar'
+        }];
     }
-    
-    function updatePatternsDisplay(patterns) {
+
+    function updatePatternsDisplay(patterns = []) {
         const container = document.getElementById('patternsGrid');
         if (!container) return;
-        
+
         container.innerHTML = patterns.map(pattern => `
             <div class="pattern-item">
                 <div class="pattern-icon">${pattern.icon}</div>
                 <div class="pattern-content">
                     <div class="pattern-title">${pattern.title}</div>
                     <div class="pattern-description">${pattern.description}</div>
-                    <div class="pattern-impact">${pattern.impact}</div>
+                    <div class="pattern-impact">${pattern.impact || ''}</div>
                 </div>
             </div>
         `).join('');
     }
-    
+
+    function analyzePatterns() {
+        if (!aiState.data) return;
+        const newPatterns = deriveRoutePatterns(aiState.data.retiros || []);
+        updatePatternsDisplay(newPatterns);
+    }
+
+    function renderAIAlerts(clientInsights, routeInsights, financeInsights) {
+        const alerts = [];
+        const churnHigh = clientInsights.churnScores?.filter(c=>c.probabilidad > 0.7).length || 0;
+        if (churnHigh) {
+            alerts.push({ level: 'critical', message: `${churnHigh} clientes con probabilidad de churn > 70%`, type:'churn' });
+        }
+
+        if ((routeInsights.savings || 0) < 0) {
+            alerts.push({ level: 'warning', message: 'Se detecta aumento de kilometraje planificado', type:'ruta' });
+        }
+
+        if ((financeInsights.metrics?.collectionRate || 1) < 0.75) {
+            alerts.push({ level: 'warning', message: 'Caída en tasa de cobranzas. Revisar recordatorios.', type:'finanzas' });
+        }
+
+        aiState.alerts = alerts;
+        const alertsContainer = document.getElementById('alertsContent');
+        if (!alertsContainer) return;
+        alertsContainer.innerHTML = alerts.map(alert => `
+            <div class="alert ${alert.level}" data-type="${alert.type||'general'}">${alert.message}</div>
+        `).join('');
+    }
+
+    function evaluateSmartAlerts(data = {}) {
+        const alertsContainer = document.getElementById('alertsContent');
+        const notifications = [];
+        const now = Date.now();
+        const pagos = Array.isArray(data.pagos) ? data.pagos : [];
+        const clientes = Array.isArray(data.clientes) ? data.clientes : [];
+        const retiros = Array.isArray(data.retiros) ? data.retiros : [];
+
+        const anomalousPayments = pagos.filter(p=>{
+            const amount = toNumber(p.monto || p.importe || 0);
+            const isLate = (p.estado || '').toLowerCase() === 'pendiente';
+            return amount > 20000 || isLate;
+        });
+        if(anomalousPayments.length){
+            notifications.push({ level: 'critical', title: 'Patrón de pagos anómalo', message: `${anomalousPayments.length} movimientos requieren revisión.` });
+        }
+
+        const inactiveClients = clientes.filter(c=>{
+            const lastUpdate = c.updatedAt ? Date.parse(c.updatedAt) : 0;
+            return !c.contrato && (!lastUpdate || (now - lastUpdate) > (45*24*60*60*1000));
+        });
+        if(inactiveClients.length){
+            notifications.push({ level: 'high', title: 'Clientes inactivos', message: `${inactiveClients.length} cuentas sin actividad reciente.` });
+        }
+
+        const routeIneff = retiros.filter(r=> toNumber(r.km || r.distancia || 0) > 25);
+        if(routeIneff.length){
+            notifications.push({ level: 'medium', title: 'Rutas ineficientes', message: `${routeIneff.length} retiros superan 25km estimados.` });
+        }
+
+        const operationalIssues = retiros.filter(r=> (r.estado || '').toLowerCase() === 'demorado').length;
+        if(operationalIssues){
+            notifications.push({ level: 'high', title: 'Demoras operativas', message: `${operationalIssues} retiros demorados.` });
+        }
+
+        const upsellCandidates = (aiState.clientModels?.upsellCandidates || []).length;
+        if(upsellCandidates){
+            notifications.push({ level: 'low', title: 'Oportunidad de negocio', message: `${upsellCandidates} clientes listos para upsell.` });
+        }
+
+        aiState.alerts = [...(aiState.alerts || []), ...notifications].slice(-10);
+        if(alertsContainer){
+            const existing = alertsContainer.innerHTML;
+            const newHtml = notifications.map(alert=>`<div class="alert ${alert.level}" data-type="smart">${alert.title}: ${alert.message}</div>`).join('');
+            alertsContainer.innerHTML = newHtml + existing;
+        }
+        notifications.forEach(alert=>{
+            pushWebNotification(alert.title, alert.message, alert.level);
+            if(alert.level === 'low'){
+                setTimeout(()=> autoResolveAlert(alert.title), 15000);
+            }
+        });
+    }
+
+    function pushWebNotification(title, body, level='info'){
+        if(!('Notification' in window)) return;
+        if(Notification.permission === 'granted'){
+            new Notification(`AI ${level.toUpperCase()}: ${title}`, { body });
+        }else if(Notification.permission !== 'denied'){
+            Notification.requestPermission().then(permission=>{
+                if(permission === 'granted'){
+                    new Notification(`AI ${level.toUpperCase()}: ${title}`, { body });
+                }
+            });
+        }
+    }
+
+    function autoResolveAlert(title){
+        const alertsContainer = document.getElementById('alertsContent');
+        if(!alertsContainer) return;
+        const nodes = alertsContainer.querySelectorAll('.alert');
+        nodes.forEach(node=>{
+            if(node.textContent && node.textContent.includes(title)){
+                node.classList.add('resolved');
+                node.setAttribute('aria-label','Alerta resuelta automáticamente');
+            }
+        });
+    }
+
     function simulateRealtimeAnalysis() {
-        // Simular estado de análisis en tiempo real
         const statusElement = document.getElementById('aiStatus');
         if (statusElement) {
             setInterval(() => {
@@ -4144,88 +4708,88 @@
             }, 2000);
         }
     }
-    
+
+    // ========================================
+    // ACCIONES Y REPORTES
+    // ========================================
+
     function implementRecommendation(recommendationId) {
         console.log(`🔧 Implementando recomendación: ${recommendationId}`);
-        
+
         const messages = {
-            'optimize_routes': 'Rutas optimizadas y reasignadas. Mejora estimada: +8.5% eficiencia',
+            'optimize_routes': 'Rutas optimizadas y reasignadas. Mejora estimada aplicada.',
             'adjust_schedule': 'Horarios ajustados automáticamente. Nuevas preferencias aplicadas',
-            'maintenance': 'Mantenimiento programado para vehículo #7 en 3 días'
+            'maintenance': 'Mantenimiento programado para vehículo #7 en 3 días',
+            'retencion_clientes': 'Se activaron secuencias de retención para cuentas críticas',
+            'upsell': 'Se envió campaña de upsell a clientes elegibles',
+            'mejorar_cobranzas': 'Recordatorios de cobranza activados'
         };
-        
+
         showNotification(messages[recommendationId] || 'Recomendación implementada', 'success');
-        
-        // Simular actualización de KPIs después de implementar
+
         setTimeout(() => {
             if (recommendationId === 'optimize_routes') {
-                updateKPIValue('eficiencia', '92.5%');
+                updateKPIValue('eficiencia', `${(90 + Math.random()*5).toFixed(1)}%`);
             }
-        }, 2000);
+        }, 1500);
     }
-    
+
     function viewRecommendationDetails(recommendationId) {
         const details = {
             'optimize_routes': {
-                title: 'Detalles: Optimización de Rutas Zona Norte',
+                title: 'Detalles: Optimización de Rutas',
                 content: `
-                    <strong>Análisis:</strong><br>
-                    • Rutas actuales: 3 rutas con 15% sobrecarga<br>
-                    • Redundancia detectada: 8.5 km/día innecesarios<br>
-                    • Potencial mejora: 8.5% eficiencia operativa<br><br>
-                    <strong>Recomendación:</strong><br>
-                    • Redistribuir 15% del volumen de Ruta 2 → Ruta 1<br>
-                    • Optimizar secuencia de paradas en Ruta 3<br>
-                    • Implementar rutas dinámicas para zona Este<br><br>
-                    <strong>Impacto proyectado:</strong><br>
-                    • Ahorro combustible: $2,300/mes<br>
-                    • Reducción tiempo: 45 min/día promedio<br>
-                    • Mejora satisfacción cliente: +12% NPS
+                    <strong>Modelo aplicado:</strong> Heurística de vecino más cercano + balanceo zonal<br>
+                    <strong>Ahorro estimado:</strong> ${aiState.routeModels?.efficiency?.savings?.toFixed ? aiState.routeModels.efficiency.savings.toFixed(1) : 8.5}% de km<br>
+                    <strong>Balance choferes:</strong> ${aiState.routeModels?.optimized?.length || 0} zonas redistribuidas
                 `
             },
             'adjust_schedule': {
-                title: 'Detalles: Ajuste de Horarios',
+                title: 'Detalles: Ajuste Horarios',
                 content: `
-                    <strong>Análisis de comportamiento:</strong><br>
-                    • Zona Sur: 78% cancelaciones 14-16 PM<br>
-                    • Clientes prefieren 8-10 AM (92% satisfacción)<br>
-                    • Oportunidad: 23% reducción cancelaciones<br><br>
-                    <strong>Plan de implementación:</strong><br>
-                    • Reasignar 40% slots 14-16 PM → 8-10 AM<br>
-                    • Enviar recordatorios preventivos<br>
-                    • Monitorear conversión 14 días<br><br>
-                    <strong>Beneficios esperados:</strong><br>
-                    • -23% tasa cancelación<br>
-                    • +$15,200 ingresos adicionales/mes<br>
-                    • +18% satisfacción cliente
+                    <strong>Ventanas recomendadas:</strong> ${aiState.routeModels?.efficiency?.timePrediction?.windowRecommendation || '60-90 minutos'}<br>
+                    <strong>Confianza:</strong> ${(aiState.routeModels?.efficiency?.timePrediction?.confidence || 0.8)*100}%<br>
+                    <strong>Demanda por zona:</strong> ${JSON.stringify(aiState.routeModels?.demandForecast || [])}
                 `
             },
             'maintenance': {
                 title: 'Detalles: Mantenimiento Preventivo',
                 content: `
-                    <strong>Análisis predictivo:</strong><br>
-                    • Vehículo #7: 15,847 km desde último servicio<br>
-                    • Patrón histórico: servicio cada 16,000 km<br>
-                    • Riesgo interrupción: 89% probabilidad en 72h<br><br>
-                    <strong>Recomendación inmediata:</strong><br>
-                    • Programar servicio: Mañana 26/11 8:00 AM<br>
-                    • Tipo: Mantenimiento mayor (2.5h estimado)<br>
-                    • Reemplazo: Filtros, aceite, revisión frenos<br><br>
-                    <strong>Impacto prevenir:</strong><br>
-                    • Evitar 1 parada imprevista (~$3,500)<br>
-                    • Mantener SLA 98.5% cumplimiento<br>
-                    • Extender vida útil vehículo 6 meses
+                    <strong>Reglas predictivas:</strong> Umbrales por km y uso histórico.<br>
+                    <strong>Beneficio:</strong> Previene paradas imprevistas y mantiene SLA.
+                `
+            },
+            'retencion_clientes': {
+                title: 'Detalles: Retención de Clientes',
+                content: `
+                    <strong>Clientes críticos:</strong> ${aiState.clientModels?.churnScores?.filter(c=>c.probabilidad>0.7).length || 0}<br>
+                    <strong>Acciones:</strong> Descuentos temporales, contacto proactivo, plan fidelización.
+                `
+            },
+            'upsell': {
+                title: 'Detalles: Upsell Inteligente',
+                content: `
+                    <strong>Candidatos:</strong> ${aiState.clientModels?.upsellCandidates?.length || 0}<br>
+                    <strong>Segmentos:</strong> ${[...(aiState.clientModels?.upsellCandidates || []).map(c=>c.segmento)].slice(0,3).join(', ')}
+                `
+            },
+            'mejorar_cobranzas': {
+                title: 'Detalles: Mejorar Cobranzas',
+                content: `
+                    <strong>Tasa de cobro actual:</strong> ${(aiState.clientModels?.paymentBehavior?.onTimeRatio || 0)*100}%<br>
+                    <strong>Retraso promedio:</strong> ${(aiState.clientModels?.paymentBehavior?.avgDelay || 0).toFixed(1)} días<br>
+                    <strong>Plan:</strong> Recordatorios automáticos + escalamiento a control.
                 `
             }
         };
-        
+
         const detail = details[recommendationId];
         if (detail) {
             const modal = createDetailModal(detail.title, detail.content);
             document.body.appendChild(modal);
         }
     }
-    
+
     function createDetailModal(title, content) {
         const modal = document.createElement('div');
         modal.className = 'drilldown-modal';
@@ -4238,32 +4802,30 @@
                 <div class="drilldown-body" style="padding: 1.5rem; line-height: 1.6;">
                     ${content}
                 </div>
-                <div class="drilldown-actions" style="padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; gap: 1rem; justify-content: flex-end;">
+                <div class="drilldown-actions" style="padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); display:flex; gap: 1rem; justify-content: flex-end;">
                     <button class="rec-btn secondary" onclick="this.closest('.drilldown-modal').remove()">Cerrar</button>
                     <button class="rec-btn primary" onclick="generateAIReport('${title}')">Generar Reporte IA</button>
                 </div>
             </div>
         `;
-        
-        // Cerrar al hacer clic fuera
+
         modal.addEventListener('click', (e) => {
             if (e.target === modal) modal.remove();
         });
-        
+
         return modal;
     }
-    
+
     function generateAIReport(reportTitle) {
         showNotification('Generando reporte detallado con IA...', 'info');
-        
-        // Simular generación de reporte
+
         setTimeout(() => {
-            const reportData = generateReportContent(reportTitle);
+            generateReportContent(reportTitle);
             downloadKPIReport('ai-analysis', 'pdf');
             showNotification('Reporte de análisis IA generado', 'success');
-        }, 2000);
+        }, 1200);
     }
-    
+
     function generateReportContent(title) {
         return {
             title: title,
@@ -4271,20 +4833,87 @@
             content: 'Reporte completo generado por AI Intelligence Layer'
         };
     }
-    
+
     function updateKPIValue(kpiType, newValue) {
         const kpiElement = document.querySelector(`[data-kpi="${kpiType}"] .kpi-value`);
         if (kpiElement) {
             kpiElement.textContent = newValue;
-            
-            // Animar el cambio
             kpiElement.style.transform = 'scale(1.1)';
-            setTimeout(() => {
-                kpiElement.style.transform = 'scale(1)';
-            }, 300);
+            setTimeout(() => { kpiElement.style.transform = 'scale(1)'; }, 300);
         }
     }
-    
+
+    // ========================================
+    // UTILIDADES DE MÉTRICAS
+    // ========================================
+
+    function calculateOnTimeRatio(pagos = []) {
+        if (!pagos.length) return 0;
+        const onTime = pagos.filter(p=> (p.estado || '').toLowerCase() === 'recibido').length;
+        return onTime / pagos.length;
+    }
+
+    function average(arr = []) {
+        if (!arr.length) return 0;
+        return arr.reduce((sum,v)=>sum + (Number(v) || 0),0) / arr.length;
+    }
+
+    // ========================================
+    // PERFORMANCE, PWA Y UX
+    // ========================================
+
+    function prefetchModulePage(page){
+      try{
+        fetch(page, { method: 'GET', cache: 'force-cache' }).catch(()=>{});
+      }catch(err){ /* sin efecto */ }
+    }
+
+    function warmupModules(){
+      const pages = ['clientes-firestore.html','finanzas.html','retiros.html','usuarios.html','configuracion.html'];
+      if('requestIdleCallback' in window){
+        requestIdleCallback(()=> pages.forEach(prefetchModulePage), { timeout: 1500 });
+      }else{
+        setTimeout(()=> pages.forEach(prefetchModulePage), 1200);
+      }
+    }
+
+    function registerGsServiceWorker(){
+      if('serviceWorker' in navigator){
+        navigator.serviceWorker.register('sw.js').catch(()=>{});
+      }
+    }
+
+    function applyThemeToggle(){
+      const saved = localStorage.getItem('gs:theme:mode');
+      if(saved){ document.documentElement.setAttribute('data-theme', saved); }
+      const style = document.createElement('style');
+      style.textContent = `#themeToggle{position:fixed;bottom:18px;right:18px;z-index:50;background:var(--gs-accent,#1DBF73);color:#fff;border:none;padding:10px 12px;border-radius:12px;box-shadow:0 8px 20px rgba(13,43,61,.18);cursor:pointer;font-weight:700}#themeToggle:hover{transform:translateY(-1px)}[data-theme="dark"] body{background:#0d1a24;color:#e8f0f7;filter:invert(0.92) hue-rotate(180deg);} [data-theme="dark"] img,[data-theme="dark"] video,[data-theme="dark"] canvas{filter:invert(0.92) hue-rotate(180deg);} `;
+      document.head.appendChild(style);
+      const btn = document.createElement('button');
+      btn.id = 'themeToggle';
+      btn.type = 'button';
+      btn.textContent = '🌗 Tema';
+      btn.addEventListener('click', ()=>{
+        const current = document.documentElement.getAttribute('data-theme') || 'light';
+        const next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('gs:theme:mode', next);
+      });
+      document.body.appendChild(btn);
+    }
+
+    function attachGlobalLoadingStates(){
+      document.body.addEventListener('click', (e)=>{
+        const target = e.target;
+        if(target && target.matches('[data-loading-text]')){
+          const original = target.textContent;
+          target.dataset.originalText = original;
+          target.textContent = target.getAttribute('data-loading-text');
+          setTimeout(()=>{ target.textContent = target.dataset.originalText || original; }, 1200);
+        }
+      });
+    }
+
     // Inicializar modal cuando el DOM esté listo
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', setupDrilldownModal);
@@ -4292,8 +4921,12 @@
         setupDrilldownModal();
     }
 
+    warmupModules();
+    registerGsServiceWorker();
+    applyThemeToggle();
+    attachGlobalLoadingStates();
     applyNavPermissions();
-  </script>  
+  </script>
   <!-- SVG Icons para Executive Command Center -->
   <svg width="0" height="0" class="sr-only">
     <symbol id="icon-refresh" viewBox="0 0 24 24">

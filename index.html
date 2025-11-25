@@ -1473,7 +1473,9 @@
     };
     const focusLoginBtns = Array.from(document.querySelectorAll('[data-action="focus-login"]'));
     const autoDemoAllowedHosts = ['localhost','127.0.0.1',''];
-    const allowAutoDemo = ['file:', 'http:'].includes(location.protocol) && autoDemoAllowedHosts.includes(location.hostname);
+    const autoDemoRequested = new URLSearchParams(location.search).get('autodemo') === '1';
+    const allowAutoDemo = autoDemoRequested && ['file:', 'http:'].includes(location.protocol)
+      && autoDemoAllowedHosts.includes(location.hostname);
     let currentSession = null;
     let demoAutostartTimer = null;
 

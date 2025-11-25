@@ -6,6 +6,8 @@
 
   function applyTheme(theme){
     activeTheme = theme || null;
+    document.documentElement.classList.add('theme-applied');
+    document.body.classList.add('theme-applied');
     document.dispatchEvent(new CustomEvent(THEME_EVENT, { detail: activeTheme }));
   }
 

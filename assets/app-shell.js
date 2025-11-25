@@ -117,6 +117,7 @@
   }
 
   function warmupModules(){
+    if(location.protocol === 'file:'){ return; }
     const pages = ['clientes-firestore.html','finanzas.html','retiros.html','usuarios.html','configuracion.html'];
     if('requestIdleCallback' in window){
       requestIdleCallback(()=> pages.forEach(prefetchModulePage), { timeout: 1500 });
@@ -126,6 +127,7 @@
   }
 
   function registerGsServiceWorker(){
+    if(location.protocol === 'file:'){ return; }
     if('serviceWorker' in navigator){
       navigator.serviceWorker.register('sw.js').catch(()=>{});
     }

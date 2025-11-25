@@ -360,7 +360,9 @@
     if(!csp){
       const meta = document.createElement('meta');
       meta.httpEquiv = 'Content-Security-Policy';
-      meta.content = "default-src 'self' https://www.gstatic.com https://firestore.googleapis.com https://www.googleapis.com data: blob:; frame-ancestors 'self'; script-src 'self' https://www.gstatic.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https://firestore.googleapis.com https://www.googleapis.com; img-src 'self' data:";
+codex/verify-main-for-file-presence-ejcrqy
+      meta.content = "default-src 'self' https://www.gstatic.com https://firestore.googleapis.com https://www.googleapis.com data: blob:; frame-ancestors 'self'; script-src 'self' https://www.gstatic.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https://firestore.googleapis.com https://www.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; img-src 'self' data:";
+      
       head.appendChild(meta);
     }
     appendIfMissing('meta[http-equiv="Strict-Transport-Security"]', (()=>{ const meta = document.createElement('meta'); meta.httpEquiv='Strict-Transport-Security'; meta.content='max-age=63072000; includeSubDomains'; return meta; })());

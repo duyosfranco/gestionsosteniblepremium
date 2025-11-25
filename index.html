@@ -20,6 +20,7 @@
       --nav:#0f3346; --nav2:#0b2a3b;
       --nav-contrast:#ffffff; --nav-contrast-soft:rgba(255,255,255,.85); --nav-contrast-muted:rgba(255,255,255,.65);
       --shadow:0 16px 45px rgba(13,43,61,.18);
+      --header-height:72px;
     }
     *{box-sizing:border-box}
     html,body{height:100%}
@@ -178,7 +179,7 @@
     .logout{width:100%;gap:10px;background:rgba(255,255,255,.12);color:var(--nav-contrast)}
     .logout:hover{background:rgba(255,255,255,.18)}
 
-    .main{display:flex;flex-direction:column;min-height:100vh;max-height:100vh;overflow-y:auto;background:linear-gradient(180deg,rgba(255,255,255,.78) 0%,rgba(255,255,255,.96) 100%)}
+    .main{display:flex;flex-direction:column;min-height:100vh;max-height:100vh;height:100vh;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.78) 0%,rgba(255,255,255,.96) 100%)}
     .header{
       position:sticky;top:0;z-index:2;
       background:rgba(255,255,255,.92); backdrop-filter:blur(10px);
@@ -197,7 +198,7 @@
     .menu-toggle:hover{background:#eef6fb}
     .menu-toggle:focus-visible{outline:3px solid rgba(16,113,150,.25);}
 
-    .viewer{flex:1 1 auto; position:relative; background:linear-gradient(180deg,#f6fafc 0%,#ffffff 60%);}
+    .viewer{flex:1 1 auto; position:relative; background:linear-gradient(180deg,#f6fafc 0%,#ffffff 60%); height:calc(100vh - var(--header-height)); overflow:hidden;}
     .viewer iframe{
       position:absolute; inset:0; width:100%; height:100%;
       border:0; background:transparent; opacity:0; transition:opacity .24s ease;
@@ -233,7 +234,7 @@
     .btn.outline:hover{background:rgba(16,113,150,.08);}
     .btn.outline:focus-visible{outline:3px solid rgba(16,113,150,.25);}
 
-    .home-wrap{padding:28px 24px 40px;display:grid;gap:28px;content-visibility:auto;contain-intrinsic-size:780px;}
+    .home-wrap{padding:28px 24px 40px;display:grid;gap:28px;content-visibility:auto;contain-intrinsic-size:780px;max-height:calc(100vh - var(--header-height));overflow:auto;}
     .home-hero{display:grid;gap:10px;max-width:760px}
     .home-hero h2{margin:0;color:var(--ink);font-size:30px;letter-spacing:.01em}
     .home-hero p{margin:0;color:var(--muted);font-size:16px;line-height:1.5}
@@ -1431,7 +1432,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
   
   <!-- Firebase compat -->
-  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
 
@@ -5027,12 +5028,6 @@
         setupDrilldownModal();
     }
 
-    warmupModules();
-    registerGsServiceWorker();
-    applyThemeToggle();
-    attachGlobalLoadingStates();
-    applyNavPermissions();
-  </script>
   <!-- SVG Icons para Executive Command Center -->
   <svg width="0" height="0" class="sr-only">
     <symbol id="icon-refresh" viewBox="0 0 24 24">

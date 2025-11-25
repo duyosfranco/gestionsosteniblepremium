@@ -371,6 +371,15 @@
       'https://securetoken.googleapis.com'
     ];
 
+    const buildDefaultCsp = ()=>[
+      "default-src 'self' https://www.gstatic.com https://firestore.googleapis.com https://www.googleapis.com data: blob:",
+      "frame-ancestors 'self'",
+      "script-src 'self' https://www.gstatic.com 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      `connect-src ${requiredConnectSrc.join(' ')}`,
+      "img-src 'self' data:"
+    ].join('; ');
+
     const ensureConnectSrc = (meta)=>{
       const content = (meta && meta.content) || '';
       const connectRegex = /connect-src\s+([^;]+)/i;
@@ -395,7 +404,7 @@
     if(!csp){
       const meta = document.createElement('meta');
       meta.httpEquiv = 'Content-Security-Policy';
-      meta.content = "default-src 'self' https://www.gstatic.com https://firestore.googleapis.com https://www.googleapis.com data: blob:; frame-ancestors 'self'; script-src 'self' https://www.gstatic.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https://firestore.googleapis.com https://www.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; img-src 'self' data:";
+      meta.content = buildDefaultCsp();
       head.appendChild(meta);
       csp = meta;
     } else {

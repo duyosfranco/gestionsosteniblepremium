@@ -1111,6 +1111,22 @@
 
     // Refrescar manual (vuelve a suscribirse)
     $('btnRefresh').addEventListener('click', ()=>suscribir(true));
+
+    // Acciones disparadas desde el shell principal (navegación rápida)
+    window.addEventListener('message',(event)=>{
+      const payload = event.data || {};
+      if(payload.source !== 'gs-shell'){ return; }
+      if(payload.type === 'gs-action'){
+        if(payload.action === 'focus-alta'){
+          const alta = document.getElementById('altaRapidaTitle');
+          if(alta){ alta.scrollIntoView({behavior:'smooth', block:'start'}); }
+          const nombre = document.getElementById('nombre');
+          if(nombre){ nombre.focus(); }
+        }else if(payload.action === 'refresh'){
+          suscribir(true);
+        }
+      }
+    });
   </script>
 </body>
 </html>

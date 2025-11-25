@@ -135,10 +135,10 @@
 
   function applyThemeToggle(){
     const saved = localStorage.getItem('gs:theme:mode');
-    if(saved){
-      document.documentElement.setAttribute('data-theme', saved);
-      if(global.gsTheme && typeof global.gsTheme.setTheme === 'function'){ global.gsTheme.setTheme(saved); }
-    }
+    if(saved){ document.documentElement.setAttribute('data-theme', saved); }
+    const style = document.createElement('style');
+    style.textContent = `#themeToggle{position:fixed;bottom:18px;right:18px;z-index:50;background:var(--gs-accent,#1DBF73);color:#fff;border:none;padding:10px 12px;border-radius:12px;box-shadow:0 8px 20px rgba(13,43,61,.18);cursor:pointer;font-weight:700}#themeToggle:hover{transform:translateY(-1px)}[data-theme="dark"] body{background:#0d1a24;color:#e8f0f7;filter:invert(0.92) hue-rotate(180deg);} [data-theme="dark"] img,[data-theme="dark"] video,[data-theme="dark"] canvas{filter:invert(0.92) hue-rotate(180deg);} `;
+    document.head.appendChild(style);
     const btn = document.createElement('button');
     btn.id = 'themeToggle';
     btn.type = 'button';
@@ -146,11 +146,7 @@
     btn.addEventListener('click', ()=>{
       const current = document.documentElement.getAttribute('data-theme') || 'light';
       const next = current === 'dark' ? 'light' : 'dark';
-      if(global.gsTheme && typeof global.gsTheme.setTheme === 'function'){
-        global.gsTheme.setTheme(next);
-      }else{
-        document.documentElement.setAttribute('data-theme', next);
-      }
+      document.documentElement.setAttribute('data-theme', next);
       localStorage.setItem('gs:theme:mode', next);
     });
     document.body.appendChild(btn);

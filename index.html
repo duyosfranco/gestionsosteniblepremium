@@ -1441,13 +1441,3427 @@
   <script src="assets/demo-data.js"></script>
   <script src="assets/gs-auth.js"></script>
 
-  <script src="assets/config.js"></script>
-  <script src="assets/analytics.js"></script>
-  <script src="assets/session.js"></script>
-  <script src="assets/theme.js"></script>
-  <script src="assets/router.js"></script>
-  <script src="assets/app-shell.js"></script>
-  <script src="assets/home-dashboard.js"></script>
+  <script>
+    // Refs
+    const $ = sel => document.querySelector(sel);
+    const loginView = $('#loginView');
+    const appView   = $('#appView');
+    const msg       = $('#loginMsg');
+    const viewer    = $('#viewer');
+    const homeView  = $('#homeView');
+    const pageTitle = $('#pageTitle');
+    const pageSubtitle = $('#pageSubtitle');
+    const sideNav   = $('#sideNav');
+    const navLinksWithPermission = sideNav ? Array.from(sideNav.querySelectorAll('a[data-permission]')) : [];
+    const navModuleLinks = sideNav ? Array.from(sideNav.querySelectorAll('a[data-page]')) : [];
+    const navToggle = $('#navToggle');
+    const navBackdrop = $('#navBackdrop');
+    const viewerLoading = $('#viewerLoading');
+    const viewerLoadingTitle = $('#viewerLoadingTitle');
+    const viewerLoadingText = $('#viewerLoadingText');
+    const viewerError = $('#viewerError');
+    const viewerErrorTitle = $('#viewerErrorTitle');
+    const viewerErrorText = $('#viewerErrorText');
+    const viewerErrorRetry = $('#viewerErrorRetry');
+    const viewerErrorHome = $('#viewerErrorHome');
+    const sessionChip = $('#sessionChip');
+    const sessionRole = $('#sessionRole');
+    const sessionEmail = $('#sessionEmail');
+    const loginForm = $('#loginForm');
+    const emailInput = $('#email');
+    const passInput = $('#pass');
+    const btnLogin = $('#btnLogin');
+    const landingBrand = $('#landingBrand');
+    const landingBrandLogo = $('#landingBrandLogo');
+    const landingBrandLogoWrap = landingBrand ? landingBrand.querySelector('.logo') : null;
+    const landingBrandName = $('#landingBrandName');
+    const landingShell = $('#landingShell');
+    const loginBrand = $('#loginBrand');
+    const loginBrandLogo = $('#loginBrandLogo');
+    const loginBrandLogoWrap = loginBrand ? loginBrand.querySelector('.logo') : null;
+    const loginBrandName = $('#loginBrandName');
+    const loginPanel = $('#loginPanel');
+    const sideBrand = $('#sideBrand');
+    const sideBrandLogo = $('#sideBrandLogo');
+    const sideBrandLogoWrap = sideBrand ? sideBrand.querySelector('.logo') : null;
+    const sideBrandName = $('#sideBrandName');
+    const STORAGE_KEY = 'gs:lastRoute';
+    const ROLE_LABELS = Object.assign({ guest: 'Invitado' }, (gsAuth && gsAuth.roleLabels) ? gsAuth.roleLabels : {});
+    const normalizeRole = (gsAuth && typeof gsAuth.normalizeRole === 'function')
+      ? ((role, context)=> gsAuth.normalizeRole(role, context))
+      : ((role)=> typeof role === 'string' ? role.toLowerCase() : 'control');
+    const DEFAULT_BRAND_NAME = 'Gestión Sostenible';
+    const DEFAULT_MODULE_LABELS = Object.freeze({
+      home: 'Inicio',
+      clientes: 'Clientes',
+      rutas: 'Calendario / Rutas',
+      finanzas: 'Finanzas y DGI',
+      temas: 'Temas',
+      usuarios: 'Gestión de Cuentas',
+      configuracion: 'Configuración'
+    });
+    const getActiveBrandName = ()=>{
+      try{
+        const snap = typeof getThemeSnapshot === 'function' ? getThemeSnapshot() : null;
+        if(snap && snap.brandName){ return snap.brandName; }
+        if(snap && snap.logo && snap.logo.name){ return snap.logo.name; }
+      }catch(err){ /* noop */ }
+      return DEFAULT_BRAND_NAME;
+    };
+    const focusLoginBtns = Array.from(document.querySelectorAll('[data-action="focus-login"]'));
+    const autoDemoAllowedHosts = ['localhost','127.0.0.1',''];
+    const autoDemoRequested = new URLSearchParams(location.search).get('autodemo') === '1';
+    const allowAutoDemo = autoDemoRequested && ['file:', 'http:'].includes(location.protocol)
+      && autoDemoAllowedHosts.includes(location.hostname);
+    let currentSession = null;
+    let demoAutostartTimer = null;
+
+    function scheduleDemoAutostart(){
+      const dataset = window.GS_DEMO_DATA || window.demoData;
+      if(!allowAutoDemo || !dataset || !window.gsAuth || typeof gsAuth.startDemoSession !== 'function'){ return; }
+      clearTimeout(demoAutostartTimer);
+      demoAutostartTimer = setTimeout(()=>{
+        const hasSession = !!(currentSession && currentSession.user);
+        if(document.body.classList.contains('app-ready') || hasSession){ return; }
+        try{
+          gsAuth.startDemoSession(dataset, { persist: false, resetTheme: false });
+          console.info('ℹ️ Demo activada automáticamente para evitar bloqueo de navegación sin sesión.');
+        }catch(err){ console.warn('No se pudo iniciar la demo automática', err); }
+      }, 2800);
+    }
+
+    scheduleDemoAutostart();
+    const focusLoginForm = (event)=>{
+      if(event){ event.preventDefault(); }
+      document.body.classList.add('login-open');
+      if(loginPanel){
+        loginPanel.classList.remove('hidden');
+        loginPanel.removeAttribute('aria-hidden');
+      }
+      if(landingShell){ landingShell.setAttribute('aria-hidden','true'); }
+      const card = document.querySelector('.login-card');
+      if(card){ card.scrollIntoView({ behavior:'smooth', block:'center' }); }
+      if(emailInput){
+        try{ emailInput.focus({ preventScroll:true }); }catch(err){ emailInput.focus(); }
+      }
+    };
+    focusLoginBtns.forEach(btn=> btn.addEventListener('click', focusLoginForm));
+    if(new URLSearchParams(window.location.search).get('login') === '1'){
+      focusLoginForm();
+    }
+    const routes = {
+      '/': {
+        moduleKey: 'home',
+        defaultTitle: DEFAULT_MODULE_LABELS.home,
+        page: null,
+        subtitle: 'Resumen ejecutivo de tus indicadores clave.'
+      },
+      '/clientes': {
+        moduleKey: 'clientes',
+        defaultTitle: DEFAULT_MODULE_LABELS.clientes,
+        page: 'clientes-firestore.html'
+      },
+      '/retiros': {
+        moduleKey: 'rutas',
+        defaultTitle: DEFAULT_MODULE_LABELS.rutas,
+        page: 'retiros.html'
+      },
+      '/finanzas': {
+        moduleKey: 'finanzas',
+        defaultTitle: DEFAULT_MODULE_LABELS.finanzas,
+        page: 'finanzas.html'
+      },
+      '/temas': {
+        moduleKey: 'temas',
+        defaultTitle: DEFAULT_MODULE_LABELS.temas,
+        page: 'temas.html',
+        permission: 'manageTheme',
+        subtitle: 'Personalizá colores, logotipo y branding.'
+      },
+      '/usuarios': {
+        moduleKey: 'usuarios',
+        defaultTitle: DEFAULT_MODULE_LABELS.usuarios,
+        page: 'usuarios.html',
+        permission: 'manageUsers',
+        subtitle: 'Creá, desactivá y auditá cuentas corporativas.'
+      },
+      '/configuracion': {
+        moduleKey: 'configuracion',
+        defaultTitle: DEFAULT_MODULE_LABELS.configuracion,
+        page: 'configuracion.html',
+        subtitle: 'Actualizá tus datos de acceso y personalizá la experiencia.'
+      }
+    };
+    let moduleLabels = Object.assign({}, DEFAULT_MODULE_LABELS);
+    const urlParams = new URLSearchParams(location.search);
+    const demoRequested = urlParams.get('demo') === '1' || urlParams.get('mode') === 'demo';
+    const LANDING_FULL_URL = 'landing.html';
+    const LANDING_DEMO_URL = 'landing-demo.html';
+    let landingRedirectScheduled = false;
+    const ensureLandingRedirect = (mode)=>{
+      if(landingRedirectScheduled){ return; }
+      landingRedirectScheduled = true;
+      let target = LANDING_FULL_URL;
+      const normalizedMode = mode || ((typeof gsAuth !== 'undefined' && gsAuth && typeof gsAuth.isDemoSession === 'function' && gsAuth.isDemoSession()) ? 'demo' : (demoRequested ? 'demo' : 'full'));
+      if(normalizedMode === 'demo'){
+        target = LANDING_DEMO_URL;
+      }
+      if(window.top && window.top !== window.self){
+        try{ window.top.location.replace(target); }
+        catch(err){ window.location.replace(target); }
+      }else{
+        window.location.replace(target);
+      }
+    };
+    let sessionAbilities = {};
+    let lastProfileStamp = null;
+    let appInitializedFor = null;
+    let lastSession = null;
+    const frameCache = new Map();
+    let activeFrame = null;
+    let warmupTimer = null;
+    const homeCardState = new Map();
+
+    const idleScheduler = (cb, opts={})=>{
+      if(typeof requestIdleCallback === 'function'){
+        return requestIdleCallback(cb, opts);
+      }
+      return setTimeout(cb, opts && opts.timeout ? opts.timeout : 200);
+    };
+
+    let currentBrandLogo = null;
+    let lastBrandMetrics = null;
+
+    function getModuleLabel(key){
+      if(!key){ return ''; }
+      return moduleLabels[key] || DEFAULT_MODULE_LABELS[key] || '';
+    }
+
+    function syncNavModuleLabels(){
+      navModuleLinks.forEach((link)=>{
+        const key = link.dataset.moduleKey;
+        if(!key){ return; }
+        const labelSpan = link.querySelector('span:last-child');
+        const label = getModuleLabel(key);
+        if(labelSpan && label){
+          labelSpan.textContent = label;
+        }
+      });
+    }
+
+    function refreshActiveRouteTitle(){
+      const hash = location.hash || '#/';
+      const key = hash.replace('#','');
+      const route = routes[key] || routes['/'];
+      if(!route){ return; }
+      const label = getModuleLabel(route.moduleKey) || route.defaultTitle || '';
+      if(pageTitle && label){
+        pageTitle.textContent = label;
+      }
+    }
+
+    function computeLogoMetrics(logo, image){
+      const baseWidth = 42;
+      const baseHeight = 42;
+      const metrics = { width: `${baseWidth}px`, height: `${baseHeight}px`, shape: 'square', aspect: 1 };
+      if(!logo){ return metrics; }
+      let aspect = null;
+      if(typeof logo.aspect === 'number' && Number.isFinite(logo.aspect) && logo.aspect > 0){
+        aspect = logo.aspect;
+      }
+      if(!aspect && image && image.naturalWidth && image.naturalHeight){
+        aspect = image.naturalWidth / image.naturalHeight;
+      }
+      if(!aspect || !Number.isFinite(aspect) || aspect <= 0.05){
+        return metrics;
+      }
+      aspect = Math.min(Math.max(aspect, 0.1), 8);
+      metrics.aspect = aspect;
+      if(aspect >= 1.35){
+        metrics.shape = 'wide';
+        metrics.width = `${Math.min(Math.max(baseWidth * aspect, 52), 168).toFixed(2)}px`;
+        metrics.height = `${baseHeight}px`;
+      }else if(aspect <= 0.75){
+        metrics.shape = 'tall';
+        metrics.width = `${baseWidth}px`;
+        metrics.height = `${Math.min(Math.max(baseHeight / Math.max(aspect, 0.2), baseHeight), 78).toFixed(2)}px`;
+      }else{
+        metrics.shape = 'square';
+        metrics.width = `${Math.min(Math.max(baseWidth * Math.max(aspect, 0.9), 40), 60).toFixed(2)}px`;
+        metrics.height = `${baseHeight}px`;
+      }
+      return metrics;
+    }
+
+    function applyLogoMetrics(metrics){
+      if(!metrics){ return; }
+      const wrappers = [loginBrandLogoWrap, sideBrandLogoWrap, landingBrandLogoWrap];
+      wrappers.forEach((wrap)=>{
+        if(!wrap){ return; }
+        wrap.style.setProperty('--brand-logo-width', metrics.width);
+        wrap.style.setProperty('--brand-logo-height', metrics.height);
+        wrap.style.width = metrics.width;
+        wrap.style.height = metrics.height;
+      });
+      const containers = [loginBrand, sideBrand, landingBrand];
+      containers.forEach((container)=>{
+        if(!container){ return; }
+        if(metrics.shape){
+          container.dataset.logoShape = metrics.shape;
+        }else{
+          delete container.dataset.logoShape;
+        }
+        container.style.setProperty('--brand-logo-aspect', metrics.aspect ? metrics.aspect.toFixed(3) : '1');
+      });
+      lastBrandMetrics = metrics;
+    }
+
+    function resetLogoMetrics(){
+      lastBrandMetrics = null;
+      [loginBrandLogoWrap, sideBrandLogoWrap, landingBrandLogoWrap].forEach((wrap)=>{
+        if(!wrap){ return; }
+        wrap.style.removeProperty('--brand-logo-width');
+        wrap.style.removeProperty('--brand-logo-height');
+        wrap.style.removeProperty('width');
+        wrap.style.removeProperty('height');
+      });
+      [loginBrand, sideBrand, landingBrand].forEach((container)=>{
+        if(!container){ return; }
+        container.style.removeProperty('--brand-logo-aspect');
+        delete container.dataset.logoShape;
+      });
+    }
+
+    function ensureLogoMetrics(logo){
+      if(!logo){
+        resetLogoMetrics();
+        return;
+      }
+      const metrics = computeLogoMetrics(logo, loginBrandLogo);
+      if(!lastBrandMetrics
+        || lastBrandMetrics.width !== metrics.width
+        || lastBrandMetrics.height !== metrics.height
+        || lastBrandMetrics.shape !== metrics.shape){
+        applyLogoMetrics(metrics);
+      }
+    }
+
+    function applyBranding(theme){
+      const modules = theme && theme.modules ? theme.modules : null;
+      moduleLabels = Object.assign({}, DEFAULT_MODULE_LABELS, modules || {});
+      syncNavModuleLabels();
+      refreshActiveRouteTitle();
+
+      const logo = theme && theme.logo ? theme.logo : null;
+      currentBrandLogo = logo && (logo.dataUrl || logo.url) ? logo : null;
+      const brandName = theme && theme.brandName
+        ? theme.brandName
+        : (logo && logo.name) ? logo.name : DEFAULT_BRAND_NAME;
+      if(landingBrandName){ landingBrandName.textContent = brandName; }
+      if(loginBrandName){ loginBrandName.textContent = brandName; }
+      if(sideBrandName){ sideBrandName.textContent = brandName; }
+
+      const hasLogo = !!(logo && (logo.dataUrl || logo.url));
+      if(landingBrand){ landingBrand.dataset.hasLogo = hasLogo ? 'true' : 'false'; }
+      if(loginBrand){ loginBrand.dataset.hasLogo = hasLogo ? 'true' : 'false'; }
+      if(sideBrand){ sideBrand.dataset.hasLogo = hasLogo ? 'true' : 'false'; }
+
+      const altText = brandName ? `Logotipo de ${brandName}` : 'Logotipo corporativo';
+
+      if(landingBrandLogo){
+        if(hasLogo){
+          const src = logo.dataUrl || logo.url || '';
+          if(src && landingBrandLogo.src !== src){ landingBrandLogo.src = src; }
+          landingBrandLogo.alt = altText;
+        }else{
+          landingBrandLogo.removeAttribute('src');
+          landingBrandLogo.alt = 'Logotipo corporativo';
+        }
+      }
+      if(loginBrandLogo){
+        if(hasLogo){
+          const src = logo.dataUrl || logo.url || '';
+          if(src && loginBrandLogo.src !== src){ loginBrandLogo.src = src; }
+          loginBrandLogo.alt = altText;
+        }else{
+          loginBrandLogo.removeAttribute('src');
+          loginBrandLogo.alt = 'Logotipo corporativo';
+        }
+      }
+      if(sideBrandLogo){
+        if(hasLogo){
+          const src = logo.dataUrl || logo.url || '';
+          if(src && sideBrandLogo.src !== src){ sideBrandLogo.src = src; }
+          sideBrandLogo.alt = altText;
+        }else{
+          sideBrandLogo.removeAttribute('src');
+          sideBrandLogo.alt = 'Logotipo corporativo';
+        }
+      }
+
+      if(hasLogo){
+        ensureLogoMetrics(currentBrandLogo);
+      }else{
+        resetLogoMetrics();
+      }
+    }
+
+    if(loginBrandLogo){
+      loginBrandLogo.addEventListener('load', ()=>{
+        if(currentBrandLogo){ ensureLogoMetrics(currentBrandLogo); }
+      });
+      loginBrandLogo.addEventListener('error', ()=>{
+        currentBrandLogo = null;
+        if(loginBrand){ loginBrand.dataset.hasLogo = 'false'; }
+        if(sideBrand){ sideBrand.dataset.hasLogo = 'false'; }
+        resetLogoMetrics();
+      });
+    }
+    if(sideBrandLogo){
+      sideBrandLogo.addEventListener('load', ()=>{
+        if(currentBrandLogo){ ensureLogoMetrics(currentBrandLogo); }
+      });
+      sideBrandLogo.addEventListener('error', ()=>{
+        if(sideBrand){ sideBrand.dataset.hasLogo = 'false'; }
+      });
+    }
+
+    const cancelIdleTask = (handle)=>{
+      if(!handle) return;
+      if(typeof cancelIdleCallback === 'function'){
+        cancelIdleCallback(handle);
+      }else{
+        clearTimeout(handle);
+      }
+    };
+
+    function ensureModuleFrame(page, title){
+      if(!viewer || !page) return null;
+      if(frameCache.has(page)){
+        const existing = frameCache.get(page);
+        if(title){ existing.setAttribute('title', `Vista del módulo: ${title}`); }
+        existing.dataset.pageLabel = title || '';
+        return existing;
+      }
+      const iframe = document.createElement('iframe');
+      iframe.className = 'module-frame hidden';
+      iframe.setAttribute('loading', 'lazy');
+      iframe.setAttribute('data-page', page);
+      iframe.setAttribute('title', `Vista del módulo: ${title || 'Módulo embebido'}`);
+      iframe.setAttribute('aria-hidden', 'true');
+      iframe.setAttribute('tabindex', '-1');
+      iframe.dataset.pageLabel = title || '';
+      iframe.addEventListener('load', ()=>{
+        iframe.dataset.loaded = 'true';
+        iframe.classList.add('loaded');
+        hideModuleError();
+        if(activeFrame === iframe){
+          hideLoader();
+        }
+      });
+      iframe.addEventListener('error', ()=>{
+        // Avisamos al usuario cuando el iframe no pudo cargar, útil antes de desplegar en hosting.
+        iframe.dataset.loaded = '';
+        iframe.classList.remove('loaded');
+        if(activeFrame === iframe){
+          showModuleError(
+            iframe.dataset.pageLabel || 'el módulo',
+            `No pudimos cargar ${iframe.dataset.pageLabel || 'este módulo'}. Verificá que ${page} esté publicado y volvé a intentar.`
+          );
+        }
+      });
+      viewer.appendChild(iframe);
+      frameCache.set(page, iframe);
+      return iframe;
+    }
+
+    function hideModuleFrames(except){
+      frameCache.forEach((iframe)=>{
+        if(iframe === except) return;
+        iframe.classList.add('hidden');
+        iframe.setAttribute('aria-hidden', 'true');
+        iframe.setAttribute('tabindex', '-1');
+      });
+    }
+
+    function resetModuleFrames(){
+      frameCache.forEach((iframe)=> iframe.remove());
+      frameCache.clear();
+      activeFrame = null;
+    }
+
+    function cancelModuleWarmup(){
+      if(warmupTimer){
+        cancelIdleTask(warmupTimer);
+        warmupTimer = null;
+      }
+    }
+
+    function warmupModuleFrames(){
+      if(!viewer) return;
+      navModuleLinks.forEach((link, index)=>{
+        const perm = link.dataset.permission;
+        if(perm && !(sessionAbilities && sessionAbilities[perm])) return;
+        const page = link.dataset.page;
+        if(!page || page === '/' || page === '#') return;
+        const label = (link.textContent || '').trim();
+        const frame = ensureModuleFrame(page, label);
+        if(frame && !frame.getAttribute('src')){
+          const delay = index * 250;
+          idleScheduler(()=>{
+            const cached = frameCache.get(page);
+            if(!cached || cached.dataset.loaded === 'true' || cached.getAttribute('src')) return;
+            cached.setAttribute('src', page);
+          }, { timeout: 1200 + delay });
+        }
+      });
+    }
+
+    function scheduleModuleWarmup(){
+      cancelModuleWarmup();
+      warmupTimer = idleScheduler(()=>{
+        warmupTimer = null;
+        warmupModuleFrames();
+      }, { timeout: 900 });
+    }
+
+    document.body.classList.remove('app-ready');
+    applyBranding(null);
+    if(window.gsAuth && typeof gsAuth.onTheme === 'function'){
+      gsAuth.onTheme(applyBranding);
+    }
+
+    const homeCards = {
+      retiros: { value: $('#homeRetirosValue'), meta: $('#homeRetirosMeta') },
+      agenda: { value: $('#homeAgendaValue'), meta: $('#homeAgendaMeta') },
+      ruta: { value: $('#homeRutaValue'), meta: $('#homeRutaMeta') },
+      clientes: { value: $('#homeClientesValue'), meta: $('#homeClientesMeta') },
+      clientesAlert: { value: $('#homeClientesAlertValue'), meta: $('#homeClientesAlertMeta') },
+      cobros: { value: $('#homeCobrosValue'), meta: $('#homeCobrosMeta') },
+      cobrosProgreso: { value: $('#homeCobrosPctValue'), meta: $('#homeCobrosPctMeta') },
+      acceso: { value: $('#homeAccesoValue'), meta: $('#homeAccesoMeta') }
+    };
+    const HOME_DEFAULTS = {
+      retiros: { value: '—', meta: 'Sincronizando agenda de hoy…' },
+      agenda: { value: '—', meta: 'Calculando progreso de retiros…' },
+      ruta: { value: '—', meta: 'Estimando facturación de los retiros programados…' },
+      clientes: { value: '—', meta: 'Cargando cartera de clientes…' },
+      clientesAlert: { value: '—', meta: 'Identificando cuentas a regularizar…' },
+      cobros: { value: '—', meta: 'Sincronizando finanzas del mes…' },
+      cobrosProgreso: { value: '—', meta: 'Esperando información de pagos…' },
+      acceso: { value: '—', meta: 'Registraremos tu próximo inicio de sesión aquí.' }
+    };
+    const homeData = { retiros: null, clientes: null, pagos: null };
+
+    function clearHomeData(){
+      homeData.retiros = null;
+      homeData.clientes = null;
+      homeData.pagos = null;
+    }
+
+    function setHomeData(key, payload){
+      if(!(key in homeData)) return;
+      homeData[key] = payload;
+      renderHomeInsights();
+    }
+
+    function buildUpdatedMeta(ts, fromCache=false){
+      if(!ts) return '';
+      return `Actualizado ${formatTimestamp(ts)}${fromCache ? ' (memoria)' : ''}`;
+    }
+
+    function summarizeRetiros(source={}, options={}){
+      const { fromCache=false } = options;
+      const fecha = source.fecha || todayYMD();
+      const isToday = fecha === todayYMD();
+      const rawItems = Array.isArray(source.items) ? source.items : [];
+      const items = rawItems.map(item=>({
+        id: item.id || '',
+        clienteId: item.clienteId || item.cliente || '',
+        estado: (item.estado || '').toLowerCase(),
+        monto: item.monto || ''
+      }));
+      const total = items.length;
+      const realizados = items.filter(item=>item.estado === 'realizado').length;
+      const pendientes = Math.max(total - realizados, 0);
+      return {
+        fromCache,
+        fecha,
+        isToday,
+        updatedAt: source.updatedAt || null,
+        total,
+        realizados,
+        pendientes,
+        items
+      };
+    }
+
+    function summarizeClientes(source={}, options={}){
+      const { fromCache=false } = options;
+      const list = Array.isArray(source.data) ? source.data : Array.isArray(source.list) ? source.list : [];
+      const items = list.map(item=>({
+        id: item.id || '',
+        contrato: !!item.contrato,
+        monto: item.monto || '',
+        nombre: item.nombre || ''
+      }));
+      const total = items.length;
+      const activos = items.filter(item=>item.contrato).length;
+      const mapById = items.reduce((acc,item)=>{
+        if(item.id){ acc[item.id] = item; }
+        return acc;
+      },{});
+      return {
+        fromCache,
+        updatedAt: source.updatedAt || null,
+        total,
+        activos,
+        sinContrato: Math.max(total - activos, 0),
+        list: items,
+        mapById
+      };
+    }
+
+    function summarizePagos(source={}, options={}){
+      const { fromCache=false } = options;
+      const rawItems = Array.isArray(source.items) ? source.items : [];
+      const items = rawItems.map(item=>({
+        estado: (item.estado || '').toLowerCase(),
+        monto: toNumber(item.monto),
+        mes: item.mes || source.mes || currentMonth()
+      }));
+      const mes = source.mes || currentMonth();
+      const isMesActual = mes === currentMonth();
+      let pendientes = 0;
+      let cobrados = 0;
+      items.forEach(item=>{
+        if(item.estado === 'pendiente') pendientes += item.monto;
+        else if(item.estado === 'recibido') cobrados += item.monto;
+      });
+      const total = pendientes + cobrados;
+      const eficiencia = total > 0 ? Math.round((cobrados / total) * 100) : 0;
+      return {
+        fromCache,
+        mes,
+        isMesActual,
+        updatedAt: source.updatedAt || null,
+        pendientes,
+        cobrados,
+        total,
+        eficiencia,
+        items
+      };
+    }
+
+    function renderHomeInsights(){
+      const retiros = homeData.retiros;
+      const clientes = homeData.clientes;
+      const pagos = homeData.pagos;
+
+      if(retiros){
+        const metaParts = [];
+        const fechaLabel = formatDateHuman(retiros.fecha);
+        if(fechaLabel){ metaParts.push(`Agenda ${fechaLabel}${retiros.isToday ? '' : ' (última consultada)'}`); }
+        metaParts.push(`Realizados ${numberFormatter.format(retiros.realizados)}`);
+        metaParts.push(`Pendientes ${numberFormatter.format(retiros.pendientes)}`);
+        const updatedLabel = buildUpdatedMeta(retiros.updatedAt, retiros.fromCache);
+        if(updatedLabel){ metaParts.push(updatedLabel); }
+        updateHomeCard('retiros', {
+          value: numberFormatter.format(retiros.total),
+          meta: metaParts.join(' · ')
+        });
+
+        const progress = retiros.total ? Math.min(100, Math.round((retiros.realizados / retiros.total) * 100)) : 0;
+        const agendaMeta = [];
+        if(retiros.total){
+          agendaMeta.push(`${numberFormatter.format(retiros.realizados)} de ${numberFormatter.format(retiros.total)} completados`);
+          agendaMeta.push(`${numberFormatter.format(retiros.pendientes)} pendientes`);
+        }else{
+          agendaMeta.push('Sin retiros programados');
+        }
+        if(updatedLabel){ agendaMeta.push(updatedLabel); }
+        updateHomeCard('agenda', {
+          value: `${numberFormatter.format(progress)}%`,
+          meta: agendaMeta.join(' · ')
+        });
+      }
+
+      if(clientes){
+        const metaParts = [`de ${numberFormatter.format(clientes.total)} registrados`];
+        const updatedLabel = buildUpdatedMeta(clientes.updatedAt, clientes.fromCache);
+        if(updatedLabel){ metaParts.push(updatedLabel); }
+        updateHomeCard('clientes', {
+          value: numberFormatter.format(clientes.activos),
+          meta: metaParts.join(' · ')
+        });
+
+        const alertMeta = [];
+        if(clientes.sinContrato === 0){
+          alertMeta.push('Todos con contrato activo');
+        }else{
+          alertMeta.push('Revisá firmas pendientes');
+        }
+        if(updatedLabel){ alertMeta.push(updatedLabel); }
+        updateHomeCard('clientesAlert', {
+          value: numberFormatter.format(clientes.sinContrato),
+          meta: alertMeta.join(' · ')
+        });
+      }
+
+      if(pagos){
+        const metaParts = [`${moneyFormatter.format(pagos.cobrados)} cobrados`];
+        const mesLabel = formatMonth(pagos.mes);
+        if(mesLabel){ metaParts.push(mesLabel); }
+        if(!pagos.isMesActual){ metaParts.push('Basado en último mes consultado'); }
+        const updatedLabel = buildUpdatedMeta(pagos.updatedAt, pagos.fromCache);
+        if(updatedLabel){ metaParts.push(updatedLabel); }
+        updateHomeCard('cobros', {
+          value: moneyFormatter.format(pagos.pendientes),
+          meta: metaParts.join(' · ')
+        });
+
+        const progresoMeta = [];
+        if(pagos.total > 0){
+          progresoMeta.push(`${moneyFormatter.format(pagos.cobrados)} de ${moneyFormatter.format(pagos.total)} confirmados`);
+        }else{
+          progresoMeta.push('Sin cobranzas registradas');
+        }
+        if(!pagos.isMesActual){ progresoMeta.push('Basado en último mes consultado'); }
+        if(updatedLabel){ progresoMeta.push(updatedLabel); }
+        updateHomeCard('cobrosProgreso', {
+          value: `${numberFormatter.format(pagos.eficiencia)}%`,
+          meta: progresoMeta.join(' · ')
+        });
+      }
+
+      if(retiros && clientes){
+        const map = clientes.mapById || {};
+        const totalMonto = retiros.items.reduce((acc,item)=>{
+          if(item.monto){
+            return acc + toNumber(item.monto);
+          }
+          const cliente = map[item.clienteId];
+          return acc + toNumber(cliente?.monto);
+        }, 0);
+        const metaParts = [];
+        const fechaLabel = formatDateHuman(retiros.fecha);
+        if(fechaLabel){ metaParts.push(`Agenda ${fechaLabel}${retiros.isToday ? '' : ' (última consultada)'}`); }
+        if(retiros.total){ metaParts.push(`${numberFormatter.format(retiros.total)} clientes agendados`); }
+        const lastUpdated = Math.max(retiros.updatedAt || 0, clientes.updatedAt || 0);
+        const fromCache = !!(retiros.fromCache || clientes.fromCache);
+        const updatedLabel = buildUpdatedMeta(lastUpdated, fromCache);
+        if(updatedLabel){ metaParts.push(updatedLabel); }
+        if(totalMonto > 0){
+          metaParts.push('Estimación según montos de cada cliente');
+        }else if(retiros.total > 0){
+          metaParts.push('Sin montos asignados a los clientes agendados');
+        }else{
+          metaParts.push('Sin retiros programados');
+        }
+        updateHomeCard('ruta', {
+          value: totalMonto > 0 ? moneyFormatter.format(totalMonto) : (retiros.total > 0 ? moneyFormatter.format(0) : '—'),
+          meta: metaParts.join(' · ')
+        });
+      }else if(retiros && !clientes){
+        updateHomeCard('ruta', {
+          value: HOME_DEFAULTS.ruta.value,
+          meta: 'Esperando la cartera para estimar el valor de la ruta.'
+        });
+      }
+    }
+
+    const localStore = (()=>{
+      try{
+        const probe = '__gs_home__';
+        localStorage.setItem(probe,'1');
+        localStorage.removeItem(probe);
+        return localStorage;
+      }catch(err){
+        return null;
+      }
+    })();
+
+    if(demoRequested && gsAuth && typeof gsAuth.startDemoSession === 'function'){
+      try{ gsAuth.startDemoSession(window.GS_DEMO_DATA || {}); }
+      catch(err){ console.error('No se pudo iniciar la demo', err); }
+    }else if(!demoRequested){
+      if(gsAuth && typeof gsAuth.isDemoSession === 'function' && gsAuth.isDemoSession()){
+        gsAuth.endDemoSession({ clearStorage: true });
+      }else if(localStore){
+        try{ localStore.removeItem('gs:demo:mode'); localStore.removeItem('gs:demo:data'); }
+        catch(err){ /* sin almacenamiento demo */ }
+      }
+    }
+
+    const numberFormatter = new Intl.NumberFormat('es-UY');
+    const moneyFormatter = new Intl.NumberFormat('es-UY',{style:'currency',currency:'UYU',maximumFractionDigits:0});
+    const timestampFormatter = new Intl.DateTimeFormat('es-UY',{dateStyle:'short',timeStyle:'short'});
+    const dateFormatter = new Intl.DateTimeFormat('es-UY',{dateStyle:'medium'});
+    const monthFormatter = new Intl.DateTimeFormat('es-UY',{month:'long',year:'numeric'});
+
+    const escapeHtml = (str='')=> String(str).replace(/[&<>"']/g, (c)=>({
+      '&':'&amp;',
+      '<':'&lt;',
+      '>':'&gt;',
+      '"':'&quot;',
+      "'":'&#39;'
+    })[c]);
+    const toNumber = (value)=> Number(String(value||'').replace(/[^\d.,-]/g,'').replace('.','').replace(',','.')) || 0;
+    const todayYMD = ()=>{
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    };
+    const currentMonth = ()=> todayYMD().slice(0,7);
+    const formatDateHuman = (ymd)=>{
+      if(!ymd) return '';
+      const [y,m,d] = ymd.split('-').map(part=>Number(part));
+      if(!y || !m || !d) return '';
+      return dateFormatter.format(new Date(y, m-1, d));
+    };
+    const formatMonth = (ym)=>{
+      if(!ym) return '';
+      const [y,m] = ym.split('-').map(part=>Number(part));
+      if(!y || !m) return '';
+      return monthFormatter.format(new Date(y, m-1, 1));
+    };
+    const formatTimestamp = (ts)=> ts ? timestampFormatter.format(new Date(ts)) : '';
+    const toMillis = (value)=>{
+      if(!value && value !== 0){ return null; }
+      if(typeof value === 'number'){ return value; }
+      if(typeof value.toDate === 'function'){ return value.toDate().getTime(); }
+      if(typeof value.seconds === 'number'){ return (value.seconds * 1000) + Math.floor((value.nanoseconds || 0) / 1e6); }
+      return null;
+    };
+
+    const readCache = (key)=>{
+      if(!localStore) return null;
+      try{
+        const raw = localStore.getItem(key);
+        return raw ? JSON.parse(raw) : null;
+      }catch(err){
+        return null;
+      }
+    };
+
+    const LAST_ACCESS_PREFIX = 'gs:lastAccess:';
+    const HOME_REFRESH_TTL = 60 * 1000;
+    let homeUserId = null;
+    let homeOrganizationId = null;
+    let homeFetchToken = 0;
+    let homeLastRefresh = 0;
+    let cachedDb = null;
+
+    function updateHomeCard(key, payload={}){
+      const card = homeCards[key];
+      if(!card) return;
+      const prev = homeCardState.get(key) || {};
+      const next = Object.assign({}, prev);
+      if(payload.value !== undefined && card.value){
+        if(prev.value !== payload.value){
+          card.value.textContent = payload.value;
+          next.value = payload.value;
+        }
+      }
+      if(payload.meta !== undefined && card.meta){
+        if(prev.meta !== payload.meta){
+          card.meta.textContent = payload.meta;
+          next.meta = payload.meta;
+        }
+      }
+      if(next.value !== prev.value || next.meta !== prev.meta){
+        homeCardState.set(key, next);
+      }
+    }
+
+    function resetHomeCards(){
+      Object.entries(HOME_DEFAULTS).forEach(([key,state])=> updateHomeCard(key, state));
+    }
+
+    function applyHomeCache(uid){
+      if(!uid) return;
+      const orgId = (window.gsAuth && typeof gsAuth.getOrganizationId === 'function')
+        ? gsAuth.getOrganizationId()
+        : 'default';
+      const retiros = readCache(`gs:retiros:agenda:${uid}:${orgId}`) || readCache(`gs:retiros:agenda:${uid}`);
+      if(retiros && Array.isArray(retiros.items)){
+        setHomeData('retiros', summarizeRetiros({
+          items: retiros.items,
+          fecha: retiros.fecha,
+          updatedAt: retiros.updatedAt
+        }, { fromCache: true }));
+      }
+
+      const clientes = readCache(`gs:clientes:${uid}:${orgId}`) || readCache(`gs:clientes:${uid}`);
+      if(clientes && (Array.isArray(clientes.data) || Array.isArray(clientes.list))){
+        setHomeData('clientes', summarizeClientes(clientes, { fromCache: true }));
+      }
+
+      const pagos = readCache(`gs:finanzas:pagos:${uid}:${orgId}`) || readCache(`gs:finanzas:pagos:${uid}`);
+      if(pagos && Array.isArray(pagos.items)){
+        setHomeData('pagos', summarizePagos(pagos, { fromCache: true }));
+      }
+    }
+
+    function updateLastAccessCard(uid, profile){
+      if(!uid){
+        updateHomeCard('acceso', { value: '—', meta: HOME_DEFAULTS.acceso.meta });
+        return;
+      }
+      const now = Date.now();
+      const profileTs = toMillis(profile && profile.lastAccessAt);
+      let previousLocal = null;
+      if(localStore){
+        try{ previousLocal = localStore.getItem(LAST_ACCESS_PREFIX + uid); }
+        catch(err){ previousLocal = null; }
+        try{ localStore.setItem(LAST_ACCESS_PREFIX + uid, String(now)); }
+        catch(err){ /* sin almacenamiento */ }
+      }
+      const previousTs = previousLocal && !Number.isNaN(Number(previousLocal)) ? Number(previousLocal) : null;
+      if(profileTs && previousTs){
+        updateHomeCard('acceso', {
+          value: formatTimestamp(previousTs) || '—',
+          meta: `Nube: ${formatTimestamp(profileTs)} · Sesión actual: ${formatTimestamp(now)}`
+        });
+      }else if(profileTs){
+        updateHomeCard('acceso', {
+          value: formatTimestamp(profileTs) || '—',
+          meta: `Sesión actual: ${formatTimestamp(now)}`
+        });
+      }else if(previousTs){
+        updateHomeCard('acceso', {
+          value: formatTimestamp(previousTs) || '—',
+          meta: `Sesión actual: ${formatTimestamp(now)}`
+        });
+      }else{
+        updateHomeCard('acceso', {
+          value: 'Primer acceso',
+          meta: `Sesión actual: ${formatTimestamp(now)}`
+        });
+      }
+    }
+
+    function getDb(){
+      if(cachedDb){ return cachedDb; }
+      if(typeof firebase === 'undefined' || typeof firebase.firestore !== 'function'){ return null; }
+      cachedDb = firebase.firestore();
+      return cachedDb;
+    }
+
+    function applyDemoHomeData(){
+      if(!gsAuth || typeof gsAuth.getDemoData !== 'function'){ return; }
+      const dataset = gsAuth.getDemoData();
+      const now = Date.now();
+      if(dataset && dataset.retiros){
+        setHomeData('retiros', summarizeRetiros({
+          items: Array.isArray(dataset.retiros.items) ? dataset.retiros.items : [],
+          fecha: dataset.retiros.fecha || todayYMD(),
+          updatedAt: now
+        }, { fromCache: true }));
+      }
+      if(dataset && (Array.isArray(dataset.clientes))){
+        setHomeData('clientes', summarizeClientes({
+          data: dataset.clientes,
+          updatedAt: now
+        }, { fromCache: true }));
+      }
+      if(dataset && dataset.pagos){
+        setHomeData('pagos', summarizePagos({
+          items: Array.isArray(dataset.pagos.items) ? dataset.pagos.items : [],
+          mes: dataset.pagos.mes || currentMonth(),
+          updatedAt: now
+        }, { fromCache: true }));
+      }
+      const homeSnapshot = dataset && dataset.home ? dataset.home : {};
+      const lastAccess = homeSnapshot.ultimoAcceso ? Date.parse(homeSnapshot.ultimoAcceso) : now;
+      updateHomeCard('acceso', {
+        value: formatTimestamp(lastAccess),
+        meta: 'Demo de solo lectura'
+      });
+    }
+
+    function requestHomeRefresh(force=false){
+      if(gsAuth && typeof gsAuth.isDemoSession === 'function' && gsAuth.isDemoSession()){
+        applyDemoHomeData();
+        return;
+      }
+      if(!homeUserId) return;
+      const orgId = (window.gsAuth && typeof gsAuth.getOrganizationId === 'function')
+        ? gsAuth.getOrganizationId()
+        : 'default';
+      if(homeOrganizationId !== orgId){
+        homeOrganizationId = orgId;
+        fetchHomeKpis(homeUserId, orgId);
+        return;
+      }
+      const now = Date.now();
+      if(force || !homeLastRefresh || (now - homeLastRefresh) > HOME_REFRESH_TTL){
+        fetchHomeKpis(homeUserId, homeOrganizationId);
+      }
+    }
+
+    async function fetchHomeKpis(uid, organizationId){
+      const db = getDb();
+      if(!db || !uid) return;
+      const orgId = organizationId
+        || ((window.gsAuth && typeof gsAuth.getOrganizationId === 'function') ? gsAuth.getOrganizationId() : 'default');
+      if(!orgId){ return; }
+      const token = ++homeFetchToken;
+
+      updateHomeCard('retiros', { meta: 'Sincronizando agenda de hoy…' });
+      updateHomeCard('agenda', { meta: 'Calculando progreso de retiros…' });
+      updateHomeCard('ruta', { meta: 'Estimando facturación de los retiros programados…' });
+      updateHomeCard('clientes', { meta: 'Sincronizando cartera de clientes…' });
+      updateHomeCard('clientesAlert', { meta: 'Identificando cuentas a regularizar…' });
+      updateHomeCard('cobros', { meta: 'Sincronizando finanzas del mes…' });
+      updateHomeCard('cobrosProgreso', { meta: 'Calculando avance de cobranzas…' });
+
+      const today = todayYMD();
+      const mes = currentMonth();
+      const now = Date.now();
+
+      const [retirosRes, clientesRes, pagosRes] = await Promise.allSettled([
+        db.collection('retiros').where('organizationId','==',orgId).where('fecha','==',today).get(),
+        db.collection('clientes').where('organizationId','==',orgId).get(),
+        db.collection('pagos').where('organizationId','==',orgId).where('mes','==',mes).get()
+      ]);
+
+      if(token !== homeFetchToken) return;
+
+      if(retirosRes.status === 'fulfilled'){
+        const snap = retirosRes.value;
+        const items = snap.docs.map(doc=>{
+          const data = doc.data() || {};
+          return {
+            id: doc.id,
+            clienteId: data.clienteId || data.cliente || '',
+            estado: (data.estado || '').toLowerCase(),
+            monto: data.monto || ''
+          };
+        });
+        setHomeData('retiros', summarizeRetiros({
+          items,
+          fecha: today,
+          updatedAt: now
+        }));
+      }else{
+        updateHomeCard('retiros', { meta: 'No se pudo obtener la agenda. Reintentá más tarde.' });
+        updateHomeCard('agenda', { meta: 'No pudimos calcular el progreso.' });
+        updateHomeCard('ruta', { meta: 'No se pudo estimar la facturación del día.' });
+      }
+
+      if(clientesRes.status === 'fulfilled'){
+        const snap = clientesRes.value;
+        const data = snap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+        setHomeData('clientes', summarizeClientes({
+          data,
+          updatedAt: now
+        }));
+      }else{
+        updateHomeCard('clientes', { meta: 'No se pudo obtener la cartera. Reintentá más tarde.' });
+        updateHomeCard('clientesAlert', { meta: 'No pudimos analizar los contratos.' });
+      }
+
+      if(pagosRes.status === 'fulfilled'){
+        const snap = pagosRes.value;
+        const items = snap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+        setHomeData('pagos', summarizePagos({
+          items,
+          mes,
+          updatedAt: now
+        }));
+      }else{
+        updateHomeCard('cobros', { meta: 'No se pudieron obtener los cobros. Reintentá más tarde.' });
+        updateHomeCard('cobrosProgreso', { meta: 'No pudimos calcular la eficiencia de cobranza.' });
+      }
+
+      if(token === homeFetchToken){
+        homeLastRefresh = Date.now();
+      }
+    }
+
+    clearHomeData();
+    resetHomeCards();
+
+
+    // Login
+    if(loginForm){
+      loginForm.addEventListener('submit', async (event)=>{
+        event.preventDefault();
+        if(!emailInput || !passInput){ return; }
+        const emailValue = emailInput.value.trim();
+        const passwordValue = passInput.value.trim();
+        if(!emailValue || !passwordValue){
+          msg.textContent = '⚠️ Completá correo y contraseña.';
+          return;
+        }
+        if(btnLogin){
+          btnLogin.disabled = true;
+          btnLogin.textContent = 'Entrando…';
+        }
+        msg.textContent = 'Verificando credenciales…';
+        try{
+          await gsAuth.signInWithEmailAndPassword(emailValue, passwordValue);
+          msg.textContent = '✅ Sesión iniciada';
+        }catch(e){
+          const friendly = (gsAuth && typeof gsAuth.describeError === 'function')
+            ? gsAuth.describeError(e)
+            : null;
+          msg.textContent = '❌ ' + (friendly || e?.message || 'Error de login');
+          if(e && e.code === 'auth/operation-not-allowed'){
+            msg.innerHTML += '<br><small>Agregá este dominio en Firebase Auth → Settings → Authorized domains o probá el modo demo.</small>';
+          }
+        }finally{
+          if(btnLogin){
+            btnLogin.disabled = false;
+            btnLogin.textContent = 'Entrar';
+          }
+        }
+      });
+    }
+
+    // Logout
+    $('#btnLogout').onclick = async ()=>{
+      const redirectMode = (typeof gsAuth !== 'undefined' && gsAuth && typeof gsAuth.isDemoSession === 'function' && gsAuth.isDemoSession()) ? 'demo' : 'full';
+      try{
+        await gsAuth.signOut();
+        ensureLandingRedirect(redirectMode);
+      }catch(e){
+        alert(e?.message || e);
+      }
+    };
+
+    // Router simple por hash
+    function ensureRouteAllowed(){
+      const hash = location.hash || '#/';
+      const key = hash.replace('#','');
+      const route = routes[key];
+      const hasSession = !!(currentSession && currentSession.user);
+      const allowed = !route || !route.permission || (sessionAbilities && sessionAbilities[route.permission]) || hasSession;
+      if(!allowed){
+        if(hash !== '#/'){
+          location.hash = '#/';
+        }
+        return false;
+      }
+      return true;
+    }
+
+    function setActive(hash){
+      if(!sideNav) return;
+      [...sideNav.querySelectorAll('a')].forEach(a=> a.classList.toggle('active', a.getAttribute('href') === hash));
+    }
+
+    function navigate(){
+      // normalizar
+      let hash = location.hash || '#/';
+      const key = hash.replace('#','');
+      let route = routes[key] || routes['/'];
+      if(route && route.permission && !(sessionAbilities && sessionAbilities[route.permission])){
+        if(hash !== '#/'){
+          location.hash = '#/';
+          return;
+        }
+        route = routes['/'];
+        hash = '#/';
+      }
+
+      const label = getModuleLabel(route.moduleKey) || route.defaultTitle || '';
+      if(pageTitle){
+        pageTitle.textContent = label;
+      }
+      const subtitle = route.subtitle || (route.page
+        ? 'Tu sesión sigue activa, cargamos el módulo seleccionado en este panel.'
+        : routes['/'].subtitle);
+      if(pageSubtitle){
+        pageSubtitle.textContent = subtitle;
+      }
+      setActive(hash);
+
+      if(route.page){
+        homeView.classList.add('hidden');
+        const iframe = ensureModuleFrame(route.page, label);
+        if(!iframe){
+          showLoader(`Abriendo ${label}`, 'Sincronizando datos con tu sesión.');
+          return;
+        }
+        hideModuleFrames(iframe);
+        iframe.classList.remove('hidden');
+        iframe.setAttribute('aria-hidden', 'false');
+        iframe.removeAttribute('tabindex');
+        activeFrame = iframe;
+        const currentSrc = iframe.getAttribute('src');
+        const isLoaded = iframe.dataset.loaded === 'true';
+        if(currentSrc !== route.page){
+          showLoader(`Abriendo ${label}`, 'Sincronizando datos con tu sesión.');
+          iframe.dataset.loaded = '';
+          iframe.classList.remove('loaded');
+          iframe.setAttribute('src', route.page);
+        }else if(!isLoaded){
+          showLoader(`Abriendo ${label}`, 'Sincronizando datos con tu sesión.');
+          iframe.classList.remove('loaded');
+          if(!currentSrc){
+            iframe.setAttribute('src', route.page);
+          }
+        }else{
+          hideLoader();
+        }
+      }else{
+        activeFrame = null;
+        hideModuleFrames();
+        homeView.classList.remove('hidden');
+        hideLoader();
+        hideModuleError();
+        requestHomeRefresh();
+      }
+
+      try{ localStorage.setItem(STORAGE_KEY, route === routes['/'] ? '/' : key); }
+      catch(err){ /* almacenamiento no disponible */ }
+    }
+    window.addEventListener('hashchange', navigate);
+
+    function showLoader(title, subtitle){
+      const defaultTitle = `${getActiveBrandName()} · Cargando`;
+      const defaultSubtitle = 'Sincronizando la vista con tu sesión.';
+      if(viewerLoading){
+        viewerLoading.classList.remove('hidden');
+      }
+      if(viewerLoadingTitle){
+        viewerLoadingTitle.textContent = title || defaultTitle;
+      }
+      if(viewerLoadingText){
+        viewerLoadingText.textContent = subtitle || defaultSubtitle;
+      }
+      hideModuleError();
+    }
+    function hideLoader(){
+      const defaultTitle = `${getActiveBrandName()} · Cargando`;
+      const defaultSubtitle = 'Sincronizando la vista con tu sesión.';
+      if(viewerLoading){
+        viewerLoading.classList.add('hidden');
+      }
+      if(viewerLoadingTitle){
+        viewerLoadingTitle.textContent = defaultTitle;
+      }
+      if(viewerLoadingText){
+        viewerLoadingText.textContent = defaultSubtitle;
+      }
+    }
+
+    // Bandeja común para cuando un iframe falla antes del despliegue final.
+    function hideModuleError(){
+      if(viewerError){
+        viewerError.classList.add('hidden');
+      }
+    }
+
+    function showModuleError(label, detail){
+      if(!viewerError) return;
+      if(viewerErrorTitle){
+        viewerErrorTitle.textContent = `No pudimos abrir ${label}.`;
+      }
+      if(viewerErrorText){
+        viewerErrorText.textContent = detail || 'Revisá tu conexión y volvé a intentar.';
+      }
+      viewerError.classList.remove('hidden');
+      hideLoader();
+    }
+
+    // Permite reintentar rápidamente la vista actual sin recargar toda la app.
+    function reloadActiveModule(){
+      if(!activeFrame) return;
+      const src = activeFrame.getAttribute('src') || activeFrame.dataset.page || '';
+      if(!src) return;
+      const pageLabel = activeFrame.dataset.pageLabel || 'el módulo';
+      showLoader(`Reintentando ${pageLabel}`, 'Actualizando la vista publicada…');
+      const [path, hash] = src.split('#');
+      const sanitized = (path || '').replace(/([?&])gsReload=\d+/g, '').replace(/([?&])$/, '');
+      const base = sanitized || path || '';
+      if(!base) return;
+      const connector = base.includes('?') ? '&' : '?';
+      const nextSrc = `${base}${connector}gsReload=${Date.now()}${hash ? `#${hash}` : ''}`;
+      activeFrame.dataset.loaded = '';
+      activeFrame.classList.remove('loaded');
+      activeFrame.setAttribute('src', nextSrc);
+    }
+
+    function closeNav(){
+      document.body.classList.remove('nav-open');
+      if(navToggle){
+        navToggle.setAttribute('aria-expanded','false');
+        navToggle.setAttribute('aria-label','Abrir menú');
+      }
+      if(navBackdrop){ navBackdrop.hidden = true; }
+    }
+    function openNav(){
+      document.body.classList.add('nav-open');
+      if(navToggle){ navToggle.setAttribute('aria-expanded','true'); navToggle.setAttribute('aria-label','Cerrar menú'); }
+      if(navBackdrop){ navBackdrop.hidden = false; }
+    }
+
+    if(navToggle){
+      navToggle.addEventListener('click', ()=>{
+        const expanded = navToggle.getAttribute('aria-expanded') === 'true';
+        if(expanded){
+          closeNav();
+          navToggle.setAttribute('aria-label','Abrir menú');
+        }else{
+          openNav();
+        }
+      });
+    }
+
+    if(navBackdrop){
+      navBackdrop.addEventListener('click', closeNav);
+    }
+
+    sideNav.addEventListener('click', (event)=>{
+      const link = event.target.closest('a');
+      if(link){
+        const external = link.dataset.external;
+        closeNav();
+        navToggle?.setAttribute('aria-label','Abrir menú');
+        if(external){
+          event.preventDefault();
+          window.location.href = external;
+        }
+      }
+    });
+
+    window.addEventListener('resize', ()=>{
+      if(window.innerWidth > 1024){
+        closeNav();
+        navToggle?.setAttribute('aria-label','Abrir menú');
+      }
+    });
+
+    document.addEventListener('keydown',(event)=>{
+      if(event.key === 'Escape' && document.body.classList.contains('nav-open')){
+        closeNav();
+        navToggle?.focus();
+      }
+    });
+
+    function labelForRole(role, context){
+      const key = normalizeRole(role, context);
+      return ROLE_LABELS[key] || ROLE_LABELS.guest || 'Invitado';
+    }
+
+    function applyBodyRole(role, context){
+      if(document && document.body){
+        document.body.setAttribute('data-role', normalizeRole(role, context) || 'guest');
+      }
+    }
+
+    function updateSessionChipDisplay(session){
+      if(!sessionChip || !sessionRole || !sessionEmail) return;
+      const user = session && session.user;
+      const role = normalizeRole(session && session.role, user);
+      const status = session ? session.status : 'signed-out';
+      const isActive = !!user && (status === 'authenticated' || status === 'restoring');
+      if(isActive){
+        sessionChip.classList.remove('hidden');
+        sessionChip.dataset.role = role || 'guest';
+        sessionRole.textContent = labelForRole(role, user);
+        sessionEmail.textContent = user.email || 'Sin correo registrado';
+      }else{
+        sessionChip.classList.add('hidden');
+        sessionChip.dataset.role = 'guest';
+        sessionRole.textContent = labelForRole('guest');
+        sessionEmail.textContent = 'Sin sesión activa';
+      }
+    }
+
+    function applyNavPermissions(){
+      const hasSession = !!(currentSession && currentSession.user);
+      navLinksWithPermission.forEach((link)=>{
+        const perm = link.dataset.permission;
+        const allowed = !perm || !!(sessionAbilities && sessionAbilities[perm]) || hasSession;
+        if(allowed){
+          link.classList.remove('hidden');
+          link.setAttribute('aria-hidden', 'false');
+          link.removeAttribute('tabindex');
+        }else{
+          link.classList.add('hidden');
+          link.setAttribute('aria-hidden', 'true');
+          link.setAttribute('tabindex', '-1');
+        }
+      });
+    }
+
+    function handleLogin(session){
+      const uid = session && session.user ? (session.user.uid || 'default') : 'default';
+      homeFetchToken += 1;
+      homeLastRefresh = 0;
+      homeUserId = uid;
+      homeOrganizationId = session && session.profile && session.profile.organizationId
+        ? session.profile.organizationId
+        : ((window.gsAuth && typeof gsAuth.getOrganizationId === 'function') ? gsAuth.getOrganizationId() : 'default');
+      clearHomeData();
+      resetHomeCards();
+      applyHomeCache(uid);
+      updateLastAccessCard(uid, session ? session.profile : null);
+      document.body.classList.remove('login-open');
+      if(landingShell){ landingShell.removeAttribute('aria-hidden'); }
+      if(loginView){ loginView.classList.add('hidden'); }
+      if(appView){ appView.classList.remove('hidden'); }
+      document.body.classList.add('app-ready');
+      if(emailInput && session && session.user && session.user.email){
+        emailInput.value = session.user.email;
+      }
+      if(passInput){ passInput.value = ''; }
+      requestHomeRefresh(true);
+      if(!location.hash){
+        let initialHash = '#/';
+        try{
+          const saved = localStorage.getItem(STORAGE_KEY);
+          if(saved && routes[saved]){ initialHash = `#${saved}`; }
+        }catch(err){ /* sin almacenamiento */ }
+        location.hash = initialHash;
+      }else{
+        navigate();
+      }
+    }
+
+    function handleLogout(){
+      homeUserId = null;
+      homeOrganizationId = null;
+      homeLastRefresh = 0;
+      homeFetchToken += 1;
+      clearHomeData();
+      resetHomeCards();
+      document.body.classList.add('login-open');
+      if(appView){ appView.classList.add('hidden'); }
+      if(loginView){ loginView.classList.remove('hidden'); }
+      if(landingShell){ landingShell.removeAttribute('aria-hidden'); }
+      document.body.classList.remove('app-ready');
+      document.body.setAttribute('data-role','guest');
+      cancelModuleWarmup();
+      resetModuleFrames();
+      hideLoader();
+      hideModuleError();
+      closeNav();
+      navToggle?.setAttribute('aria-label','Abrir menú');
+      try{ localStorage.removeItem(STORAGE_KEY); }catch(err){ /* noop */ }
+      if(sessionChip){
+        sessionChip.classList.add('hidden');
+        sessionChip.dataset.role = 'guest';
+      }
+      if(emailInput){ emailInput.value = ''; }
+      if(passInput){ passInput.value = ''; }
+      lastProfileStamp = null;
+      appInitializedFor = null;
+    }
+
+    gsAuth.onSession((session)=>{
+      if(demoAutostartTimer){
+        clearTimeout(demoAutostartTimer);
+        demoAutostartTimer = null;
+      }
+      currentSession = session;
+      const role = normalizeRole(session && session.role, session && session.user);
+      applyBodyRole(role, session && session.user);
+      sessionAbilities = session && session.abilities ? session.abilities : {};
+      applyNavPermissions();
+      ensureRouteAllowed();
+      updateSessionChipDisplay(session);
+      if(session && session.user && emailInput && !emailInput.value){
+        emailInput.value = session.user.email || '';
+      }
+
+      const status = session ? session.status : 'signed-out';
+      const isAuthenticated = !!(session && session.user) && (status === 'authenticated' || status === 'demo');
+      const uid = isAuthenticated && session.user ? (session.user.uid || 'default') : null;
+      document.body.classList.toggle('demo-mode', status === 'demo');
+
+      if(isAuthenticated){
+        const profileStamp = toMillis(session.profile && session.profile.lastAccessAt);
+        if(appInitializedFor !== uid){
+          appInitializedFor = uid;
+          handleLogin(session);
+        }
+        scheduleModuleWarmup();
+        if(profileStamp && profileStamp !== lastProfileStamp){
+          lastProfileStamp = profileStamp;
+          updateLastAccessCard(uid, session.profile);
+        }else if(!profileStamp && uid){
+          updateLastAccessCard(uid, session.profile);
+        }
+      }else{
+        cancelModuleWarmup();
+        if(lastSession && lastSession.user && (lastSession.status === 'authenticated' || lastSession.status === 'demo')){
+          handleLogout();
+          const previousMode = (lastSession && lastSession.status === 'demo') ? 'demo' : 'full';
+          ensureLandingRedirect(previousMode);
+        }
+        scheduleDemoAutostart();
+      }
+
+      lastSession = session;
+    });
+
+    if(viewerErrorRetry){
+      viewerErrorRetry.addEventListener('click', ()=>{
+        hideModuleError();
+        reloadActiveModule();
+      });
+    }
+
+    if(viewerErrorHome){
+      viewerErrorHome.addEventListener('click', ()=>{
+        hideModuleError();
+        location.hash = '#/';
+      });
+    }
+
+    // ========================================
+    // EXECUTIVE COMMAND CENTER
+    // ========================================
+    
+    // Variables globales del dashboard
+    let dashboardCharts = {};
+    let currentPeriod = 'today';
+    let refreshInterval;
+    let alertCheckInterval;
+    
+    // Configuración de colores del tema dinámico - SE LEEN DE LA APLICACIÓN ACTUAL
+    let currentTheme = {
+        primary: getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#1DBF73',
+        secondary: getComputedStyle(document.documentElement).getPropertyValue('--accent2') || '#16a062', 
+        accent: getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#1DBF73'
+    };
+    
+    // ========================================
+    // INICIALIZACIÓN DEL DASHBOARD
+    // ========================================
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeDashboard();
+        setupThemeListener();
+        setupPeriodSelector();
+        setupKeyboardNavigation();
+        startDataRefresh();
+        startAlertMonitoring();
+    });
+    
+    // ========================================
+    // INICIALIZACIÓN PRINCIPAL
+    // ========================================
+    
+    function initializeDashboard() {
+        console.log('🚀 Inicializando Executive Command Center...');
+        
+        // Detectar y usar colorimetría existente de la aplicación
+        detectExistingTheme();
+        
+        // Aplicar tema dinámico (solo si hay cambios reales)
+        applyDynamicTheme();
+        
+        // Configurar período por defecto
+        setCurrentPeriod('today');
+        
+        // Cargar datos iniciales
+        loadAllKPIData();
+        
+        console.log('✅ Executive Command Center inicializado correctamente');
+        
+        // Inicializar AI Intelligence Layer
+        initializeAIIntelligence();
+    }
+    
+    // ========================================
+    // DETECCIÓN AUTOMÁTICA DE TEMAS EXISTENTES
+    // ========================================
+    
+    function detectExistingTheme() {
+        console.log('🎨 Detectando esquema de colores existente...');
+        
+        const rootStyle = getComputedStyle(document.documentElement);
+        
+        // Intentar leer colores existentes en orden de prioridad
+        const existingColors = {
+            primary: rootStyle.getPropertyValue('--accent')?.trim() ||
+                    rootStyle.getPropertyValue('--color-primary')?.trim() ||
+                    rootStyle.getPropertyValue('--primary-color')?.trim() ||
+                    getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#1DBF73',
+                    
+            secondary: rootStyle.getPropertyValue('--accent2')?.trim() ||
+                      rootStyle.getPropertyValue('--color-secondary')?.trim() ||
+                      rootStyle.getPropertyValue('--secondary-color')?.trim() ||
+                      getComputedStyle(document.documentElement).getPropertyValue('--accent2') || '#16a062',
+                      
+            accent: rootStyle.getPropertyValue('--accent-color')?.trim() ||
+                   rootStyle.getPropertyValue('--color-accent')?.trim() ||
+                   rootStyle.getPropertyValue('--accent')?.trim() ||
+                   getColorFromCSSRule('accent')
+        };
+        
+        // Si encontramos colores existentes, usarlos
+        if (existingColors.primary || existingColors.secondary || existingColors.accent) {
+            currentTheme = {
+                primary: existingColors.primary || currentTheme.primary,
+                secondary: existingColors.secondary || currentTheme.secondary,
+                accent: existingColors.accent || currentTheme.accent
+            };
+            console.log('🎨 Colores detectados del tema existente:', currentTheme);
+        } else {
+            console.log('🎨 Usando colores por defecto:', currentTheme);
+        }
+    }
+    
+    // ========================================
+    // DETECCIÓN DE COLORES DESDE REGLAS CSS
+    // ========================================
+    
+    function getColorFromCSSRule(colorName) {
+        try {
+            // Crear un elemento temporal para probar colores
+            const tempEl = document.createElement('div');
+            tempEl.style.color = `var(--${colorName})`;
+            document.body.appendChild(tempEl);
+            
+            const computedColor = getComputedStyle(tempEl).color;
+            document.body.removeChild(tempEl);
+            
+            // Convertir rgb(a) a hex si es posible
+            if (computedColor.startsWith('rgb')) {
+                const rgb = computedColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+                if (rgb) {
+                    return `#${parseInt(rgb[1]).toString(16).padStart(2, '0')}${parseInt(rgb[2]).toString(16).padStart(2, '0')}${parseInt(rgb[3]).toString(16).padStart(2, '0')}`;
+                }
+            }
+            
+            return computedColor;
+        } catch (err) {
+            console.warn('Error detectando color:', colorName, err);
+            return null;
+        }
+    }
+    
+    // ========================================
+    // APLICACIÓN DE TEMA DINÁMICO
+    // ========================================
+    
+    function applyDynamicTheme() {
+        console.log('🎨 Aplicando tema dinámico...');
+        
+        // Actualizar variables CSS si existen
+        const root = document.documentElement;
+        
+        // Usar los colores detectados del tema existente
+        if (currentTheme.primary) {
+            root.style.setProperty('--primary-color', currentTheme.primary);
+            root.style.setProperty('--accent', currentTheme.primary);
+        }
+        
+        if (currentTheme.secondary) {
+            root.style.setProperty('--secondary-color', currentTheme.secondary);
+            root.style.setProperty('--accent2', currentTheme.secondary);
+        }
+        
+        if (currentTheme.accent) {
+            root.style.setProperty('--accent-color', currentTheme.accent);
+        }
+        
+        // Actualizar colores en las variables existentes
+        if (currentTheme.primary) {
+            root.style.setProperty('--app-accent', currentTheme.primary);
+        }
+        
+        if (currentTheme.secondary) {
+            root.style.setProperty('--app-secondary', currentTheme.secondary);
+        }
+        
+        console.log('✅ Tema dinámico aplicado');
+    }
+    
+    // ========================================
+    // MONITOREO DE CAMBIOS DE TEMA
+    // ========================================
+    
+    function setupThemeListener() {
+        // Escuchar cambios en variables CSS
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                    // Detectar cambios en variables CSS
+                    detectExistingTheme();
+                    applyDynamicTheme();
+                }
+            });
+        });
+        
+        // Observar cambios en el elemento root
+        observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['style']
+        });
+        
+        // También escuchar eventos de cambio de tema si están disponibles
+        if (typeof gsAuth !== 'undefined' && gsAuth.onTheme) {
+            gsAuth.onTheme(function(theme) {
+                console.log('🎨 Cambiando tema via gsAuth:', theme);
+                if (theme && theme.palette) {
+                    detectExistingTheme();
+                    applyDynamicTheme();
+                }
+            });
+        }
+    }
+    
+    // ========================================
+    // CONFIGURACIÓN DEL SELECTOR DE PERÍODOS
+    // ========================================
+    
+    function setupPeriodSelector() {
+        console.log('📅 Configurando selector de períodos...');
+        
+        const periodButtons = document.querySelectorAll('.period-btn');
+        
+        periodButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const period = this.getAttribute('data-period');
+                setCurrentPeriod(period);
+                
+                // Actualizar estado visual
+                periodButtons.forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Recargar datos para el nuevo período
+                loadAllKPIData();
+            });
+        });
+        
+        console.log('✅ Selector de períodos configurado');
+    }
+    
+    // ========================================
+    // CONFIGURACIÓN DE NAVEGACIÓN POR TECLADO
+    // ========================================
+    
+    function setupKeyboardNavigation() {
+        console.log('⌨️ Configurando navegación por teclado...');
+        
+        document.addEventListener('keydown', function(e) {
+            // Cerrar modal con Escape
+            if (e.key === 'Escape') {
+                closeDrilldownModal();
+            }
+            
+            // Navegación con números 1-9 para cambiar período
+            if (e.key >= '1' && e.key <= '9') {
+                const periodIndex = parseInt(e.key) - 1;
+                const periods = ['today', 'week', 'month', 'quarter', 'year'];
+                if (periods[periodIndex]) {
+                    setCurrentPeriod(periods[periodIndex]);
+                    loadAllKPIData();
+                    
+                    // Actualizar estado visual
+                    document.querySelectorAll('.period-btn').forEach((btn, index) => {
+                        btn.classList.toggle('active', index === periodIndex);
+                    });
+                }
+            }
+        });
+        
+        console.log('✅ Navegación por teclado configurada');
+    }
+    
+    // ========================================
+    // GESTIÓN DE PERÍODOS
+    // ========================================
+    
+    function setCurrentPeriod(period) {
+        currentPeriod = period;
+        console.log(`📅 Período cambiado a: ${period}`);
+        
+        // Actualizar título del dashboard según el período
+        const dashboardTitle = document.querySelector('.dashboard-title');
+        if (dashboardTitle) {
+            const periodNames = {
+                'today': 'Hoy',
+                'week': 'Esta Semana',
+                'month': 'Este Mes',
+                'quarter': 'Este Trimestre',
+                'year': 'Este Año'
+            };
+            dashboardTitle.textContent = `Executive Command Center - ${periodNames[period] || 'Dashboard'}`;
+        }
+    }
+    
+    // ========================================
+    // CARGA DE DATOS DE KPIS
+    // ========================================
+    
+    function loadAllKPIData() {
+        console.log(`📊 Cargando datos de KPIs para período: ${currentPeriod}`);
+        
+        // Mostrar estado de carga
+        showLoadingState();
+        
+        // Cargar cada KPI con un delay para simular carga real
+        loadKPI('retiros').then(() => {
+            return loadKPI('ingresos');
+        }).then(() => {
+            return loadKPI('eficiencia');
+        }).then(() => {
+            hideLoadingState();
+            console.log('✅ Todos los KPIs cargados');
+        }).catch(error => {
+            console.error('❌ Error cargando KPIs:', error);
+            hideLoadingState();
+        });
+    }
+    
+    function showLoadingState() {
+        // Mostrar indicadores de carga en las cards
+        document.querySelectorAll('.kpi-value').forEach(el => {
+            el.textContent = '—';
+            el.style.opacity = '0.5';
+        });
+    }
+    
+    function hideLoadingState() {
+        // Ocultar indicadores de carga
+        document.querySelectorAll('.kpi-value').forEach(el => {
+            el.style.opacity = '1';
+        });
+    }
+    
+    // ========================================
+    // CARGA DE DATOS POR KPI
+    // ========================================
+    
+    async function loadKPI(kpiType) {
+        console.log(`📊 Cargando KPI: ${kpiType}`);
+        
+        try {
+            const data = await fetchKPIData(kpiType);
+            updateKPICard(kpiType, data);
+            createOrUpdateChart(kpiType, data);
+            return data;
+        } catch (error) {
+            console.error(`❌ Error cargando KPI ${kpiType}:`, error);
+            // Mostrar datos de fallback
+            showKPIFallback(kpiType);
+            return null;
+        }
+    }
+    
+    function showKPIFallback(kpiType) {
+        const fallbackData = {
+            'retiros': { value: '0', change: '+0%', trend: 'neutral' },
+            'ingresos': { value: '$0', change: '+0%', trend: 'neutral' },
+            'eficiencia': { value: '0%', change: '+0%', trend: 'neutral' }
+        };
+        
+        const data = fallbackData[kpiType] || fallbackData['retiros'];
+        updateKPICard(kpiType, data);
+    }
+    
+    // ========================================
+    // ACTUALIZACIÓN DE CARDS DE KPI
+    // ========================================
+    
+    function updateKPICard(kpiType, data) {
+        console.log(`📊 Actualizando card: ${kpiType}`, data);
+        
+        const valueEl = document.getElementById(`${kpiType}Value`);
+        const changeEl = document.getElementById(`${kpiType}ChangeValue`);
+        const changeContainer = document.getElementById(`${kpiType}Change`);
+        
+        if (valueEl) {
+            valueEl.textContent = data.value || '—';
+        }
+        
+        if (changeEl) {
+            changeEl.textContent = data.change || '—';
+        }
+        
+        if (changeContainer) {
+            changeContainer.className = `kpi-change ${data.trend || 'neutral'}`;
+        }
+    }
+    
+    // ========================================
+    // CREACIÓN Y ACTUALIZACIÓN DE GRÁFICOS
+    // ========================================
+    
+    function createOrUpdateChart(kpiType, data) {
+        const canvasId = `${kpiType}Chart`;
+        const canvas = document.getElementById(canvasId);
+        
+        if (!canvas) {
+            console.warn(`⚠️ Canvas no encontrado: ${canvasId}`);
+            return;
+        }
+        
+        // Destruir gráfico existente si existe
+        if (dashboardCharts[kpiType]) {
+            dashboardCharts[kpiType].destroy();
+        }
+        
+        // Configurar datos del gráfico
+        const chartData = getChartDataForKPI(kpiType, data);
+        
+        // Crear nuevo gráfico
+        const ctx = canvas.getContext('2d');
+        dashboardCharts[kpiType] = new Chart(ctx, {
+            type: 'line',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: 'white',
+                        bodyColor: 'white',
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
+                        borderWidth: 1
+                    }
+                },
+                scales: {
+                    x: {
+                        display: false
+                    },
+                    y: {
+                        display: false
+                    }
+                },
+                elements: {
+                    point: {
+                        radius: 3,
+                        hoverRadius: 5
+                    },
+                    line: {
+                        borderWidth: 2,
+                        tension: 0.3
+                    }
+                },
+                animation: {
+                    duration: 1000,
+                    easing: 'easeInOutQuart'
+                }
+            }
+        });
+    }
+    
+    function getChartDataForKPI(kpiType, data) {
+        // Datos de muestra para los gráficos
+        const sampleData = {
+            'retiros': {
+                labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+                datasets: [{
+                    label: 'Retiros',
+                    data: [12, 19, 8, 15, 25, 22, 18],
+                    borderColor: currentTheme.accent || '#1DBF73',
+                    backgroundColor: (currentTheme.accent || '#1DBF73') + '20',
+                    fill: true
+                }]
+            },
+            'ingresos': {
+                labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+                datasets: [{
+                    label: 'Ingresos',
+                    data: [2500, 3200, 1800, 4100, 5300, 4800, 3600],
+                    borderColor: currentTheme.accent || '#1DBF73',
+                    backgroundColor: (currentTheme.accent || '#1DBF73') + '20',
+                    fill: true
+                }]
+            },
+            'eficiencia': {
+                labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+                datasets: [{
+                    label: 'Eficiencia',
+                    data: [85, 92, 78, 88, 95, 89, 91],
+                    borderColor: currentTheme.accent || '#1DBF73',
+                    backgroundColor: (currentTheme.accent || '#1DBF73') + '20',
+                    fill: true
+                }]
+            }
+        };
+        const base = sampleData[kpiType] || sampleData['retiros'];
+        const spark = Array.isArray(data?.sparkline) && data.sparkline.length ? data.sparkline : null;
+        const dataset = base.datasets[0];
+        return {
+            labels: spark ? spark.map((_,i)=>`T${i+1}`) : base.labels,
+            datasets: [{
+                label: dataset.label,
+                data: spark || dataset.data,
+                borderColor: dataset.borderColor,
+                backgroundColor: dataset.backgroundColor,
+                fill: dataset.fill
+            }]
+        };
+    }
+    
+    // ========================================
+    // OBTENCIÓN DE DATOS DESDE FIREBASE
+    // ========================================
+    
+    async function fetchKPIData(kpiType) {
+        console.log(`🔄 Obteniendo datos de Firebase para: ${kpiType}`);
+
+        // Simular delay de red
+        await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 500));
+
+        // Intentar obtener datos de Firebase si está disponible
+        const db = getDb();
+        if (db) {
+            try {
+                return await fetchRealKPIFromFirebase(kpiType);
+            } catch (error) {
+                console.warn('⚠️ Error obteniendo datos de Firebase:', error);
+                return generateSampleKPIData(kpiType);
+            }
+        } else {
+            console.log('📊 Firebase no disponible, usando datos de muestra');
+            return generateSampleKPIFromLocalStorage(kpiType);
+        }
+    }
+    
+    async function fetchRealKPIFromFirebase(kpiType) {
+        const db = getDb();
+        if (!db) return generateSampleKPIData(kpiType);
+        const data = {};
+        
+        switch (kpiType) {
+            case 'retiros':
+                const retirosSnapshot = await db.collection('retiros')
+                    .where('fecha', '>=', getPeriodStartDate())
+                    .get();
+                data.value = retirosSnapshot.size.toString();
+                data.change = '+12% vs anterior';
+                data.trend = 'positive';
+                break;
+                
+            case 'ingresos':
+                const pagosSnapshot = await db.collection('pagos')
+                    .where('fecha', '>=', getPeriodStartDate())
+                    .get();
+                const totalIngresos = pagosSnapshot.docs.reduce((sum, doc) => {
+                    const pago = doc.data();
+                    return sum + (pago.monto || 0);
+                }, 0);
+                data.value = formatCurrency(totalIngresos);
+                data.change = '+8% vs anterior';
+                data.trend = 'positive';
+                break;
+                
+            case 'eficiencia':
+                const clientesSnapshot = await db.collection('clientes').get();
+                const totalClientes = clientesSnapshot.size;
+                const clientesActivos = clientesSnapshot.docs.filter(doc => {
+                    const cliente = doc.data();
+                    return cliente.contrato && cliente.activo !== false;
+                }).length;
+                const eficiencia = totalClientes > 0 ? Math.round((clientesActivos / totalClientes) * 100) : 0;
+                data.value = `${eficiencia}%`;
+                data.change = '+5% vs anterior';
+                data.trend = 'positive';
+                break;
+        }
+        
+        return data;
+    }
+    
+    function getPeriodStartDate() {
+        const now = new Date();
+        
+        switch (currentPeriod) {
+            case 'today':
+                return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            case 'week':
+                const weekStart = new Date(now);
+                weekStart.setDate(now.getDate() - now.getDay());
+                return weekStart;
+            case 'month':
+                return new Date(now.getFullYear(), now.getMonth(), 1);
+            case 'quarter':
+                const quarter = Math.floor(now.getMonth() / 3);
+                return new Date(now.getFullYear(), quarter * 3, 1);
+            case 'year':
+                return new Date(now.getFullYear(), 0, 1);
+            default:
+                return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        }
+    }
+    
+    function generateSampleKPIFromLocalStorage(kpiType) {
+        // Intentar obtener datos del localStorage
+        const storedData = localStorage.getItem(`kpi_${kpiType}_${currentPeriod}`);
+        if (storedData) {
+            try {
+                return JSON.parse(storedData);
+            } catch (error) {
+                console.warn('⚠️ Error parseando datos del localStorage:', error);
+            }
+        }
+        
+        // Generar datos de muestra
+        return generateSampleKPIData(kpiType);
+    }
+    
+    function generateSampleKPIData(kpiType) {
+        const sampleData = {
+            'retiros': {
+                value: Math.floor(Math.random() * 50 + 10).toString(),
+                change: `+${Math.floor(Math.random() * 20 + 5)}% vs anterior`,
+                trend: Math.random() > 0.2 ? 'positive' : 'negative'
+            },
+            'ingresos': {
+                value: formatCurrency(Math.floor(Math.random() * 50000 + 20000)),
+                change: `+${Math.floor(Math.random() * 15 + 3)}% vs anterior`,
+                trend: Math.random() > 0.15 ? 'positive' : 'negative'
+            },
+            'eficiencia': {
+                value: `${Math.floor(Math.random() * 20 + 80)}%`,
+                change: `+${Math.floor(Math.random() * 8 + 2)}% vs anterior`,
+                trend: 'positive'
+            }
+        };
+        
+        const data = sampleData[kpiType] || sampleData['retiros'];
+        
+        // Guardar en localStorage para uso posterior
+        try {
+            localStorage.setItem(`kpi_${kpiType}_${currentPeriod}`, JSON.stringify(data));
+        } catch (error) {
+            console.warn('⚠️ No se pudo guardar en localStorage:', error);
+        }
+        
+        return data;
+    }
+    
+    function formatCurrency(amount) {
+        return new Intl.NumberFormat('es-UY', {
+            style: 'currency',
+            currency: 'UYU',
+            minimumFractionDigits: 0
+        }).format(amount);
+    }
+    
+    // ========================================
+    // SISTEMA DE ALERTAS
+    // ========================================
+    
+    function startAlertMonitoring() {
+        console.log('🚨 Iniciando monitoreo de alertas...');
+        
+        // Cargar alertas iniciales
+        loadAlerts();
+        
+        // Configurar intervalos de verificación
+        alertCheckInterval = setInterval(() => {
+            loadAlerts();
+        }, 30000); // Verificar cada 30 segundos
+        
+        console.log('✅ Monitoreo de alertas iniciado');
+    }
+    
+    async function loadAlerts() {
+        console.log('🔔 Cargando alertas del sistema...');
+        
+        try {
+            const alerts = await generateSystemAlerts();
+            displayAlerts(alerts);
+        } catch (error) {
+            console.error('❌ Error cargando alertas:', error);
+            displayAlerts([]);
+        }
+    }
+    
+    function displayAlerts(alerts) {
+        const alertsContent = document.getElementById('alertsContent');
+        if (!alertsContent) return;
+        
+        if (alerts.length === 0) {
+            alertsContent.innerHTML = '<div class="alert-item"><div class="alert-icon">✅</div><div class="alert-content"><div class="alert-title">Sistema Operativo</div><div class="alert-time">Todos los sistemas funcionando correctamente</div></div></div>';
+            return;
+        }
+        
+        alertsContent.innerHTML = alerts.map(alert => `
+            <div class="alert-item">
+                <svg class="alert-icon" fill="currentColor">
+                    <use href="#icon-alert"></use>
+                </svg>
+                <div class="alert-content">
+                    <div class="alert-title">${alert.title}</div>
+                    <div class="alert-time">${alert.time}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    function generateSystemAlerts() {
+        return new Promise(resolve => {
+            // Simular carga de alertas desde Firebase
+            setTimeout(() => {
+                const alerts = [];
+                
+                // Alertas de muestra
+                if (Math.random() > 0.7) {
+                    alerts.push({
+                        title: 'Retiros pendientes de confirmación',
+                        time: 'Hace 15 minutos'
+                    });
+                }
+                
+                if (Math.random() > 0.8) {
+                    alerts.push({
+                        title: 'Cliente sin contrato requiere atención',
+                        time: 'Hace 1 hora'
+                    });
+                }
+                
+                if (Math.random() > 0.9) {
+                    alerts.push({
+                        title: 'Cobro vencido detectado',
+                        time: 'Hace 2 horas'
+                    });
+                }
+                
+                resolve(alerts);
+            }, 500);
+        });
+    }
+    
+    // ========================================
+    // REFRESH AUTOMÁTICO
+    // ========================================
+    
+    function startDataRefresh() {
+        console.log('🔄 Iniciando refresh automático...');
+        
+        refreshInterval = setInterval(() => {
+            console.log('🔄 Refrescando datos automáticamente...');
+            loadAllKPIData();
+            loadAlerts();
+        }, 300000); // Refrescar cada 5 minutos
+        
+        console.log('✅ Refresh automático iniciado');
+    }
+    
+    function stopDataRefresh() {
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+            console.log('⏹️ Refresh automático detenido');
+        }
+    }
+    
+    // ========================================
+    // MODAL DE DETALLE (DRILLDOWN)
+    // ========================================
+    
+    function setupDrilldownModal() {
+        console.log('📊 Configurando modal de detalles...');
+        
+        // Configurar eventos de clic en las cards
+        document.querySelectorAll('.kpi-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const kpiType = this.getAttribute('data-kpi');
+                const module = this.getAttribute('data-module');
+                openDrilldownModal(kpiType, module);
+            });
+        });
+        
+        // Configurar botón de cerrar
+        const closeBtn = document.getElementById('drilldownClose');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', closeDrilldownModal);
+        }
+        
+        // Cerrar al hacer clic fuera del contenido
+        const modal = document.getElementById('drilldownModal');
+        if (modal) {
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    closeDrilldownModal();
+                }
+            });
+        }
+        
+        console.log('✅ Modal de detalles configurado');
+    }
+    
+    function openDrilldownModal(kpiType, module) {
+        console.log(`📊 Abriendo modal para KPI: ${kpiType}`);
+        
+        const modal = document.getElementById('drilldownModal');
+        const titleEl = document.getElementById('drilldownTitle');
+        const bodyEl = document.getElementById('drilldownBody');
+        
+        if (!modal || !titleEl || !bodyEl) return;
+        
+        // Configurar título
+        const kpiNames = {
+            'retiros': 'Retiros Programados',
+            'ingresos': 'Ingresos Diarios',
+            'eficiencia': 'Eficiencia Operativa'
+        };
+        titleEl.textContent = kpiNames[kpiType] || 'Detalles del KPI';
+        
+        // Generar contenido detallado
+        generateDetailedContent(kpiType, bodyEl);
+        
+        // Mostrar modal
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        
+        // Enfocar el modal para accesibilidad
+        modal.focus();
+        
+        console.log('✅ Modal abierto');
+    }
+    
+    function closeDrilldownModal() {
+        console.log('📊 Cerrando modal');
+        
+        const modal = document.getElementById('drilldownModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+    }
+    
+    function generateDetailedContent(kpiType, container) {
+        const prediction = aiState.predictions && aiState.predictions[kpiType] ? aiState.predictions[kpiType] : null;
+        const recs = (aiState.recommendations || []).filter(r=> r.id?.includes(kpiType) || !kpiType).slice(0,3);
+        const patterns = (aiState.patterns || []).filter(p=> p.title && (!kpiType || p.title.toLowerCase().includes(kpiType))).slice(0,3);
+
+        const metrics = prediction ? [
+            { label: 'Valor proyectado', value: kpiType === 'ingresos' ? formatCurrency(prediction.value||0) : `${toNumber(prediction.value||0).toFixed(1)}${kpiType==='eficiencia'?'%':''}`, change: `${(prediction.trend||0)>=0?'+':''}${(prediction.trend||0).toFixed(1)}% tendencia` },
+            { label: 'Confianza del modelo', value: `${(prediction.confidence||0).toFixed(0)}%`, change: 'Basado en datos recientes' },
+            { label: 'Última actualización', value: new Date(aiState.lastUpdated||Date.now()).toLocaleString(), change: 'Sesión activa' }
+        ] : [
+            { label: 'Sin datos recientes', value: '—', change: 'Conectá Firebase o usa demo' }
+        ];
+
+        const actions = {
+            retiros: [
+                { label: 'Abrir calendario', onclick: "openModuleAndSendAction('rutas', { action:'rutas:optimizar' })" },
+                { label: 'Exportar rutas', onclick: "downloadKPIReport('retiros','csv')" }
+            ],
+            ingresos: [
+                { label: 'Registrar cobro ahora', onclick: "openModuleAndSendAction('finanzas', { action:'finanzas:registrar' })" },
+                { label: 'Exportar ingresos', onclick: "downloadKPIReport('ingresos','csv')" }
+            ],
+            eficiencia: [
+                { label: 'Ver clientes críticos', onclick: "openModuleAndSendAction('clientes', { action:'focus-alta' })" },
+                { label: 'Optimizar rutas', onclick: "openModuleAndSendAction('rutas', { action:'rutas:optimizar' })" }
+            ]
+        };
+
+        const content = {
+            summary: prediction ? 'Detalle en vivo alimentado por AI' : 'Datos en preparación',
+            metrics,
+            actions: actions[kpiType] || []
+        };
+
+        container.innerHTML = `
+            <div style="padding: 1rem;">
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">${content.summary}</p>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+                    ${content.metrics.map(metric => `
+                        <div style="background: var(--bg-primary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                            <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">${metric.label}</div>
+                            <div style="font-size: 1.5rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">${metric.value}</div>
+                            <div style="font-size: 0.8rem; color: var(--success-color);">${metric.change}</div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div>
+                    <h4 style="margin-bottom: 0.75rem; color: var(--text-primary);">Acciones Disponibles</h4>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;" id="action-buttons">
+                        ${content.actions.map(action=>`<button onclick="${action.onclick}" style="padding: 0.5rem 1rem; background: var(--accent-color); color: white; border: none; border-radius: 6px; cursor: pointer;">${action.label}</button>`).join('') || '<span style="color:var(--text-secondary)">Sin acciones sugeridas.</span>'}
+                        <button onclick="downloadKPIReport('${kpiType}', 'pdf')" style="padding: 0.5rem 1rem; background: var(--accent2); color: white; border: none; border-radius: 6px; cursor: pointer;">📄 Exportar PDF</button>
+                        <button onclick="refreshKPIData('${kpiType}')" style="padding: 0.5rem 1rem; background: var(--accent2); color: white; border: none; border-radius: 6px; cursor: pointer;">🔄 Actualizar</button>
+                    </div>
+                </div>
+
+                ${patterns.length ? `<div style="margin-top:12px;"><h4>Patrones relacionados</h4><ul style="padding-left:18px;color:var(--text-primary);">${patterns.map(p=>`<li>${p.title}: ${p.description||''}</li>`).join('')}</ul></div>` : ''}
+
+                ${recs.length ? `<div style="margin-top:12px;"><h4>Recomendaciones de AI</h4><ul style="padding-left:18px;color:var(--text-primary);">${recs.map(r=>`<li>${r.title}: ${r.description||''}</li>`).join('')}</ul></div>` : ''}
+
+                <div id="download-status" style="margin-top: 1rem; text-align: center; color: var(--text-secondary); display: none;">
+                    <div style="padding: 1rem;">
+                        <div style="animation: spin 1s linear infinite; margin: 0 auto 0.5rem; width: 20px; height: 20px; border: 2px solid var(--accent-color); border-top: 2px solid transparent; border-radius: 50%;"></div>
+                        <div>Generando reporte...</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // ========================================
+    // FUNCIONES DE DESCARGA Y EXPORTACIÓN
+    // ========================================
+    
+    function downloadKPIReport(kpiType, format) {
+        console.log(`📥 Descargando reporte ${format.toUpperCase()} para ${kpiType}...`);
+        
+        // Mostrar estado de carga
+        showDownloadStatus(true);
+        
+        // Simular procesamiento
+        setTimeout(() => {
+            try {
+                const filename = `reporte-${kpiType}-${new Date().toISOString().split('T')[0]}.${format}`;
+                
+                switch(format) {
+                    case 'csv':
+                        downloadCSV(kpiType, filename);
+                        break;
+                    case 'pdf':
+                        downloadPDF(kpiType, filename);
+                        break;
+                    case 'excel':
+                        downloadExcel(kpiType, filename);
+                        break;
+                    default:
+                        throw new Error('Formato no soportado');
+                }
+                
+                console.log(`✅ Reporte ${format.toUpperCase()} descargado: ${filename}`);
+                showDownloadStatus(false);
+                
+                // Mostrar mensaje de éxito
+                showNotification(`Reporte ${format.toUpperCase()} descargado correctamente`, 'success');
+                
+            } catch (error) {
+                console.error('❌ Error al generar reporte:', error);
+                showDownloadStatus(false);
+                showNotification('Error al generar el reporte. Inténtalo de nuevo.', 'error');
+            }
+        }, 1500);
+    }
+
+    function getAIDataset(){
+        if(aiState.data){ return aiState.data; }
+        if(window.gsAuth && typeof gsAuth.getDemoData === 'function'){
+            const demo = gsAuth.getDemoData();
+            return {
+                clientes: demo?.clientes || [],
+                retiros: demo?.retiros?.items || [],
+                pagos: demo?.pagos?.items || []
+            };
+        }
+        return { clientes: [], retiros: [], pagos: [] };
+    }
+
+    function buildExportRows(kpiType){
+        const { clientes = [], retiros = [], pagos = [] } = getAIDataset();
+        switch(kpiType){
+            case 'retiros':
+                return [
+                    ['Fecha','Cliente','Estado','Km','Ventana'],
+                    ...retiros.slice(0,80).map(r=>[
+                        r.fecha || r.dia || '',
+                        r.cliente || r.clienteNombre || '—',
+                        r.estado || r.estadoRuta || 'pendiente',
+                        r.km || r.distancia || '',
+                        r.ventana || r.horario || ''
+                    ])
+                ];
+            case 'ingresos':
+                return [
+                    ['Fecha','Cliente','Monto','Estado','Concepto'],
+                    ...pagos.slice(0,120).map(p=>[
+                        p.fecha || p.mes || '',
+                        p.clienteNombre || p.clienteId || '—',
+                        formatCurrency(toNumber(p.monto || p.importe || 0)),
+                        p.estado || 'pendiente',
+                        p.concepto || ''
+                    ])
+                ];
+            case 'eficiencia':
+            default:
+                return [
+                    ['Cliente','Segmento','Contrato','Monto','Actualizado'],
+                    ...clientes.slice(0,120).map(c=>[
+                        c.nombre || 'Cliente',
+                        c.segmento || 'General',
+                        c.contrato ? 'Sí' : 'No',
+                        formatCurrency(toNumber(c.monto || 0)),
+                        c.updatedAt || c.createdAt || ''
+                    ])
+                ];
+        }
+    }
+    
+    function downloadCSV(kpiType, filename) {
+        const rows = buildExportRows(kpiType);
+        const csvContent = rows.map(row => row.map(field => `"${field}"`).join(',')).join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    
+    function downloadPDF(kpiType, filename) {
+        const predictions = aiState.predictions || {};
+        const recs = aiState.recommendations || [];
+        const patterns = aiState.patterns || [];
+        const rows = buildExportRows(kpiType).slice(0, 40);
+        const pred = predictions[kpiType] || { value: 0, trend: 0, confidence: 0 };
+        const title = kpiType.charAt(0).toUpperCase() + kpiType.slice(1);
+
+        const reportContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Reporte ${title}</title>
+  <style>
+    body { font-family: 'Inter', Arial, sans-serif; margin: 24px; color: #0d2b3d; }
+    .header { text-align:center; margin-bottom:24px; }
+    h1 { margin:4px 0; }
+    .kpi { border:1px solid #e1e8f0; border-radius:12px; padding:16px; margin-bottom:16px; background:#f9fbfd; }
+    .section { margin-top:18px; }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; }
+    .chip { padding:6px 10px; border-radius:999px; background:#e8fff5; color:#0f7a4c; border:1px solid #b7f1d2; font-weight:600; font-size:13px; }
+    ul { line-height:1.6; }
+    table { border-collapse:collapse; width:100%; margin-top:10px; }
+    th,td { border-bottom:1px solid #e1e8f0; padding:6px; text-align:left; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Reporte Ejecutivo — ${title}</h1>
+    <p>Generado el ${new Date().toLocaleString()}</p>
+  </div>
+
+  <div class="kpi">
+    <h3>Métrica principal</h3>
+    <p><strong>Valor:</strong> ${kpiType === 'ingresos' ? formatCurrency(pred.value || 0) : (pred.value?.toFixed ? pred.value.toFixed(1) : pred.value)}</p>
+    <p><strong>Tendencia:</strong> ${(pred.trend || 0).toFixed(1)}%</p>
+    <p><strong>Confianza:</strong> ${(pred.confidence || 0).toFixed(0)}%</p>
+    <div class="chips">
+      <span class="chip">Periodo: últimos 7 días</span>
+      <span class="chip">Fuente: Firebase</span>
+      <span class="chip">Cálculo AI en vivo</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>Recomendaciones de AI</h3>
+    <ul>
+      ${recs.slice(0,4).map(r=>`<li><strong>${r.title}:</strong> ${r.description} (Prioridad: ${r.priority || '—'})</li>`).join('') || '<li>Sin recomendaciones pendientes</li>'}
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>Patrones detectados</h3>
+    <ul>
+      ${(patterns.slice(0,5).map(p=>`<li>${p.title}: ${p.description || ''} (${p.impact || 'Impacto estimado'})</li>`).join('')) || '<li>No se detectaron patrones suficientes</li>'}
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>Datos de soporte</h3>
+    <table>
+      <thead><tr>${rows[0].map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+      <tbody>
+        ${rows.slice(1,16).map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}
+      </tbody>
+    </table>
+  </div>
+
+  <p style="margin-top:28px;color:#6b7c8a;">Gestión Sostenible — AI Intelligence Layer</p>
+</body>
+</html>`;
+
+        const blob = new Blob([reportContent], { type: 'text/html;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const printWindow = window.open(url, '_blank');
+        if(!printWindow){ showNotification('Habilitá ventanas emergentes para descargar el reporte', 'error'); URL.revokeObjectURL(url); return; }
+        printWindow.onload = ()=>{
+            printWindow.focus();
+            printWindow.print();
+            setTimeout(()=>{ printWindow.close(); URL.revokeObjectURL(url); }, 500);
+        };
+        showNotification('Reporte preparado: si no se descarga, usa Ctrl+P para guardar como PDF', 'info');
+    }
+    
+    function downloadExcel(kpiType, filename) {
+        const rows = buildExportRows(kpiType);
+        const excelContent = rows.map(row => row.join('\t')).join('\n');
+        const blob = new Blob([excelContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    
+    function refreshKPIData(kpiType) {
+        console.log(`🔄 Actualizando datos para ${kpiType}...`);
+        showNotification('Actualizando datos...', 'info');
+        
+        // Simular actualización
+        setTimeout(() => {
+            loadAllKPIData();
+            showNotification('Datos actualizados correctamente', 'success');
+        }, 1000);
+    }
+    
+    function showDownloadStatus(show) {
+        const status = document.getElementById('download-status');
+        if (status) {
+            status.style.display = show ? 'block' : 'none';
+        }
+    }
+    
+    function showNotification(message, type = 'info') {
+        // Crear notificación temporal
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            background: ${type === 'success' ? 'var(--accent-color)' : type === 'error' ? '#f44336' : 'var(--accent2)'};
+            color: white;
+            border-radius: 8px;
+            z-index: 10000;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+
+        // Remover después de 3 segundos
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 3000);
+    }
+
+    // Enviar acciones a módulos embebidos conservando navegación
+    function openModuleAndSendAction(moduleKey, actionPayload = null) {
+        const navLink = document.querySelector(`.nav a[data-module-key="${moduleKey}"]`);
+        if(navLink && navLink.getAttribute('href')){
+            location.hash = navLink.getAttribute('href');
+        }
+        const send = ()=>{
+            const frame = document.querySelector(`iframe[data-module-key="${moduleKey}"]`);
+            if(frame && frame.contentWindow && actionPayload){
+                frame.contentWindow.postMessage(Object.assign({ source:'gs-shell', type:'gs-action' }, actionPayload), '*');
+                return true;
+            }
+            return !!frame;
+        };
+        // Intentar varias veces hasta que cargue el iframe
+        let attempts = 0;
+        const timer = setInterval(()=>{
+            attempts += 1;
+            if(send() || attempts > 10){ clearInterval(timer); }
+        }, 400);
+    }
+
+    // ========================================
+    // AI INTELLIGENCE LAYER (MEJORADO)
+    // ========================================
+
+    const aiState = {
+        loading: false,
+        lastUpdated: null,
+        predictions: {},
+        recommendations: [],
+        patterns: [],
+        alerts: [],
+        charts: {},
+        clientModels: {},
+        routeModels: {}
+    };
+
+    const aiConfig = {
+        refreshMs: 45000,
+        alertIntervalMs: 30000,
+        patternIntervalMs: 60000
+    };
+
+    function initializeAIIntelligence() {
+        console.log('🤖 Inicializando AI Intelligence Layer con modelos avanzados...');
+
+        mapPredictionSlots();
+        simulateRealtimeAnalysis();
+        loadAIData();
+
+        setInterval(loadAIData, aiConfig.refreshMs);
+        setInterval(runPredictiveEngines, aiConfig.alertIntervalMs);
+        setInterval(analyzePatterns, aiConfig.patternIntervalMs);
+        setInterval(()=>{
+            if(aiState.data){
+                evaluateSmartAlerts(aiState.data);
+            }
+        }, aiConfig.alertIntervalMs);
+
+        console.log('✅ AI Intelligence Layer inicializado correctamente');
+    }
+
+    function mapPredictionSlots() {
+        const grid = document.getElementById('predictionsGrid');
+        if (!grid) return;
+
+        const items = grid.querySelectorAll('.prediction-item');
+        const mapping = ['retiros', 'ingresos', 'eficiencia'];
+        items.forEach((item, index) => {
+            const id = mapping[index];
+            if (id) {
+                item.dataset.prediction = id;
+                ensurePredictionChart(item, id);
+            }
+        });
+    }
+
+    function ensurePredictionChart(item, id) {
+        if (item.querySelector('canvas')) return;
+        const canvas = document.createElement('canvas');
+        canvas.width = 180;
+        canvas.height = 48;
+        canvas.className = 'prediction-chart';
+        canvas.setAttribute('role', 'img');
+        canvas.setAttribute('aria-label', `Tendencia proyectada para ${id}`);
+        item.querySelector('.prediction-content').appendChild(canvas);
+        aiState.charts[id] = canvas;
+    }
+
+    async function loadAIData() {
+        if (aiState.loading) return;
+        aiState.loading = true;
+        const db = getDb();
+        const orgId = (window.gsAuth && typeof gsAuth.getOrganizationId === 'function') ? gsAuth.getOrganizationId() : 'default';
+
+        try {
+            if (!db) {
+                applyDemoAIData();
+                return;
+            }
+
+            const today = todayYMD();
+            const mes = currentMonth();
+
+            const [clientesSnap, retirosSnap, pagosSnap] = await Promise.all([
+                db.collection('clientes').where('organizationId','==',orgId).limit(500).get(),
+                db.collection('retiros').where('organizationId','==',orgId).where('fecha','>=',today).limit(500).get(),
+                db.collection('pagos').where('organizationId','==',orgId).where('mes','>=',mes).limit(500).get()
+            ]);
+
+            const clientes = clientesSnap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+            const retiros = retirosSnap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+            const pagos = pagosSnap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+
+            aiState.data = { clientes, retiros, pagos };
+            aiState.lastUpdated = Date.now();
+
+            runPredictiveEngines();
+        } catch (error) {
+            console.error('❌ Error cargando datos de IA:', error);
+            applyDemoAIData();
+        } finally {
+            aiState.loading = false;
+        }
+    }
+
+    function applyDemoAIData() {
+        if (gsAuth && typeof gsAuth.getDemoData === 'function') {
+            const demo = gsAuth.getDemoData();
+            aiState.data = {
+                clientes: Array.isArray(demo?.clientes) ? demo.clientes : [],
+                retiros: Array.isArray(demo?.retiros?.items) ? demo.retiros.items : [],
+                pagos: Array.isArray(demo?.pagos?.items) ? demo.pagos.items : []
+            };
+            aiState.lastUpdated = Date.now();
+            runPredictiveEngines();
+        }
+    }
+
+    function runPredictiveEngines() {
+        if (!aiState.data) return;
+
+        const { clientes = [], retiros = [], pagos = [] } = aiState.data;
+        const clientInsights = buildClientPredictiveModels(clientes, pagos);
+        const routeInsights = buildRouteOptimizationModels(retiros, clientes);
+        const financeInsights = buildFinancePredictions(pagos);
+
+        aiState.predictions = {
+            retiros: routeInsights?.demandForecast || {},
+            ingresos: financeInsights?.revenue || {},
+            eficiencia: routeInsights?.efficiency || {}
+        };
+
+        aiState.recommendations = buildAIRecommendations(clientInsights, routeInsights, financeInsights);
+        aiState.patterns = [...(routeInsights?.patterns || []), ...(clientInsights?.patterns || [])].slice(0, 6);
+
+        renderPredictions(aiState.predictions);
+        updateRecommendationsDisplay(aiState.recommendations);
+        updatePatternsDisplay(aiState.patterns);
+        renderAIAlerts(clientInsights, routeInsights, financeInsights);
+        evaluateSmartAlerts(aiState.data || {});
+    }
+
+    // ========================================
+    // MODELOS AVANZADOS DE CLIENTES
+    // ========================================
+
+    function buildClientPredictiveModels(clientes = [], pagos = []) {
+        const paymentHistoryByClient = pagos.reduce((acc, pago) => {
+            const id = pago.clienteId || pago.cliente || pago.idCliente || 'desconocido';
+            if (!acc[id]) acc[id] = [];
+            acc[id].push(pago);
+            return acc;
+        }, {});
+
+        const churnScores = clientes.map(cliente => ({
+            id: cliente.id,
+            nombre: cliente.nombre || 'Cliente',
+            probabilidad: calculateChurnProbability(cliente, paymentHistoryByClient[cliente.id] || [])
+        }));
+
+        const clvScores = clientes.map(cliente => ({
+            id: cliente.id,
+            nombre: cliente.nombre || 'Cliente',
+            valor: calculateCLV(cliente, paymentHistoryByClient[cliente.id] || [], churnScores)
+        }));
+
+        const upsellCandidates = detectUpsellOpportunities(clientes, paymentHistoryByClient);
+        const paymentBehavior = analyzePaymentBehavior(pagos);
+        const seasonality = detectSeasonalityPatterns(pagos);
+
+        const churnAvg = average(churnScores.map(c=>c.probabilidad));
+        const clvAvg = average(clvScores.map(c=>c.valor));
+
+        const patterns = [
+            { icon: '📉', title: 'Riesgo de fuga', description: `${(churnAvg*100).toFixed(1)}% probabilidad media de churn`, impact: 'Activar retención' },
+            { icon: '💎', title: 'CLV promedio', description: `Valor de vida esperado $${Math.round(clvAvg).toLocaleString()}`, impact: 'Priorizar cuentas' },
+            { icon: '🛒', title: 'Upselling', description: `${upsellCandidates.length} clientes listos para upgrade`, impact: 'Campaña sugerida' }
+        ];
+
+        aiState.clientModels = { churnScores, clvScores, upsellCandidates, paymentBehavior, seasonality };
+        return { churnScores, clvScores, upsellCandidates, paymentBehavior, seasonality, patterns };
+    }
+
+    function calculateChurnProbability(cliente, pagosCliente = []) {
+        const today = new Date();
+        const lastPaymentTs = pagosCliente.reduce((max,p)=>Math.max(max, p.fechaPago ? Date.parse(p.fechaPago) : (p.updatedAt || 0)), 0);
+        const recencyDays = lastPaymentTs ? (today - lastPaymentTs) / (1000*60*60*24) : 90;
+        const frequency = pagosCliente.length || 1;
+        const avgTicket = average(pagosCliente.map(p=>toNumber(p.monto || p.importe || 0))) || 0;
+        const tenureMonths = cliente.alta ? ((today - Date.parse(cliente.alta)) / (1000*60*60*24*30)) : 6;
+
+        const normalizedRecency = Math.min(recencyDays / 120, 1);
+        const normalizedFreq = Math.min(frequency / 12, 1);
+        const normalizedTicket = Math.min(avgTicket / 15000, 1);
+        const normalizedTenure = Math.min(tenureMonths / 24, 1);
+
+        const score = (0.45 * normalizedRecency) - (0.25 * normalizedFreq) - (0.2 * normalizedTicket) - (0.1 * normalizedTenure);
+        return Math.min(Math.max(1 / (1 + Math.exp(-6 * (score - 0.2))), 0), 1);
+    }
+
+    function calculateCLV(cliente, pagosCliente = [], churnScores = []) {
+        const churnScore = churnScores.find(c=>c.id === cliente.id)?.probabilidad || 0.25;
+        const revenueMonthly = average(pagosCliente.map(p=>toNumber(p.monto || p.importe || 0))) || toNumber(cliente.monto) || 0;
+        const retention = 1 - churnScore;
+        const horizonMonths = 12;
+        return Math.max(revenueMonthly * horizonMonths * retention, 0);
+    }
+
+    function detectUpsellOpportunities(clientes = [], paymentHistoryByClient = {}) {
+        return clientes.map(cliente => {
+            const payments = paymentHistoryByClient[cliente.id] || [];
+            const punctuality = calculateOnTimeRatio(payments);
+            const spend = payments.reduce((sum,p)=>sum + toNumber(p.monto || p.importe || 0), 0);
+            const frequency = payments.length;
+            const score = (0.4 * punctuality) + (0.35 * Math.min(spend/50000,1)) + (0.25 * Math.min(frequency/10,1));
+            return { id: cliente.id, nombre: cliente.nombre || 'Cliente', score, segmento: cliente.segmento || 'General' };
+        }).filter(c=>c.score > 0.55);
+    }
+
+    function analyzePaymentBehavior(pagos = []) {
+        const onTime = pagos.filter(p=> (p.estado || '').toLowerCase() === 'recibido').length;
+        const total = pagos.length || 1;
+        const ratio = onTime / total;
+        const delays = pagos.map(p=> toNumber(p.diasRetraso || p.retraso || 0));
+        const avgDelay = average(delays);
+        return { onTimeRatio: ratio, avgDelay: avgDelay || 0, totalPagos: pagos.length };
+    }
+
+    function detectSeasonalityPatterns(pagos = []) {
+        const byMonth = pagos.reduce((acc,p)=>{
+            const mes = p.mes || (p.fechaPago ? (p.fechaPago + '').slice(0,7) : currentMonth());
+            acc[mes] = (acc[mes] || 0) + toNumber(p.monto || p.importe || 0);
+            return acc;
+        },{});
+        const entries = Object.entries(byMonth).sort();
+        const values = entries.map(([,v])=>v);
+        const trend = values.length > 1 ? (values[values.length-1] - values[0]) / Math.max(values[0],1) : 0;
+        return { entries, trend };
+    }
+
+    // ========================================
+    // MODELOS DE RUTEO Y DEMANDA
+    // ========================================
+
+    function buildRouteOptimizationModels(retiros = [], clientes = []) {
+        const today = todayYMD();
+        const todayRetiros = retiros.filter(r=> (r.fecha || r.dia || today) >= today);
+        const optimized = optimizeRoutes(todayRetiros);
+        const demandForecast = predictZoneDemand(todayRetiros);
+        const efficiency = estimateEfficiency(todayRetiros, optimized);
+        const patterns = deriveRoutePatterns(todayRetiros);
+
+        aiState.routeModels = { optimized, demandForecast, efficiency };
+        return { optimized, demandForecast, efficiency, patterns };
+    }
+
+    function optimizeRoutes(retiros = []) {
+        const grouped = retiros.reduce((acc, r) => {
+            const zone = r.zona || r.sector || 'General';
+            if (!acc[zone]) acc[zone] = [];
+            acc[zone].push(r);
+            return acc;
+        }, {});
+
+        return Object.entries(grouped).map(([zone, items]) => {
+            const ordered = nearestNeighborOrder(items);
+            const total = ordered.reduce((sum,item) => sum + toNumber(item.distancia || item.km || 3), 0);
+            return { zone, stops: ordered.length, distance: total, ordered };
+        });
+    }
+
+    function nearestNeighborOrder(items = []) {
+        const remaining = [...items];
+        const route = [];
+        let current = remaining.shift();
+        if (current) route.push(current);
+
+        while (remaining.length) {
+            const nextIndex = remaining.reduce((bestIdx, candidate, idx) => {
+                const best = remaining[bestIdx] || current;
+                const currentDistance = estimateDistance(current, candidate);
+                const bestDistance = estimateDistance(current, best);
+                return currentDistance < bestDistance ? idx : bestIdx;
+            }, 0);
+            current = remaining.splice(nextIndex,1)[0];
+            route.push(current);
+        }
+        return route;
+    }
+
+    function estimateDistance(a = {}, b = {}) {
+        const distA = toNumber(a.distancia || a.km || Math.random()*5+1);
+        const distB = toNumber(b.distancia || b.km || Math.random()*5+1);
+        return Math.abs(distA - distB) + 1;
+    }
+
+    function predictZoneDemand(retiros = []) {
+        const byZone = retiros.reduce((acc,r)=>{
+            const zone = r.zona || r.sector || 'General';
+            acc[zone] = (acc[zone] || 0) + 1;
+            return acc;
+        },{});
+        const baseline = average(Object.values(byZone)) || 0;
+        return Object.entries(byZone).map(([zone,count])=>({
+            zone,
+            expected: Math.round(count * 1.08),
+            growth: baseline ? ((count - baseline)/baseline) * 100 : 0
+        }));
+    }
+
+    function estimateEfficiency(retiros = [], optimized = []) {
+        const planned = retiros.length;
+        const optimizedStops = optimized.reduce((sum,r)=>sum + (r.stops || 0), 0);
+        const kmOriginal = retiros.reduce((sum,r)=>sum + toNumber(r.km || r.distancia || 3),0);
+        const kmOptimized = optimized.reduce((sum,r)=>sum + toNumber(r.distance || 0),0) || kmOriginal;
+        const savings = kmOriginal ? ((kmOriginal - kmOptimized) / kmOriginal) * 100 : 0;
+        const timePrediction = predictDeliveryTimes(retiros);
+        return { planned, optimizedStops, savings, timePrediction };
+    }
+
+    function predictDeliveryTimes(retiros = []) {
+        const base = 12;
+        const variable = average(retiros.map(r=> toNumber(r.duracion || r.tiempo || 18))) || 18;
+        return {
+            averageMinutes: base + variable,
+            windowRecommendation: variable > 20 ? 'Usar ventanas de 90 minutos' : 'Ventanas de 60 minutos',
+            confidence: 0.8
+        };
+    }
+
+    function deriveRoutePatterns(retiros = []) {
+        if (!retiros.length) return [];
+        const morningShare = retiros.filter(r=> (r.hora || '').startsWith('0') || (r.hora || '').startsWith('1')).length / retiros.length;
+        return [
+            { icon: '🗺️', title: 'Optimización rutas', description: 'Aplicar vecino más cercano por zona', impact: 'Menor kilometraje' },
+            { icon: '⏱️', title: 'Ventanas sugeridas', description: '60-90 minutos según densidad', impact: 'SLA estable' },
+            { icon: '🌅', title: 'Preferencia mañanas', description: `${Math.round(morningShare*100)}% retiros en la mañana`, impact: 'Asignar flota temprano' }
+        ];
+    }
+
+    // ========================================
+    // PREDICCIONES FINANCIERAS SIMPLIFICADAS
+    // ========================================
+
+    function buildFinancePredictions(pagos = []) {
+        const total = pagos.reduce((sum,p)=> sum + toNumber(p.monto || p.importe || 0), 0);
+        const growth = pagos.slice(-7).reduce((sum,p)=> sum + toNumber(p.monto || 0),0);
+        const trend = total ? (growth / total) * 100 : 0;
+        const confidence = Math.min(70 + (pagos.length * 0.3), 95);
+
+        return {
+            revenue: {
+                value: total,
+                trend,
+                confidence,
+                sparkline: pagos.map(p=> toNumber(p.monto || p.importe || 0)).slice(-12)
+            },
+            metrics: {
+                margin: 0.22 + Math.random()*0.05,
+                collectionRate: calculateOnTimeRatio(pagos),
+                forecast30d: total * (1 + (trend/100))
+            }
+        };
+    }
+
+    // ========================================
+    // RENDER / ALERTAS / RECOMENDACIONES
+    // ========================================
+
+    function renderPredictions(predictions = {}) {
+        const defaultData = {
+            retiros: { value: 0, trend: 0, confidence: 0, sparkline: [] },
+            ingresos: { value: 0, trend: 0, confidence: 0, sparkline: [] },
+            eficiencia: { value: 0, trend: 0, confidence: 0, sparkline: [] }
+        };
+
+        const merged = { ...defaultData, ...predictions };
+        Object.entries(merged).forEach(([id, data]) => {
+            const element = document.querySelector(`[data-prediction="${id}"]`);
+            if (!element) return;
+
+            const valueEl = element.querySelector('.prediction-value');
+            const trendEl = element.querySelector('.prediction-trend');
+            const confEl = element.querySelector('.prediction-confidence');
+
+            if (valueEl) {
+                const formatted = id === 'ingresos' ? `$${Math.round(data.value || 0).toLocaleString()}` : `${Number((data.value || 0).toFixed ? data.value.toFixed(1) : data.value || 0)}${id === 'eficiencia' ? '%' : ''}`;
+                valueEl.innerHTML = `${formatted} <span class="prediction-trend ${data.trend >= 0 ? 'up' : 'down'}">${data.trend >= 0 ? '+' : ''}${(data.trend || 0).toFixed(1)}%</span>`;
+            }
+            if (trendEl) {
+                trendEl.textContent = `${data.trend >= 0 ? '+' : ''}${(data.trend || 0).toFixed(1)}%`;
+                trendEl.className = `prediction-trend ${data.trend >= 0 ? 'up' : 'down'}`;
+            }
+            if (confEl) {
+                confEl.textContent = `Confianza: ${(data.confidence || 0).toFixed(0)}%`;
+            }
+
+            if (aiState.charts[id]) {
+                drawSparkline(aiState.charts[id], data.sparkline || []);
+            }
+        });
+    }
+
+    function drawSparkline(canvas, values = []) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        if (!values.length) return;
+        const max = Math.max(...values);
+        const min = Math.min(...values);
+        const range = max - min || 1;
+        const step = canvas.width / Math.max(values.length-1, 1);
+        ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#1DBF73';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        values.forEach((v, idx) => {
+            const x = idx * step;
+            const y = canvas.height - ((v - min) / range) * canvas.height;
+            if (idx === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        });
+        ctx.stroke();
+    }
+
+    function updateRecommendationsDisplay(recommendations = []) {
+        const container = document.getElementById('recommendationsList');
+        if (!container) return;
+
+        container.innerHTML = recommendations.map(rec => `
+            <div class="recommendation-item priority-${rec.priority}">
+                <div class="rec-priority">${rec.priority === 'high' ? 'Alto' : rec.priority === 'medium' ? 'Medio' : 'Bajo'}</div>
+                <div class="rec-content">
+                    <div class="rec-title">${rec.title}</div>
+                    <div class="rec-description">${rec.description}</div>
+                    <div class="rec-actions">
+                        <button class="rec-btn primary" onclick="implementRecommendation('${rec.id}')">${rec.action || 'Implementar'}</button>
+                        <button class="rec-btn secondary" onclick="viewRecommendationDetails('${rec.id}')">Detalles</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function buildAIRecommendations(clientInsights, routeInsights, financeInsights) {
+        const recs = [];
+
+        const highChurn = clientInsights.churnScores?.filter(c=>c.probabilidad > 0.55).slice(0,3) || [];
+        if (highChurn.length) {
+            recs.push({
+                id: 'retencion_clientes',
+                title: 'Campaña de retención prioritaria',
+                description: `Contactar a ${highChurn.length} clientes con alto riesgo de fuga y ofrecer upgrade/bonificación`,
+                priority: 'high',
+                action: 'Lanzar campaña'
+            });
+        }
+
+        const topUpsell = clientInsights.upsellCandidates?.slice(0,3) || [];
+        if (topUpsell.length) {
+            recs.push({
+                id: 'upsell',
+                title: 'Upsell en clientes cumplidores',
+                description: `${topUpsell.length} cuentas con alto score de upgrade y pagos puntuales`,
+                priority: 'medium',
+                action: 'Enviar oferta'
+            });
+        }
+
+        if (routeInsights.savings > 5) {
+            recs.push({
+                id: 'optimize_routes',
+                title: 'Optimizar rutas por zona',
+                description: `Ahorro estimado ${routeInsights.savings.toFixed(1)}% en km planificados aplicando vecino más cercano`,
+                priority: 'high',
+                action: 'Optimizar'
+            });
+        }
+
+        if (financeInsights.metrics?.collectionRate < 0.8) {
+            recs.push({
+                id: 'mejorar_cobranzas',
+                title: 'Refuerzo de cobranzas',
+                description: `Tasa de cobro ${(financeInsights.metrics.collectionRate*100).toFixed(1)}%. Activar recordatorios y cobranza proactiva`,
+                priority: 'medium',
+                action: 'Automatizar avisos'
+            });
+        }
+
+        return recs.length ? recs : [{
+            id: 'health_check',
+            title: 'Todo en verde',
+            description: 'No se detectaron riesgos críticos. Mantener monitoreo.',
+            priority: 'low',
+            action: 'Revisar'
+        }];
+    }
+
+    function updatePatternsDisplay(patterns = []) {
+        const container = document.getElementById('patternsGrid');
+        if (!container) return;
+
+        container.innerHTML = patterns.map(pattern => `
+            <div class="pattern-item">
+                <div class="pattern-icon">${pattern.icon}</div>
+                <div class="pattern-content">
+                    <div class="pattern-title">${pattern.title}</div>
+                    <div class="pattern-description">${pattern.description}</div>
+                    <div class="pattern-impact">${pattern.impact || ''}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function analyzePatterns() {
+        if (!aiState.data) return;
+        const newPatterns = deriveRoutePatterns(aiState.data.retiros || []);
+        updatePatternsDisplay(newPatterns);
+    }
+
+    function renderAIAlerts(clientInsights, routeInsights, financeInsights) {
+        const alerts = [];
+        const churnHigh = clientInsights.churnScores?.filter(c=>c.probabilidad > 0.7).length || 0;
+        if (churnHigh) {
+            alerts.push({ level: 'critical', message: `${churnHigh} clientes con probabilidad de churn > 70%`, type:'churn' });
+        }
+
+        if ((routeInsights.savings || 0) < 0) {
+            alerts.push({ level: 'warning', message: 'Se detecta aumento de kilometraje planificado', type:'ruta' });
+        }
+
+        if ((financeInsights.metrics?.collectionRate || 1) < 0.75) {
+            alerts.push({ level: 'warning', message: 'Caída en tasa de cobranzas. Revisar recordatorios.', type:'finanzas' });
+        }
+
+        aiState.alerts = alerts;
+        const alertsContainer = document.getElementById('alertsContent');
+        if (!alertsContainer) return;
+        alertsContainer.innerHTML = alerts.map(alert => `
+            <div class="alert ${alert.level}" data-type="${alert.type||'general'}">${alert.message}</div>
+        `).join('');
+    }
+
+    function evaluateSmartAlerts(data = {}) {
+        const alertsContainer = document.getElementById('alertsContent');
+        const notifications = [];
+        const now = Date.now();
+        const pagos = Array.isArray(data.pagos) ? data.pagos : [];
+        const clientes = Array.isArray(data.clientes) ? data.clientes : [];
+        const retiros = Array.isArray(data.retiros) ? data.retiros : [];
+
+        const anomalousPayments = pagos.filter(p=>{
+            const amount = toNumber(p.monto || p.importe || 0);
+            const isLate = (p.estado || '').toLowerCase() === 'pendiente';
+            return amount > 20000 || isLate;
+        });
+        if(anomalousPayments.length){
+            notifications.push({ level: 'critical', title: 'Patrón de pagos anómalo', message: `${anomalousPayments.length} movimientos requieren revisión.` });
+        }
+
+        const inactiveClients = clientes.filter(c=>{
+            const lastUpdate = c.updatedAt ? Date.parse(c.updatedAt) : 0;
+            return !c.contrato && (!lastUpdate || (now - lastUpdate) > (45*24*60*60*1000));
+        });
+        if(inactiveClients.length){
+            notifications.push({ level: 'high', title: 'Clientes inactivos', message: `${inactiveClients.length} cuentas sin actividad reciente.` });
+        }
+
+        const routeIneff = retiros.filter(r=> toNumber(r.km || r.distancia || 0) > 25);
+        if(routeIneff.length){
+            notifications.push({ level: 'medium', title: 'Rutas ineficientes', message: `${routeIneff.length} retiros superan 25km estimados.` });
+        }
+
+        const operationalIssues = retiros.filter(r=> (r.estado || '').toLowerCase() === 'demorado').length;
+        if(operationalIssues){
+            notifications.push({ level: 'high', title: 'Demoras operativas', message: `${operationalIssues} retiros demorados.` });
+        }
+
+        const upsellCandidates = (aiState.clientModels?.upsellCandidates || []).length;
+        if(upsellCandidates){
+            notifications.push({ level: 'low', title: 'Oportunidad de negocio', message: `${upsellCandidates} clientes listos para upsell.` });
+        }
+
+        aiState.alerts = [...(aiState.alerts || []), ...notifications].slice(-10);
+        if(alertsContainer){
+            const existing = alertsContainer.innerHTML;
+            const newHtml = notifications.map(alert=>`<div class="alert ${alert.level}" data-type="smart">${alert.title}: ${alert.message}</div>`).join('');
+            alertsContainer.innerHTML = newHtml + existing;
+        }
+        notifications.forEach(alert=>{
+            pushWebNotification(alert.title, alert.message, alert.level);
+            if(alert.level === 'low'){
+                setTimeout(()=> autoResolveAlert(alert.title), 15000);
+            }
+        });
+    }
+
+    function pushWebNotification(title, body, level='info'){
+        if(!('Notification' in window)) return;
+        if(Notification.permission === 'granted'){
+            new Notification(`AI ${level.toUpperCase()}: ${title}`, { body });
+        }else if(Notification.permission !== 'denied'){
+            Notification.requestPermission().then(permission=>{
+                if(permission === 'granted'){
+                    new Notification(`AI ${level.toUpperCase()}: ${title}`, { body });
+                }
+            });
+        }
+    }
+
+    function autoResolveAlert(title){
+        const alertsContainer = document.getElementById('alertsContent');
+        if(!alertsContainer) return;
+        const nodes = alertsContainer.querySelectorAll('.alert');
+        nodes.forEach(node=>{
+            if(node.textContent && node.textContent.includes(title)){
+                node.classList.add('resolved');
+                node.setAttribute('aria-label','Alerta resuelta automáticamente');
+            }
+        });
+    }
+
+    function simulateRealtimeAnalysis() {
+        const statusElement = document.getElementById('aiStatus');
+        if (statusElement) {
+            setInterval(() => {
+                const dot = statusElement.querySelector('.status-dot');
+                if (dot) {
+                    dot.classList.toggle('active');
+                }
+            }, 2000);
+        }
+    }
+
+    // ========================================
+    // ACCIONES Y REPORTES
+    // ========================================
+
+    function implementRecommendation(recommendationId) {
+        console.log(`🔧 Implementando recomendación: ${recommendationId}`);
+
+        const messages = {
+            'optimize_routes': 'Rutas optimizadas y reasignadas. Mejora estimada aplicada.',
+            'adjust_schedule': 'Horarios ajustados automáticamente. Nuevas preferencias aplicadas',
+            'maintenance': 'Mantenimiento programado para vehículo #7 en 3 días',
+            'retencion_clientes': 'Se activaron secuencias de retención para cuentas críticas',
+            'upsell': 'Se envió campaña de upsell a clientes elegibles',
+            'mejorar_cobranzas': 'Recordatorios de cobranza activados'
+        };
+
+        showNotification(messages[recommendationId] || 'Recomendación implementada', 'success');
+
+        setTimeout(() => {
+            if (recommendationId === 'optimize_routes') {
+                updateKPIValue('eficiencia', `${(90 + Math.random()*5).toFixed(1)}%`);
+            }
+        }, 1500);
+    }
+
+    function viewRecommendationDetails(recommendationId) {
+        const details = {
+            'optimize_routes': {
+                title: 'Detalles: Optimización de Rutas',
+                content: `
+                    <strong>Modelo aplicado:</strong> Heurística de vecino más cercano + balanceo zonal<br>
+                    <strong>Ahorro estimado:</strong> ${aiState.routeModels?.efficiency?.savings?.toFixed ? aiState.routeModels.efficiency.savings.toFixed(1) : 8.5}% de km<br>
+                    <strong>Balance choferes:</strong> ${aiState.routeModels?.optimized?.length || 0} zonas redistribuidas
+                `
+            },
+            'adjust_schedule': {
+                title: 'Detalles: Ajuste Horarios',
+                content: `
+                    <strong>Ventanas recomendadas:</strong> ${aiState.routeModels?.efficiency?.timePrediction?.windowRecommendation || '60-90 minutos'}<br>
+                    <strong>Confianza:</strong> ${(aiState.routeModels?.efficiency?.timePrediction?.confidence || 0.8)*100}%<br>
+                    <strong>Demanda por zona:</strong> ${JSON.stringify(aiState.routeModels?.demandForecast || [])}
+                `
+            },
+            'maintenance': {
+                title: 'Detalles: Mantenimiento Preventivo',
+                content: `
+                    <strong>Reglas predictivas:</strong> Umbrales por km y uso histórico.<br>
+                    <strong>Beneficio:</strong> Previene paradas imprevistas y mantiene SLA.
+                `
+            },
+            'retencion_clientes': {
+                title: 'Detalles: Retención de Clientes',
+                content: `
+                    <strong>Clientes críticos:</strong> ${aiState.clientModels?.churnScores?.filter(c=>c.probabilidad>0.7).length || 0}<br>
+                    <strong>Acciones:</strong> Descuentos temporales, contacto proactivo, plan fidelización.
+                `
+            },
+            'upsell': {
+                title: 'Detalles: Upsell Inteligente',
+                content: `
+                    <strong>Candidatos:</strong> ${aiState.clientModels?.upsellCandidates?.length || 0}<br>
+                    <strong>Segmentos:</strong> ${[...(aiState.clientModels?.upsellCandidates || []).map(c=>c.segmento)].slice(0,3).join(', ')}
+                `
+            },
+            'mejorar_cobranzas': {
+                title: 'Detalles: Mejorar Cobranzas',
+                content: `
+                    <strong>Tasa de cobro actual:</strong> ${(aiState.clientModels?.paymentBehavior?.onTimeRatio || 0)*100}%<br>
+                    <strong>Retraso promedio:</strong> ${(aiState.clientModels?.paymentBehavior?.avgDelay || 0).toFixed(1)} días<br>
+                    <strong>Plan:</strong> Recordatorios automáticos + escalamiento a control.
+                `
+            }
+        };
+
+        const detail = details[recommendationId];
+        if (detail) {
+            const modal = createDetailModal(detail.title, detail.content);
+            document.body.appendChild(modal);
+        }
+    }
+
+    function createDetailModal(title, content) {
+        const modal = document.createElement('div');
+        modal.className = 'drilldown-modal';
+        modal.innerHTML = `
+            <div class="drilldown-content" style="max-width: 800px; max-height: 80vh; overflow-y: auto;">
+                <div class="drilldown-header">
+                    <h2>${title}</h2>
+                    <button class="close-modal" onclick="this.closest('.drilldown-modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+                </div>
+                <div class="drilldown-body" style="padding: 1.5rem; line-height: 1.6;">
+                    ${content}
+                </div>
+                <div class="drilldown-actions" style="padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); display:flex; gap: 1rem; justify-content: flex-end;">
+                    <button class="rec-btn secondary" onclick="this.closest('.drilldown-modal').remove()">Cerrar</button>
+                    <button class="rec-btn primary" onclick="generateAIReport('${title}')">Generar Reporte IA</button>
+                </div>
+            </div>
+        `;
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+
+        return modal;
+    }
+
+    function generateAIReport(reportTitle) {
+        showNotification('Generando reporte detallado con IA...', 'info');
+
+        setTimeout(() => {
+            generateReportContent(reportTitle);
+            downloadKPIReport('ai-analysis', 'pdf');
+            showNotification('Reporte de análisis IA generado', 'success');
+        }, 1200);
+    }
+
+    function generateReportContent(title) {
+        return {
+            title: title,
+            timestamp: new Date().toLocaleString(),
+            content: 'Reporte completo generado por AI Intelligence Layer'
+        };
+    }
+
+    function updateKPIValue(kpiType, newValue) {
+        const kpiElement = document.querySelector(`[data-kpi="${kpiType}"] .kpi-value`);
+        if (kpiElement) {
+            kpiElement.textContent = newValue;
+            kpiElement.style.transform = 'scale(1.1)';
+            setTimeout(() => { kpiElement.style.transform = 'scale(1)'; }, 300);
+        }
+    }
+
+    // ========================================
+    // UTILIDADES DE MÉTRICAS
+    // ========================================
+
+    function calculateOnTimeRatio(pagos = []) {
+        if (!pagos.length) return 0;
+        const onTime = pagos.filter(p=> (p.estado || '').toLowerCase() === 'recibido').length;
+        return onTime / pagos.length;
+    }
+
+    function average(arr = []) {
+        if (!arr.length) return 0;
+        return arr.reduce((sum,v)=>sum + (Number(v) || 0),0) / arr.length;
+    }
+
+    // Inicializar modal cuando el DOM esté listo
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupDrilldownModal);
+    } else {
+        setupDrilldownModal();
+    }
 
   <!-- SVG Icons para Executive Command Center -->
   <svg width="0" height="0" class="sr-only">

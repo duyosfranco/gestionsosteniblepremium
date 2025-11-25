@@ -1576,6 +1576,29 @@ requireLogin({
       _uploadTargetId = id; const up = getUploader(); up.value=''; up.click();
     }
 
+    // Acciones recibidas desde el shell principal
+    window.addEventListener('message',(event)=>{
+      const payload = event.data || {};
+      if(payload.source !== 'gs-shell'){ return; }
+      if(payload.type === 'gs-action'){
+        if(payload.action === 'finanzas:registrar'){
+          const formAnchor = document.getElementById('movimientoTitle');
+          if(formAnchor){ formAnchor.scrollIntoView({behavior:'smooth', block:'start'}); }
+          const concepto = document.getElementById('concepto');
+          if(concepto){ concepto.focus(); }
+        }else if(payload.action === 'refresh'){
+          if(currentDb){
+            document.body.classList.add('loading-data');
+            suscribirMes(currentDb);
+            suscribirDGIMes(currentDb);
+          }
+        }else if(payload.action === 'finanzas:proyeccion'){
+          const ai = document.getElementById('aiFinanzasTitle');
+          if(ai){ ai.scrollIntoView({behavior:'smooth', block:'start'}); }
+        }
+      }
+    });
+
     // ====== Export DGI (por si más tarde lo usás) ======
     function exportDGICsv(){
       if(!canExportData){ alert('Tu rol actual no permite exportar datos.'); return; }

@@ -127,6 +127,7 @@
     iframe.setAttribute('title', route.label);
     iframe.setAttribute('data-page', route.page);
     iframe.setAttribute('data-page-label', route.label);
+    if(route.moduleKey){ iframe.setAttribute('data-module-key', route.moduleKey); }
     iframe.className = options.iframeClass;
     iframe.loading = 'lazy';
     iframe.referrerPolicy = 'no-referrer';

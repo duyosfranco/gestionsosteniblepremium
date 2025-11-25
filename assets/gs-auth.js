@@ -63,6 +63,13 @@
   const FieldValue = hasFirestore && firebase.firestore.FieldValue ? firebase.firestore.FieldValue : null;
   const EmailAuthProvider = firebase.auth && firebase.auth.EmailAuthProvider ? firebase.auth.EmailAuthProvider : null;
 
+  let adminApiBase = (global.__GS_ENV__ && global.__GS_ENV__.GS_ADMIN_API_BASE) || '';
+  const auth = firebase.auth();
+  const hasFirestore = typeof firebase.firestore === 'function';
+  const db = hasFirestore ? firebase.firestore() : null;
+  const FieldValue = hasFirestore && firebase.firestore.FieldValue ? firebase.firestore.FieldValue : null;
+  const EmailAuthProvider = firebase.auth && firebase.auth.EmailAuthProvider ? firebase.auth.EmailAuthProvider : null;
+
   applySecurityHeaders();
   ensureCsrfToken();
 
@@ -236,26 +243,6 @@
       },
       body: JSON.stringify(payload || {})
     }));
-    }
-    const user = auth.currentUser;
-    if(!user){
-      throw new Error('No hay una sesión administrativa activa.');
-    }
-    const idToken = await user.getIdToken(true);
-    if(!validateIdTokenClaims(idToken)){
-      throw new Error('Token inválido o expirado. Reautenticá tu sesión.');
-    }
-    const url = `${base}${path.startsWith('/') ? '' : '/'}${path}`;
-    const csrf = ensureCsrfToken();
-    const response = await withRateLimit('adminApi:'+path, { windowMs: 60000, max: 12 }, ()=> fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${idToken}`,
-        'X-CSRF-Token': csrf || ''
-      },
-      body: JSON.stringify(payload || {})
-    }));
     if(!response.ok){
       let message = response.statusText || 'No se pudo completar la acción administrativa.';
       try{
@@ -289,6 +276,167 @@
     if(typeof value !== 'string'){ return ''; }
     const trimmed = value.trim();
     return trimmed.length >= 8 ? trimmed : '';
+  }
+
+  function sanitizeInputValue(value){
+    if(typeof value !== 'string'){ return ''; }
+    const trimmed = value.trim();
+    const blocked = /(\b(select|update|delete|insert|drop|union|--|#)\b)/i;
+    if(blocked.test(trimmed)){ return ''; }
+    return trimmed.replace(/[<>"'`;]/g, '').slice(0, 2800);
+  }
+
+  function sanitizeObjectPayload(obj){
+    if(!obj || typeof obj !== 'object'){ return {}; }
+    return Object.keys(obj).reduce((acc,key)=>{
+      const value = obj[key];
+      if(typeof value === 'string'){
+        acc[key] = sanitizeInputValue(value);
+      }else if(value && typeof value === 'object'){
+        acc[key] = sanitizeObjectPayload(value);
+      }else{
+        acc[key] = value;
+      }
+      return acc;
+    },{});
+  }
+
+  const localStore = (()=>{
+    try{
+      const probe = '__gs_session_probe__';
+      global.localStorage.setItem(probe,'1');
+      global.localStorage.removeItem(probe);
+      return global.localStorage;
+    }catch(err){
+      return null;
+    }
+  })();
+
+  const CSRF_TOKEN_KEY = 'gs:csrf-token';
+  function ensureCsrfToken(){
+    if(!localStore){ return null; }
+    let token = localStore.getItem(CSRF_TOKEN_KEY);
+    if(!token){
+      token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStore.setItem(CSRF_TOKEN_KEY, token);
+    }
+    return token;
+  }
+
+  applySecurityHeaders();
+  ensureCsrfToken();
+
+  const SECURE_KEY = (firebaseConfig && firebaseConfig.projectId ? firebaseConfig.projectId : 'gs') + ':secure:v1';
+  function deriveKeyBytes(){
+    const base = SECURE_KEY + ':' + (global.navigator ? navigator.userAgent : '');
+    return Array.from(base).map((ch)=> ch.charCodeAt(0) % 255);
+  }
+
+  function encryptLocalPayload(data){
+    try{
+      const raw = JSON.stringify(data || {});
+      const key = deriveKeyBytes();
+      const encoded = Array.from(raw).map((ch,idx)=> String.fromCharCode(ch.charCodeAt(0) ^ key[idx % key.length])).join('');
+      return btoa(encoded);
+    }catch(err){
+      return null;
+    }
+  }
+
+  function decryptLocalPayload(payload){
+    try{
+      const decoded = atob(payload);
+      const key = deriveKeyBytes();
+      const original = Array.from(decoded).map((ch,idx)=> String.fromCharCode(ch.charCodeAt(0) ^ key[idx % key.length])).join('');
+      return JSON.parse(original);
+    }catch(err){
+      return null;
+    }
+  }
+
+  function validateIdTokenClaims(token){
+    if(typeof token !== 'string'){ return false; }
+    const parts = token.split('.');
+    if(parts.length !== 3){ return false; }
+    try{
+      const payload = JSON.parse(atob(parts[1]));
+      const now = Math.floor(Date.now()/1000);
+      if(payload.exp && payload.exp < now){ return false; }
+      if(payload.aud && firebaseConfig && firebaseConfig.projectId && !String(payload.aud).includes(firebaseConfig.projectId)){
+        return false;
+      }
+      return true;
+    }catch(err){
+      return false;
+    }
+  }
+
+  function applySecurityHeaders(){
+    if(!global.document){ return; }
+    const head = document.head || document.getElementsByTagName('head')[0];
+    if(!head) return;
+
+    const requiredConnectSrc = [
+      "'self'",
+      'https://firestore.googleapis.com',
+      'https://www.googleapis.com',
+      'https://identitytoolkit.googleapis.com',
+      'https://securetoken.googleapis.com'
+    ];
+
+    const ensureConnectSrc = (meta)=>{
+      const content = (meta && meta.content) || '';
+      const connectRegex = /connect-src\s+([^;]+)/i;
+      if(connectRegex.test(content)){
+        const current = connectRegex.exec(content)[1].split(/\s+/).filter(Boolean);
+        requiredConnectSrc.forEach((src)=>{
+          if(!current.includes(src)){ current.push(src); }
+        });
+        meta.content = content.replace(connectRegex, `connect-src ${current.join(' ')}`);
+      } else {
+        const prefix = content ? content.replace(/;?\s*$/, '; ') : '';
+        meta.content = `${prefix}connect-src ${requiredConnectSrc.join(' ')};`;
+      }
+    };
+
+    const appendIfMissing = (selector, tag)=>{
+      if(!document.querySelector(selector)){
+        head.appendChild(tag);
+      }
+    };
+    let csp = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+    if(!csp){
+      const meta = document.createElement('meta');
+      meta.httpEquiv = 'Content-Security-Policy';
+      meta.content = "default-src 'self' https://www.gstatic.com https://firestore.googleapis.com https://www.googleapis.com data: blob:; frame-ancestors 'self'; script-src 'self' https://www.gstatic.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https://firestore.googleapis.com https://www.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; img-src 'self' data:";
+      head.appendChild(meta);
+      csp = meta;
+    } else {
+      ensureConnectSrc(csp);
+    }
+    appendIfMissing('meta[http-equiv="Strict-Transport-Security"]', (()=>{ const meta = document.createElement('meta'); meta.httpEquiv='Strict-Transport-Security'; meta.content='max-age=63072000; includeSubDomains'; return meta; })());
+    appendIfMissing('meta[http-equiv="X-Content-Type-Options"]', (()=>{ const meta = document.createElement('meta'); meta.httpEquiv='X-Content-Type-Options'; meta.content='nosniff'; return meta; })());
+    appendIfMissing('meta[name="referrer"]', (()=>{ const meta = document.createElement('meta'); meta.name='referrer'; meta.content='same-origin'; return meta; })());
+  }
+
+  function hardenFormSecurity(form){
+    if(!form || typeof form.addEventListener !== 'function'){ return; }
+    form.addEventListener('submit',(ev)=>{
+      if(ev && ev.target){
+        const elements = ev.target.elements || [];
+        Array.from(elements).forEach((el)=>{
+          if(el && 'value' in el){
+            el.value = sanitizeInputValue(String(el.value||''));
+          }
+        });
+      }
+    });
+    form.addEventListener('input',(ev)=>{
+      const target = ev && ev.target;
+      if(target && 'value' in target){
+        target.value = sanitizeInputValue(String(target.value||''));
+      }
+    });
   }
 
   function sanitizeInputValue(value){
@@ -1298,102 +1446,6 @@ codex/verify-main-for-file-presence-ejcrqy
       })
     }
   };
-  const DEFAULT_MODULE_PERMISSIONS = Object.freeze({
-    home: 'read',
-    clientes: 'read',
-    retiros: 'read',
-    finanzas: 'read',
-    configuracion: 'read',
-    usuarios: 'read',
-    temas: 'read'
-  });
-
-  const ROLE_MATRIX = {
-    admin: {
-      manageClients: true,
-      manageRetiros: true,
-      managePagos: true,
-      manageChecklist: true,
-      manageUsers: true,
-      manageTheme: true,
-      customizeModules: true,
-      exportData: true,
-      completeForms: true,
-      modulePermissions: Object.assign({}, DEFAULT_MODULE_PERMISSIONS, {
-        home: 'write', clientes: 'write', retiros: 'write', finanzas: 'write', configuracion: 'write', usuarios: 'write', temas: 'write'
-      })
-    },
-    manager: {
-      manageClients: true,
-      manageRetiros: true,
-      managePagos: true,
-      manageChecklist: true,
-      manageUsers: false,
-      manageTheme: false,
-      customizeModules: false,
-      exportData: true,
-      completeForms: true,
-      modulePermissions: Object.assign({}, DEFAULT_MODULE_PERMISSIONS, {
-        clientes: 'write', retiros: 'write', finanzas: 'write', configuracion: 'write', usuarios: 'read', temas: 'read'
-      })
-    },
-    operator: {
-      manageClients: true,
-      manageRetiros: true,
-      managePagos: true,
-      manageChecklist: false,
-      manageUsers: false,
-      manageTheme: false,
-      customizeModules: false,
-      exportData: false,
-      completeForms: true,
-      modulePermissions: Object.assign({}, DEFAULT_MODULE_PERMISSIONS, {
-        clientes: 'write', retiros: 'write', finanzas: 'write', configuracion: 'read', usuarios: 'read', temas: 'read'
-      })
-    },
-    viewer: {
-      manageClients: false,
-      manageRetiros: false,
-      managePagos: false,
-      manageChecklist: false,
-      manageUsers: false,
-      manageTheme: false,
-      customizeModules: false,
-      exportData: false,
-      completeForms: false,
-      modulePermissions: Object.assign({}, DEFAULT_MODULE_PERMISSIONS, {
-        clientes: 'read', retiros: 'read', finanzas: 'read', configuracion: 'read', usuarios: 'read', temas: 'read'
-      })
-    },
-    control: {
-      manageClients: true,
-      manageRetiros: true,
-      managePagos: true,
-      manageChecklist: true,
-      manageUsers: false,
-      manageTheme: false,
-      customizeModules: false,
-      exportData: true,
-      completeForms: true,
-      modulePermissions: Object.assign({}, DEFAULT_MODULE_PERMISSIONS, {
-        clientes: 'write', retiros: 'write', finanzas: 'write', configuracion: 'write', usuarios: 'read', temas: 'read'
-      })
-    },
-    demo: {
-      manageClients: false,
-      manageRetiros: false,
-      managePagos: false,
-      manageChecklist: false,
-      manageUsers: true,
-      manageTheme: true,
-      customizeModules: false,
-      exportData: false,
-      completeForms: false,
-      modulePermissions: Object.assign({}, DEFAULT_MODULE_PERMISSIONS, {
-        home: 'write', temas: 'write', configuracion: 'read'
-      })
-    }
-  };
 
   const ROLE_ALIASES = {
     administrador: 'admin',
@@ -1442,11 +1494,30 @@ codex/verify-main-for-file-presence-ejcrqy
     operacion: 'operator',
     demo: 'demo'
   };
+    controladora: 'control',
+    controlador: 'control',
+    controladores: 'control',
+    control: 'control',
+    viewer: 'viewer',
+    lectura: 'viewer',
+    auditor: 'viewer',
+    auditoria: 'viewer',
+    gerente: 'manager',
+    manager: 'manager',
+    supervisora: 'manager',
+    supervisor: 'manager',
+    operadora: 'operator',
+    operador: 'operator',
+    operacion: 'operator',
+    demo: 'demo'
+  };
 
   const EMAIL_ROLE_OVERRIDES = {
     'prueba@gestionsostenible.com': 'admin'
   };
 
+  const DEFAULT_ROLE = 'viewer';
+  const SESSION_STORAGE_KEY = 'gs:session:snapshot';
   const DEFAULT_ROLE = 'viewer';
   const DEFAULT_ROLE = 'viewer';
   const SESSION_STORAGE_KEY = 'gs:session:snapshot';
@@ -2246,6 +2317,12 @@ codex/verify-main-for-file-presence-ejcrqy
     const modulePermissions = Object.assign({}, DEFAULT_MODULE_PERMISSIONS, abilities.modulePermissions || {});
     return Object.assign({}, abilities, { modulePermissions });
   }
+  function computeAbilities(role){
+    const key = normalizeRole(role);
+    const abilities = ROLE_MATRIX[key] || ROLE_MATRIX[DEFAULT_ROLE];
+    const modulePermissions = Object.assign({}, DEFAULT_MODULE_PERMISSIONS, abilities.modulePermissions || {});
+    return Object.assign({}, abilities, { modulePermissions });
+  }
 
   function ready(fn){
     if(document.readyState === 'loading'){
@@ -2281,6 +2358,116 @@ codex/verify-main-for-file-presence-ejcrqy
     organizationId: DEFAULT_ORG_ID,
     fromCache: false
   };
+
+  const SESSION_IDLE_LIMIT_MS_DEFAULT = 45 * 60 * 1000;
+  let idleTimeoutMs = SESSION_IDLE_LIMIT_MS_DEFAULT;
+  let idleTimeoutHandle = null;
+  let idleEventsBound = false;
+
+  function bindIdleEvents(){
+    if(idleEventsBound || !global.document){ return; }
+    ['visibilitychange','pointermove','keydown','focus'].forEach((evt)=>{
+      document.addEventListener(evt, resetIdleTimer, { passive: true });
+    });
+    idleEventsBound = true;
+  }
+
+  function setIdleTimeoutMs(value){
+    const parsed = Number(value);
+    if(Number.isFinite(parsed) && parsed >= 5 * 60 * 1000){
+      idleTimeoutMs = parsed;
+    }else{
+      idleTimeoutMs = SESSION_IDLE_LIMIT_MS_DEFAULT;
+    }
+    resetIdleTimer();
+  }
+
+  function resetIdleTimer(){
+    if(idleTimeoutHandle){
+      clearTimeout(idleTimeoutHandle);
+    }
+    if(demoMode || !sessionState || sessionState.status !== 'authenticated' || !sessionState.user){ return; }
+    if(idleTimeoutMs <= 0){ return; }
+    idleTimeoutHandle = setTimeout(()=>{
+      logAuditEvent('session.timeout', { idleTimeoutMs }, { uid: sessionState.user.uid, email: sessionState.user.email || null }).catch(()=>{});
+      auth.signOut().catch(()=>{});
+    }, idleTimeoutMs);
+  }
+
+  function getIdleTimeoutMs(){
+    return idleTimeoutMs;
+  }
+
+  function hasModulePermission(moduleKey, level){
+    const normalized = (typeof moduleKey === 'string') ? moduleKey.replace('#/','').replace('.html','') : '';
+    const targetLevel = level || 'read';
+    const perms = (sessionState && sessionState.abilities && sessionState.abilities.modulePermissions)
+      ? sessionState.abilities.modulePermissions
+      : DEFAULT_MODULE_PERMISSIONS;
+    const current = perms[normalized] || perms[moduleKey] || 'none';
+    if(targetLevel === 'write'){
+      return current === 'write';
+    }
+    return current === 'write' || current === 'read';
+  }
+
+  async function sendPasswordRecovery(email){
+    if(isDemoSession()){
+      return Promise.reject(new Error('La demo es de solo lectura. Iniciá sesión en el entorno real.'));
+    }
+    const safeEmail = sanitizeEmail(email);
+    if(!safeEmail){ return Promise.reject(new Error('Ingresá un correo válido.')); }
+    return withRateLimit(`reset:${safeEmail}`, { windowMs: 120000, max: 3 }, ()=> auth.sendPasswordResetEmail(safeEmail));
+  }
+
+  function resolveTargetUid(uid){
+    if(uid){ return uid; }
+    if(sessionState && sessionState.user && sessionState.user.uid){
+      return sessionState.user.uid;
+    }
+    return null;
+  }
+
+  async function enableTwoFactor(options){
+    const opts = Object.assign({ uid: null, phoneNumber: null, verificationId: null, code: null }, options);
+    if(isDemoSession()){
+      return Promise.reject(new Error('La demo no admite 2FA.'));
+    }
+    const targetUid = resolveTargetUid(opts.uid);
+    if(!targetUid){ return Promise.reject(new Error('No hay sesión activa para habilitar 2FA.')); }
+    if(opts.verificationId && opts.code){
+      await confirmPhoneVerification(opts.verificationId, opts.code);
+    }
+    const payload = {
+      twoFactorEnabled: true,
+      twoFactorPhone: opts.phoneNumber || (sessionState && sessionState.user ? sessionState.user.phoneNumber : null) || null,
+      twoFactorUpdatedAt: FieldValue ? FieldValue.serverTimestamp() : Date.now()
+    };
+    if(db && typeof db.collection === 'function'){
+      await db.collection('usuarios').doc(targetUid).set(payload, { merge: true });
+    }
+    logAuditEvent('auth.2fa.enabled', { phone: payload.twoFactorPhone }, { uid: targetUid }).catch(()=>{});
+    return payload;
+  }
+
+  async function disableTwoFactor(options){
+    const opts = Object.assign({ uid: null }, options);
+    if(isDemoSession()){
+      return Promise.reject(new Error('La demo no admite 2FA.'));
+    }
+    const targetUid = resolveTargetUid(opts.uid);
+    if(!targetUid){ return Promise.reject(new Error('No hay sesión activa para deshabilitar 2FA.')); }
+    const payload = {
+      twoFactorEnabled: false,
+      twoFactorPhone: null,
+      twoFactorUpdatedAt: FieldValue ? FieldValue.serverTimestamp() : Date.now()
+    };
+    if(db && typeof db.collection === 'function'){
+      await db.collection('usuarios').doc(targetUid).set(payload, { merge: true });
+    }
+    logAuditEvent('auth.2fa.disabled', {}, { uid: targetUid }).catch(()=>{});
+    return payload;
+  }
 
   const SESSION_IDLE_LIMIT_MS_DEFAULT = 45 * 60 * 1000;
   let idleTimeoutMs = SESSION_IDLE_LIMIT_MS_DEFAULT;
@@ -2669,6 +2856,25 @@ codex/verify-main-for-file-presence-ejcrqy
       }
     }catch(err){ /* almacenamiento no disponible */ }
   }
+  function persistSession(){
+    if(!localStore) return;
+    try{
+      if(sessionState.status === 'authenticated' && sessionState.user){
+        const envelope = {
+          user: sessionState.user,
+          profile: sessionState.profile,
+          role: sessionState.role,
+          abilities: sessionState.abilities,
+          organizationId: sessionState.organizationId,
+          timestamp: Date.now()
+        };
+        const encrypted = encryptLocalPayload(envelope);
+        localStore.setItem(SESSION_STORAGE_KEY, encrypted ? JSON.stringify({ secure: true, payload: encrypted }) : JSON.stringify(envelope));
+      }else{
+        localStore.removeItem(SESSION_STORAGE_KEY);
+      }
+    }catch(err){ /* almacenamiento no disponible */ }
+  }
 
   function getSessionSnapshot(){
     return {
@@ -2973,11 +3179,26 @@ codex/verify-main-for-file-presence-ejcrqy
       updateSession({
         status: 'signed-out',
         user: null,
+      });
+      recaptchaCache.clear();
+      lastAuthUser = null;
+      if(idleTimeoutHandle){
+        clearTimeout(idleTimeoutHandle);
+      }
+      updateSession({
+        status: 'signed-out',
+        user: null,
         profile: null,
         role: 'guest',
         abilities: computeAbilities(null),
         fromCache: false
       });
+    }else{
+      const safeUser = safeUserSnapshot(user);
+      bindIdleEvents();
+      resetIdleTimer();
+      if(!lastAuthUser || lastAuthUser.uid !== safeUser.uid){
+        let provider = 'password';
     }else{
       const safeUser = safeUserSnapshot(user);
       bindIdleEvents();
@@ -3016,6 +3237,32 @@ codex/verify-main-for-file-presence-ejcrqy
       const safePassword = typeof password === 'string' ? password.trim() : '';
       if(!safeEmail){ return Promise.reject(new Error('Ingresá un correo válido.')); }
       if(!safePassword){ return Promise.reject(new Error('Ingresá tu contraseña.')); }
+      return withRateLimit('login', { windowMs: 120000, max: 8 }, ()=>
+        auth.signInWithEmailAndPassword(safeEmail, safePassword).catch(err=>{
+          const friendly = describeAuthError(err);
+          const wrapped = new Error(friendly);
+          wrapped.code = err?.code || '';
+          wrapped.original = err;
+          return Promise.reject(wrapped);
+        })
+      );
+    },
+    sanitizeInput: (value)=> sanitizeInputValue(value),
+    sanitizePayload: (obj)=> sanitizeObjectPayload(obj),
+    hardenForm: (form)=> { hardenFormSecurity(form); return form; },
+    ensureCsrfToken: ()=> ensureCsrfToken(),
+    validateIdToken: (token)=> validateIdTokenClaims(token),
+    sendPasswordResetEmail: (email)=> sendPasswordRecovery(email),
+    signOut: () => {
+      if(isDemoSession()){
+        endDemoSession();
+        return Promise.resolve();
+      }
+      return auth.signOut();
+    },
+    setIdleTimeout: (ms)=> setIdleTimeoutMs(ms),
+    getIdleTimeout: ()=> getIdleTimeoutMs(),
+    resetIdleTimer: ()=> resetIdleTimer(),
       return withRateLimit('login', { windowMs: 120000, max: 8 }, ()=>
         auth.signInWithEmailAndPassword(safeEmail, safePassword).catch(err=>{
           const friendly = describeAuthError(err);
@@ -3107,6 +3354,21 @@ codex/verify-main-for-file-presence-ejcrqy
         return null;
       }
     },
+    getCachedSession: ()=>{
+      if(!localStore) return null;
+      try{
+        const raw = localStore.getItem(SESSION_STORAGE_KEY);
+        if(!raw){ return null; }
+        const parsed = JSON.parse(raw);
+        if(parsed && parsed.secure && parsed.payload){
+          const decrypted = decryptLocalPayload(parsed.payload);
+          return decrypted || null;
+        }
+        return parsed;
+      }catch(err){
+        return null;
+      }
+    },
     getAuth: () => auth,
     getApp: () => firebase.app(),
     describeError: (err, options)=> describeAuthError(err, options),
@@ -3120,6 +3382,26 @@ codex/verify-main-for-file-presence-ejcrqy
       if(isDemoSession()){ return Promise.reject(new Error('La demo es de solo lectura.')); }
       return ensureOrganization(options || {});
     },
+    roles: Object.keys(ROLE_MATRIX),
+    roleLabels: {
+      admin: 'Administrador',
+      manager: 'Manager',
+      operator: 'Operador',
+      viewer: 'Lector',
+      control: 'Control',
+      guest: 'Invitado',
+      demo: 'Demo'
+    },
+    roleOverrides: Object.assign({}, EMAIL_ROLE_OVERRIDES),
+    ROLE_MATRIX: clone(ROLE_MATRIX),
+    hasModulePermission: (moduleKey, level)=> hasModulePermission(moduleKey, level),
+    getModulePermissions: ()=> clone((sessionState && sessionState.abilities && sessionState.abilities.modulePermissions) || DEFAULT_MODULE_PERMISSIONS),
+    normalizeRole,
+    logEvent: (eventName, metadata, overrides)=> logAuditEvent(eventName, metadata, overrides),
+    fetchAuditLog: (options)=> fetchAuditLog(options),
+    subscribeAuditLog: (options, callback)=> subscribeAuditLog(options, callback),
+    enableTwoFactor: (opts)=> enableTwoFactor(opts),
+    disableTwoFactor: (opts)=> disableTwoFactor(opts),
     roles: Object.keys(ROLE_MATRIX),
     roleLabels: {
       admin: 'Administrador',

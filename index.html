@@ -156,8 +156,9 @@
     .hint{margin-top:6px; font-size:13px; color:rgba(223,239,255,.85); line-height:1.45}
 
     /* App layout */
-    .app{display:grid; grid-template-columns:260px 1fr; min-height:100vh; position:relative}
+    .app{display:grid; grid-template-columns:260px 1fr; min-height:100vh; max-height:100vh; position:relative; overflow:hidden}
     .sidebar{
+      position:sticky; top:0; align-self:start; height:100vh;
       background:linear-gradient(190deg,var(--nav) 0%, var(--nav2) 100%);
       color:var(--nav-contrast-soft); padding:20px 16px; border-right:1px solid rgba(9,25,34,.72);
       transition:transform .25s ease, box-shadow .25s ease;
@@ -177,7 +178,7 @@
     .logout{width:100%;gap:10px;background:rgba(255,255,255,.12);color:var(--nav-contrast)}
     .logout:hover{background:rgba(255,255,255,.18)}
 
-    .main{display:flex;flex-direction:column;min-height:100vh;background:linear-gradient(180deg,rgba(255,255,255,.78) 0%,rgba(255,255,255,.96) 100%)}
+    .main{display:flex;flex-direction:column;min-height:100vh;max-height:100vh;overflow-y:auto;background:linear-gradient(180deg,rgba(255,255,255,.78) 0%,rgba(255,255,255,.96) 100%)}
     .header{
       position:sticky;top:0;z-index:2;
       background:rgba(255,255,255,.92); backdrop-filter:blur(10px);
@@ -3337,12 +3338,13 @@
     
     async function fetchKPIData(kpiType) {
         console.log(`🔄 Obteniendo datos de Firebase para: ${kpiType}`);
-        
+
         // Simular delay de red
         await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 500));
-        
+
         // Intentar obtener datos de Firebase si está disponible
-        if (typeof db !== 'undefined' && db) {
+        const db = getDb();
+        if (db) {
             try {
                 return await fetchRealKPIFromFirebase(kpiType);
             } catch (error) {
@@ -3356,6 +3358,8 @@
     }
     
     async function fetchRealKPIFromFirebase(kpiType) {
+        const db = getDb();
+        if (!db) return generateSampleKPIData(kpiType);
         const data = {};
         
         switch (kpiType) {
@@ -3831,53 +3835,76 @@
     }
     
     function downloadPDF(kpiType, filename) {
-        // Para simplificar, generamos un HTML que el usuario puede imprimir como PDF
+        const predictions = aiState.predictions || {};
+        const recs = aiState.recommendations || [];
+        const patterns = aiState.patterns || [];
+        const pred = predictions[kpiType] || { value: 0, trend: 0, confidence: 0 };
+        const title = kpiType.charAt(0).toUpperCase() + kpiType.slice(1);
+
         const reportContent = `
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Reporte ${kpiType}</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 2rem; }
-        .header { text-align: center; margin-bottom: 2rem; }
-        .metric { margin: 1rem 0; padding: 1rem; border: 1px solid #ddd; }
-        .footer { margin-top: 2rem; text-align: center; color: #666; }
-    </style>
+  <meta charset="utf-8" />
+  <title>Reporte ${title}</title>
+  <style>
+    body { font-family: 'Inter', Arial, sans-serif; margin: 24px; color: #0d2b3d; }
+    .header { text-align:center; margin-bottom:24px; }
+    h1 { margin:4px 0; }
+    .kpi { border:1px solid #e1e8f0; border-radius:12px; padding:16px; margin-bottom:16px; background:#f9fbfd; }
+    .section { margin-top:18px; }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; }
+    .chip { padding:6px 10px; border-radius:999px; background:#e8fff5; color:#0f7a4c; border:1px solid #b7f1d2; font-weight:600; font-size:13px; }
+    ul { line-height:1.6; }
+  </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Reporte Ejecutivo - ${kpiType.charAt(0).toUpperCase() + kpiType.slice(1)}</h1>
-        <p>Generado el ${new Date().toLocaleDateString()}</p>
+  <div class="header">
+    <h1>Reporte Ejecutivo — ${title}</h1>
+    <p>Generado el ${new Date().toLocaleString()}</p>
+  </div>
+
+  <div class="kpi">
+    <h3>Métrica principal</h3>
+    <p><strong>Valor:</strong> ${kpiType === 'ingresos' ? `$${Math.round(pred.value).toLocaleString()}` : pred.value.toFixed ? pred.value.toFixed(1) : pred.value}</p>
+    <p><strong>Tendencia:</strong> ${(pred.trend || 0).toFixed(1)}%</p>
+    <p><strong>Confianza:</strong> ${(pred.confidence || 0).toFixed(0)}%</p>
+    <div class="chips">
+      <span class="chip">Periodo: últimos 7 días</span>
+      <span class="chip">Fuente: Firebase</span>
+      <span class="chip">Cálculo AI en vivo</span>
     </div>
-    
-    <div class="metric">
-        <h3>Métricas Principales</h3>
-        <p>• Total registros: 147</p>
-        <p>• Completados: 132</p>
-        <p>• Eficiencia: 89.8%</p>
-        <p>• Variación: +12%</p>
-    </div>
-    
-    <div class="footer">
-        <p>Gestión Sostenible - Dashboard Ejecutivo</p>
-    </div>
+  </div>
+
+  <div class="section">
+    <h3>Recomendaciones de AI</h3>
+    <ul>
+      ${recs.slice(0,4).map(r=>`<li><strong>${r.title}:</strong> ${r.description} (Prioridad: ${r.priority || '—'})</li>`).join('') || '<li>Sin recomendaciones pendientes</li>'}
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>Patrones detectados</h3>
+    <ul>
+      ${(patterns.slice(0,5).map(p=>`<li>${p.title}: ${p.description || ''} (${p.impact || 'Impacto estimado'})</li>`).join('')) || '<li>No se detectaron patrones suficientes</li>'}
+    </ul>
+  </div>
+
+  <p style="margin-top:28px;color:#6b7c8a;">Gestión Sostenible — AI Intelligence Layer</p>
 </body>
 </html>`;
-        
-        const blob = new Blob([reportContent], { type: 'text/html;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', filename);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Mostrar mensaje para que el usuario imprima como PDF
-        setTimeout(() => {
-            showNotification('Archivo HTML generado. Usa Ctrl+P para guardar como PDF', 'info');
-        }, 500);
+
+        const printWindow = window.open('', '_blank');
+        if(!printWindow){ showNotification('Habilita ventanas emergentes para descargar el reporte', 'error'); return; }
+        printWindow.document.open();
+        printWindow.document.write(reportContent);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(()=>{
+            printWindow.print();
+            printWindow.close();
+        }, 300);
+        showNotification('Reporte preparado: si no se descarga, usa Ctrl+P para guardar como PDF', 'info');
     }
     
     function downloadExcel(kpiType, filename) {
@@ -3962,6 +3989,8 @@
         alerts: [],
         charts: {},
         clientModels: {},
+        routeModels: {},
+        realtimeUnsubs: []
         routeModels: {}
     };
 
@@ -3976,6 +4005,10 @@
 
         mapPredictionSlots();
         simulateRealtimeAnalysis();
+        bindAIToSession();
+        loadAIData({ force: true });
+
+        setInterval(()=>loadAIData(), aiConfig.refreshMs);
         loadAIData();
 
         setInterval(loadAIData, aiConfig.refreshMs);
@@ -3988,6 +4021,407 @@
         }, aiConfig.alertIntervalMs);
 
         console.log('✅ AI Intelligence Layer inicializado correctamente');
+    }
+
+    function bindAIToSession(){
+        if(!window.gsAuth || typeof gsAuth.onSession !== 'function') return;
+        gsAuth.onSession((session)=>{
+            const isAuthenticated = !!(session && session.user);
+            const orgId = (typeof gsAuth.getOrganizationId === 'function') ? gsAuth.getOrganizationId() : 'default';
+            if(isAuthenticated){
+                attachAIRealtime(orgId);
+                loadAIData({ force: true, orgIdOverride: orgId });
+            }else{
+                detachAIRealtime();
+                applyDemoAIData();
+            }
+        });
+    }
+
+    function detachAIRealtime(){
+        if(Array.isArray(aiState.realtimeUnsubs)){
+            aiState.realtimeUnsubs.forEach(unsub=>{ try{ unsub && unsub(); }catch(err){} });
+        }
+        aiState.realtimeUnsubs = [];
+    }
+
+    function mapPredictionSlots() {
+        const grid = document.getElementById('predictionsGrid');
+        if (!grid) return;
+
+        const items = grid.querySelectorAll('.prediction-item');
+        const mapping = ['retiros', 'ingresos', 'eficiencia'];
+        items.forEach((item, index) => {
+            const id = mapping[index];
+            if (id) {
+                item.dataset.prediction = id;
+                ensurePredictionChart(item, id);
+            }
+        });
+    }
+
+    function ensurePredictionChart(item, id) {
+        if (item.querySelector('canvas')) return;
+        const canvas = document.createElement('canvas');
+        canvas.width = 180;
+        canvas.height = 48;
+        canvas.className = 'prediction-chart';
+        canvas.setAttribute('role', 'img');
+        canvas.setAttribute('aria-label', `Tendencia proyectada para ${id}`);
+        item.querySelector('.prediction-content').appendChild(canvas);
+        aiState.charts[id] = canvas;
+    }
+
+    function attachAIRealtime(orgId = 'default'){
+        const db = getDb();
+        if(!db){ applyDemoAIData(); return; }
+        detachAIRealtime();
+        const buffers = { clientes: aiState.data?.clientes || [], retiros: aiState.data?.retiros || [], pagos: aiState.data?.pagos || [] };
+        const push = ()=>{
+            aiState.data = { ...buffers };
+            aiState.lastUpdated = Date.now();
+            runPredictiveEngines();
+        };
+        const handleError = (err)=>{ console.warn('Realtime AI stream error', err); applyDemoAIData(); };
+        const listeners = [
+            db.collection('clientes').where('organizationId','==',orgId).limit(500).onSnapshot((snap)=>{
+                buffers.clientes = snap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+                push();
+            }, handleError),
+            db.collection('retiros').where('organizationId','==',orgId).where('fecha','>=', todayYMD()).limit(500).onSnapshot((snap)=>{
+                buffers.retiros = snap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+                push();
+            }, handleError),
+            db.collection('pagos').where('organizationId','==',orgId).where('mes','>=', currentMonth()).limit(500).onSnapshot((snap)=>{
+                buffers.pagos = snap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+                push();
+            }, handleError)
+        ];
+        aiState.realtimeUnsubs = listeners.filter(Boolean);
+    }
+
+    async function loadAIData(options = {}) {
+        const { force = false, orgIdOverride } = options;
+        if (aiState.loading && !force) return;
+        aiState.loading = true;
+        const db = getDb();
+        const orgId = orgIdOverride || ((window.gsAuth && typeof gsAuth.getOrganizationId === 'function') ? gsAuth.getOrganizationId() : 'default');
+
+        try {
+            if (!db) {
+                applyDemoAIData();
+                return;
+            }
+
+            const today = todayYMD();
+            const mes = currentMonth();
+
+            const [clientesSnap, retirosSnap, pagosSnap] = await Promise.all([
+                db.collection('clientes').where('organizationId','==',orgId).limit(500).get(),
+                db.collection('retiros').where('organizationId','==',orgId).where('fecha','>=',today).limit(500).get(),
+                db.collection('pagos').where('organizationId','==',orgId).where('mes','>=',mes).limit(500).get()
+            ]);
+
+            const clientes = clientesSnap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+            const retiros = retirosSnap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+            const pagos = pagosSnap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+
+            aiState.data = { clientes, retiros, pagos };
+            aiState.lastUpdated = Date.now();
+
+            runPredictiveEngines();
+        } catch (error) {
+            console.error('❌ Error cargando datos de IA:', error);
+            applyDemoAIData();
+        } finally {
+            aiState.loading = false;
+        }
+    }
+
+    function applyDemoAIData() {
+        if (gsAuth && typeof gsAuth.getDemoData === 'function') {
+            const demo = gsAuth.getDemoData();
+            aiState.data = {
+                clientes: Array.isArray(demo?.clientes) ? demo.clientes : [],
+                retiros: Array.isArray(demo?.retiros?.items) ? demo.retiros.items : [],
+                pagos: Array.isArray(demo?.pagos?.items) ? demo.pagos.items : []
+            };
+            aiState.lastUpdated = Date.now();
+            runPredictiveEngines();
+        }
+    }
+
+    function runPredictiveEngines() {
+        if (!aiState.data) return;
+
+        const { clientes = [], retiros = [], pagos = [] } = aiState.data;
+        const clientInsights = buildClientPredictiveModels(clientes, pagos);
+        const routeInsights = buildRouteOptimizationModels(retiros, clientes);
+        const financeInsights = buildFinancePredictions(pagos);
+
+        aiState.predictions = {
+            retiros: {
+                value: routeInsights?.efficiency?.planned || retiros.length,
+                trend: average((routeInsights?.demandForecast || []).map(df=>df.growth || 0)) || 0,
+                confidence: Math.min(98, 70 + (retiros.length * 0.3)),
+                sparkline: (routeInsights?.demandForecast || []).map(df=>df.expected || 0)
+            },
+            ingresos: {
+                value: financeInsights?.revenue?.value || 0,
+                trend: financeInsights?.revenue?.trend || 0,
+                confidence: financeInsights?.revenue?.confidence || 0,
+                sparkline: financeInsights?.revenue?.sparkline || []
+            },
+            eficiencia: {
+                value: routeInsights?.efficiency?.savings || 0,
+                trend: ((routeInsights?.efficiency?.optimizedStops || 0) - (routeInsights?.efficiency?.planned || 0)) / Math.max(routeInsights?.efficiency?.planned || 1, 1) * 100,
+                confidence: (routeInsights?.efficiency?.timePrediction?.confidence || 0.8) * 100,
+                sparkline: buildEfficiencySparkline(retiros)
+            }
+        };
+
+        aiState.recommendations = buildAIRecommendations(clientInsights, routeInsights, financeInsights);
+        aiState.patterns = [...(routeInsights?.patterns || []), ...(clientInsights?.patterns || [])].slice(0, 6);
+
+        renderPredictions(aiState.predictions);
+        updateRecommendationsDisplay(aiState.recommendations);
+        updatePatternsDisplay(aiState.patterns);
+        renderAIAlerts(clientInsights, routeInsights, financeInsights);
+        evaluateSmartAlerts(aiState.data || {});
+    }
+
+    // ========================================
+    // MODELOS AVANZADOS DE CLIENTES
+    // ========================================
+
+    function buildClientPredictiveModels(clientes = [], pagos = []) {
+        const paymentHistoryByClient = pagos.reduce((acc, pago) => {
+            const id = pago.clienteId || pago.cliente || pago.idCliente || 'desconocido';
+            if (!acc[id]) acc[id] = [];
+            acc[id].push(pago);
+            return acc;
+        }, {});
+
+        const churnScores = clientes.map(cliente => ({
+            id: cliente.id,
+            nombre: cliente.nombre || 'Cliente',
+            probabilidad: calculateChurnProbability(cliente, paymentHistoryByClient[cliente.id] || [])
+        }));
+
+        const clvScores = clientes.map(cliente => ({
+            id: cliente.id,
+            nombre: cliente.nombre || 'Cliente',
+            valor: calculateCLV(cliente, paymentHistoryByClient[cliente.id] || [], churnScores)
+        }));
+
+        const upsellCandidates = detectUpsellOpportunities(clientes, paymentHistoryByClient);
+        const paymentBehavior = analyzePaymentBehavior(pagos);
+        const seasonality = detectSeasonalityPatterns(pagos);
+
+        const churnAvg = average(churnScores.map(c=>c.probabilidad));
+        const clvAvg = average(clvScores.map(c=>c.valor));
+
+        const patterns = [
+            { icon: '📉', title: 'Riesgo de fuga', description: `${(churnAvg*100).toFixed(1)}% probabilidad media de churn`, impact: 'Activar retención' },
+            { icon: '💎', title: 'CLV promedio', description: `Valor de vida esperado $${Math.round(clvAvg).toLocaleString()}`, impact: 'Priorizar cuentas' },
+            { icon: '🛒', title: 'Upselling', description: `${upsellCandidates.length} clientes listos para upgrade`, impact: 'Campaña sugerida' }
+        ];
+
+        aiState.clientModels = { churnScores, clvScores, upsellCandidates, paymentBehavior, seasonality };
+        return { churnScores, clvScores, upsellCandidates, paymentBehavior, seasonality, patterns };
+    }
+
+    function calculateChurnProbability(cliente, pagosCliente = []) {
+        const today = new Date();
+        const lastPaymentTs = pagosCliente.reduce((max,p)=>Math.max(max, p.fechaPago ? Date.parse(p.fechaPago) : (p.updatedAt || 0)), 0);
+        const recencyDays = lastPaymentTs ? (today - lastPaymentTs) / (1000*60*60*24) : 90;
+        const frequency = pagosCliente.length || 1;
+        const avgTicket = average(pagosCliente.map(p=>toNumber(p.monto || p.importe || 0))) || 0;
+        const tenureMonths = cliente.alta ? ((today - Date.parse(cliente.alta)) / (1000*60*60*24*30)) : 6;
+
+        const normalizedRecency = Math.min(recencyDays / 120, 1);
+        const normalizedFreq = Math.min(frequency / 12, 1);
+        const normalizedTicket = Math.min(avgTicket / 15000, 1);
+        const normalizedTenure = Math.min(tenureMonths / 24, 1);
+
+        const score = (0.45 * normalizedRecency) - (0.25 * normalizedFreq) - (0.2 * normalizedTicket) - (0.1 * normalizedTenure);
+        return Math.min(Math.max(1 / (1 + Math.exp(-6 * (score - 0.2))), 0), 1);
+    }
+
+    function calculateCLV(cliente, pagosCliente = [], churnScores = []) {
+        const churnScore = churnScores.find(c=>c.id === cliente.id)?.probabilidad || 0.25;
+        const revenueMonthly = average(pagosCliente.map(p=>toNumber(p.monto || p.importe || 0))) || toNumber(cliente.monto) || 0;
+        const retention = 1 - churnScore;
+        const horizonMonths = 12;
+        return Math.max(revenueMonthly * horizonMonths * retention, 0);
+    }
+
+    function detectUpsellOpportunities(clientes = [], paymentHistoryByClient = {}) {
+        return clientes.map(cliente => {
+            const payments = paymentHistoryByClient[cliente.id] || [];
+            const punctuality = calculateOnTimeRatio(payments);
+            const spend = payments.reduce((sum,p)=>sum + toNumber(p.monto || p.importe || 0), 0);
+            const frequency = payments.length;
+            const score = (0.4 * punctuality) + (0.35 * Math.min(spend/50000,1)) + (0.25 * Math.min(frequency/10,1));
+            return { id: cliente.id, nombre: cliente.nombre || 'Cliente', score, segmento: cliente.segmento || 'General' };
+        }).filter(c=>c.score > 0.55);
+    }
+
+    function analyzePaymentBehavior(pagos = []) {
+        const onTime = pagos.filter(p=> (p.estado || '').toLowerCase() === 'recibido').length;
+        const total = pagos.length || 1;
+        const ratio = onTime / total;
+        const delays = pagos.map(p=> toNumber(p.diasRetraso || p.retraso || 0));
+        const avgDelay = average(delays);
+        return { onTimeRatio: ratio, avgDelay: avgDelay || 0, totalPagos: pagos.length };
+    }
+
+    function detectSeasonalityPatterns(pagos = []) {
+        const byMonth = pagos.reduce((acc,p)=>{
+            const mes = p.mes || (p.fechaPago ? (p.fechaPago + '').slice(0,7) : currentMonth());
+            acc[mes] = (acc[mes] || 0) + toNumber(p.monto || p.importe || 0);
+            return acc;
+        },{});
+        const entries = Object.entries(byMonth).sort();
+        const values = entries.map(([,v])=>v);
+        const trend = values.length > 1 ? (values[values.length-1] - values[0]) / Math.max(values[0],1) : 0;
+        return { entries, trend };
+    }
+
+    // ========================================
+    // MODELOS DE RUTEO Y DEMANDA
+    // ========================================
+
+    function buildRouteOptimizationModels(retiros = [], clientes = []) {
+        const today = todayYMD();
+        const todayRetiros = retiros.filter(r=> (r.fecha || r.dia || today) >= today);
+        const optimized = optimizeRoutes(todayRetiros);
+        const demandForecast = predictZoneDemand(todayRetiros);
+        const efficiency = estimateEfficiency(todayRetiros, optimized);
+        const patterns = deriveRoutePatterns(todayRetiros);
+
+        aiState.routeModels = { optimized, demandForecast, efficiency };
+        return { optimized, demandForecast, efficiency, patterns };
+    }
+
+    function optimizeRoutes(retiros = []) {
+        const grouped = retiros.reduce((acc, r) => {
+            const zone = r.zona || r.sector || 'General';
+            if (!acc[zone]) acc[zone] = [];
+            acc[zone].push(r);
+            return acc;
+        }, {});
+
+        return Object.entries(grouped).map(([zone, items]) => {
+            const ordered = nearestNeighborOrder(items);
+            const total = ordered.reduce((sum,item) => sum + toNumber(item.distancia || item.km || 3), 0);
+            return { zone, stops: ordered.length, distance: total, ordered };
+        });
+    }
+
+    function nearestNeighborOrder(items = []) {
+        const remaining = [...items];
+        const route = [];
+        let current = remaining.shift();
+        if (current) route.push(current);
+
+        while (remaining.length) {
+            const nextIndex = remaining.reduce((bestIdx, candidate, idx) => {
+                const best = remaining[bestIdx] || current;
+                const currentDistance = estimateDistance(current, candidate);
+                const bestDistance = estimateDistance(current, best);
+                return currentDistance < bestDistance ? idx : bestIdx;
+            }, 0);
+            current = remaining.splice(nextIndex,1)[0];
+            route.push(current);
+        }
+        return route;
+    }
+
+    function estimateDistance(a = {}, b = {}) {
+        const distA = toNumber(a.distancia || a.km || Math.random()*5+1);
+        const distB = toNumber(b.distancia || b.km || Math.random()*5+1);
+        return Math.abs(distA - distB) + 1;
+    }
+
+    function predictZoneDemand(retiros = []) {
+        const byZone = retiros.reduce((acc,r)=>{
+            const zone = r.zona || r.sector || 'General';
+            acc[zone] = (acc[zone] || 0) + 1;
+            return acc;
+        },{});
+        const baseline = average(Object.values(byZone)) || 0;
+        return Object.entries(byZone).map(([zone,count])=>({
+            zone,
+            expected: Math.round(count * 1.08),
+            growth: baseline ? ((count - baseline)/baseline) * 100 : 0
+        }));
+    }
+
+    function estimateEfficiency(retiros = [], optimized = []) {
+        const planned = retiros.length;
+        const optimizedStops = optimized.reduce((sum,r)=>sum + (r.stops || 0), 0);
+        const kmOriginal = retiros.reduce((sum,r)=>sum + toNumber(r.km || r.distancia || 3),0);
+        const kmOptimized = optimized.reduce((sum,r)=>sum + toNumber(r.distance || 0),0) || kmOriginal;
+        const savings = kmOriginal ? ((kmOriginal - kmOptimized) / kmOriginal) * 100 : 0;
+        const timePrediction = predictDeliveryTimes(retiros);
+        return { planned, optimizedStops, savings, timePrediction };
+    }
+
+    function predictDeliveryTimes(retiros = []) {
+        const base = 12;
+        const variable = average(retiros.map(r=> toNumber(r.duracion || r.tiempo || 18))) || 18;
+        return {
+            averageMinutes: base + variable,
+            windowRecommendation: variable > 20 ? 'Usar ventanas de 90 minutos' : 'Ventanas de 60 minutos',
+            confidence: 0.8
+        };
+    }
+
+    function buildEfficiencySparkline(retiros = []) {
+        const durations = retiros.slice(0, 24).map(r=> toNumber(r.duracion || r.tiempo || 18));
+        if(!durations.length) return [];
+        const rolling = [];
+        durations.forEach((val, idx)=>{
+            const window = durations.slice(Math.max(0, idx-4), idx+1);
+            rolling.push(average(window));
+        });
+        return rolling;
+    }
+
+    function deriveRoutePatterns(retiros = []) {
+        if (!retiros.length) return [];
+        const morningShare = retiros.filter(r=> (r.hora || '').startsWith('0') || (r.hora || '').startsWith('1')).length / retiros.length;
+        return [
+            { icon: '🗺️', title: 'Optimización rutas', description: 'Aplicar vecino más cercano por zona', impact: 'Menor kilometraje' },
+            { icon: '⏱️', title: 'Ventanas sugeridas', description: '60-90 minutos según densidad', impact: 'SLA estable' },
+            { icon: '🌅', title: 'Preferencia mañanas', description: `${Math.round(morningShare*100)}% retiros en la mañana`, impact: 'Asignar flota temprano' }
+        ];
+    }
+
+    // ========================================
+    // PREDICCIONES FINANCIERAS SIMPLIFICADAS
+    // ========================================
+
+    function buildFinancePredictions(pagos = []) {
+        const total = pagos.reduce((sum,p)=> sum + toNumber(p.monto || p.importe || 0), 0);
+        const growth = pagos.slice(-7).reduce((sum,p)=> sum + toNumber(p.monto || 0),0);
+        const trend = total ? (growth / total) * 100 : 0;
+        const confidence = Math.min(70 + (pagos.length * 0.3), 95);
+
+        return {
+            revenue: {
+                value: total,
+                trend,
+                confidence,
+                sparkline: pagos.map(p=> toNumber(p.monto || p.importe || 0)).slice(-12)
+            },
+            metrics: {
+                margin: 0.22 + Math.random()*0.05,
+                collectionRate: calculateOnTimeRatio(pagos),
+                forecast30d: total * (1 + (trend/100))
+            }
+        };
     }
 
     function mapPredictionSlots() {
@@ -4334,6 +4768,27 @@
             const trendEl = element.querySelector('.prediction-trend');
             const confEl = element.querySelector('.prediction-confidence');
 
+            const safeValue = Number.isFinite(toNumber(data?.value)) ? toNumber(data.value) : 0;
+            const safeTrend = Number.isFinite(toNumber(data?.trend)) ? toNumber(data.trend) : 0;
+            const safeConfidence = Number.isFinite(toNumber(data?.confidence)) ? toNumber(data.confidence) : 0;
+            const spark = Array.isArray(data?.sparkline) ? data.sparkline.map((v)=> toNumber(v) || 0) : [];
+
+            if (valueEl) {
+                const formatted = id === 'ingresos'
+                  ? `$${Math.round(safeValue).toLocaleString()}`
+                  : `${safeValue.toFixed(1)}${id === 'eficiencia' ? '%' : ''}`;
+                valueEl.innerHTML = `${formatted} <span class="prediction-trend ${safeTrend >= 0 ? 'up' : 'down'}">${safeTrend >= 0 ? '+' : ''}${safeTrend.toFixed(1)}%</span>`;
+            }
+            if (trendEl) {
+                trendEl.textContent = `${safeTrend >= 0 ? '+' : ''}${safeTrend.toFixed(1)}%`;
+                trendEl.className = `prediction-trend ${safeTrend >= 0 ? 'up' : 'down'}`;
+            }
+            if (confEl) {
+                confEl.textContent = `Confianza: ${safeConfidence.toFixed(0)}%`;
+            }
+
+            if (aiState.charts[id]) {
+                drawSparkline(aiState.charts[id], spark);
             if (valueEl) {
                 const formatted = id === 'ingresos' ? `$${Math.round(data.value || 0).toLocaleString()}` : `${Number((data.value || 0).toFixed ? data.value.toFixed(1) : data.value || 0)}${id === 'eficiencia' ? '%' : ''}`;
                 valueEl.innerHTML = `${formatted} <span class="prediction-trend ${data.trend >= 0 ? 'up' : 'down'}">${data.trend >= 0 ? '+' : ''}${(data.trend || 0).toFixed(1)}%</span>`;
@@ -4423,6 +4878,18 @@
                 priority: 'high',
                 action: 'Optimizar'
             });
+        }
+
+        if (financeInsights.metrics?.collectionRate < 0.8) {
+            recs.push({
+                id: 'mejorar_cobranzas',
+                title: 'Refuerzo de cobranzas',
+                description: `Tasa de cobro ${(financeInsights.metrics.collectionRate*100).toFixed(1)}%. Activar recordatorios y cobranza proactiva`,
+                priority: 'medium',
+                action: 'Automatizar avisos'
+            });
+        }
+
         }
 
         if (financeInsights.metrics?.collectionRate < 0.8) {

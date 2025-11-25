@@ -156,8 +156,9 @@
     .hint{margin-top:6px; font-size:13px; color:rgba(223,239,255,.85); line-height:1.45}
 
     /* App layout */
-    .app{display:grid; grid-template-columns:260px 1fr; min-height:100vh; position:relative}
+    .app{display:grid; grid-template-columns:260px 1fr; min-height:100vh; max-height:100vh; position:relative; overflow:hidden}
     .sidebar{
+      position:sticky; top:0; align-self:start; height:100vh;
       background:linear-gradient(190deg,var(--nav) 0%, var(--nav2) 100%);
       color:var(--nav-contrast-soft); padding:20px 16px; border-right:1px solid rgba(9,25,34,.72);
       transition:transform .25s ease, box-shadow .25s ease;
@@ -177,7 +178,7 @@
     .logout{width:100%;gap:10px;background:rgba(255,255,255,.12);color:var(--nav-contrast)}
     .logout:hover{background:rgba(255,255,255,.18)}
 
-    .main{display:flex;flex-direction:column;min-height:100vh;background:linear-gradient(180deg,rgba(255,255,255,.78) 0%,rgba(255,255,255,.96) 100%)}
+    .main{display:flex;flex-direction:column;min-height:100vh;max-height:100vh;overflow-y:auto;background:linear-gradient(180deg,rgba(255,255,255,.78) 0%,rgba(255,255,255,.96) 100%)}
     .header{
       position:sticky;top:0;z-index:2;
       background:rgba(255,255,255,.92); backdrop-filter:blur(10px);
@@ -3337,12 +3338,13 @@
     
     async function fetchKPIData(kpiType) {
         console.log(`🔄 Obteniendo datos de Firebase para: ${kpiType}`);
-        
+
         // Simular delay de red
         await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 500));
-        
+
         // Intentar obtener datos de Firebase si está disponible
-        if (typeof db !== 'undefined' && db) {
+        const db = getDb();
+        if (db) {
             try {
                 return await fetchRealKPIFromFirebase(kpiType);
             } catch (error) {
@@ -3356,6 +3358,8 @@
     }
     
     async function fetchRealKPIFromFirebase(kpiType) {
+        const db = getDb();
+        if (!db) return generateSampleKPIData(kpiType);
         const data = {};
         
         switch (kpiType) {
@@ -3831,53 +3835,76 @@
     }
     
     function downloadPDF(kpiType, filename) {
-        // Para simplificar, generamos un HTML que el usuario puede imprimir como PDF
+        const predictions = aiState.predictions || {};
+        const recs = aiState.recommendations || [];
+        const patterns = aiState.patterns || [];
+        const pred = predictions[kpiType] || { value: 0, trend: 0, confidence: 0 };
+        const title = kpiType.charAt(0).toUpperCase() + kpiType.slice(1);
+
         const reportContent = `
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Reporte ${kpiType}</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 2rem; }
-        .header { text-align: center; margin-bottom: 2rem; }
-        .metric { margin: 1rem 0; padding: 1rem; border: 1px solid #ddd; }
-        .footer { margin-top: 2rem; text-align: center; color: #666; }
-    </style>
+  <meta charset="utf-8" />
+  <title>Reporte ${title}</title>
+  <style>
+    body { font-family: 'Inter', Arial, sans-serif; margin: 24px; color: #0d2b3d; }
+    .header { text-align:center; margin-bottom:24px; }
+    h1 { margin:4px 0; }
+    .kpi { border:1px solid #e1e8f0; border-radius:12px; padding:16px; margin-bottom:16px; background:#f9fbfd; }
+    .section { margin-top:18px; }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; }
+    .chip { padding:6px 10px; border-radius:999px; background:#e8fff5; color:#0f7a4c; border:1px solid #b7f1d2; font-weight:600; font-size:13px; }
+    ul { line-height:1.6; }
+  </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Reporte Ejecutivo - ${kpiType.charAt(0).toUpperCase() + kpiType.slice(1)}</h1>
-        <p>Generado el ${new Date().toLocaleDateString()}</p>
+  <div class="header">
+    <h1>Reporte Ejecutivo — ${title}</h1>
+    <p>Generado el ${new Date().toLocaleString()}</p>
+  </div>
+
+  <div class="kpi">
+    <h3>Métrica principal</h3>
+    <p><strong>Valor:</strong> ${kpiType === 'ingresos' ? `$${Math.round(pred.value).toLocaleString()}` : pred.value.toFixed ? pred.value.toFixed(1) : pred.value}</p>
+    <p><strong>Tendencia:</strong> ${(pred.trend || 0).toFixed(1)}%</p>
+    <p><strong>Confianza:</strong> ${(pred.confidence || 0).toFixed(0)}%</p>
+    <div class="chips">
+      <span class="chip">Periodo: últimos 7 días</span>
+      <span class="chip">Fuente: Firebase</span>
+      <span class="chip">Cálculo AI en vivo</span>
     </div>
-    
-    <div class="metric">
-        <h3>Métricas Principales</h3>
-        <p>• Total registros: 147</p>
-        <p>• Completados: 132</p>
-        <p>• Eficiencia: 89.8%</p>
-        <p>• Variación: +12%</p>
-    </div>
-    
-    <div class="footer">
-        <p>Gestión Sostenible - Dashboard Ejecutivo</p>
-    </div>
+  </div>
+
+  <div class="section">
+    <h3>Recomendaciones de AI</h3>
+    <ul>
+      ${recs.slice(0,4).map(r=>`<li><strong>${r.title}:</strong> ${r.description} (Prioridad: ${r.priority || '—'})</li>`).join('') || '<li>Sin recomendaciones pendientes</li>'}
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>Patrones detectados</h3>
+    <ul>
+      ${(patterns.slice(0,5).map(p=>`<li>${p.title}: ${p.description || ''} (${p.impact || 'Impacto estimado'})</li>`).join('')) || '<li>No se detectaron patrones suficientes</li>'}
+    </ul>
+  </div>
+
+  <p style="margin-top:28px;color:#6b7c8a;">Gestión Sostenible — AI Intelligence Layer</p>
 </body>
 </html>`;
-        
-        const blob = new Blob([reportContent], { type: 'text/html;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', filename);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Mostrar mensaje para que el usuario imprima como PDF
-        setTimeout(() => {
-            showNotification('Archivo HTML generado. Usa Ctrl+P para guardar como PDF', 'info');
-        }, 500);
+
+        const printWindow = window.open('', '_blank');
+        if(!printWindow){ showNotification('Habilita ventanas emergentes para descargar el reporte', 'error'); return; }
+        printWindow.document.open();
+        printWindow.document.write(reportContent);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(()=>{
+            printWindow.print();
+            printWindow.close();
+        }, 300);
+        showNotification('Reporte preparado: si no se descarga, usa Ctrl+P para guardar como PDF', 'info');
     }
     
     function downloadExcel(kpiType, filename) {
@@ -3962,7 +3989,8 @@
         alerts: [],
         charts: {},
         clientModels: {},
-        routeModels: {}
+        routeModels: {},
+        realtimeUnsubs: []
     };
 
     const aiConfig = {
@@ -3976,9 +4004,10 @@
 
         mapPredictionSlots();
         simulateRealtimeAnalysis();
-        loadAIData();
+        bindAIToSession();
+        loadAIData({ force: true });
 
-        setInterval(loadAIData, aiConfig.refreshMs);
+        setInterval(()=>loadAIData(), aiConfig.refreshMs);
         setInterval(runPredictiveEngines, aiConfig.alertIntervalMs);
         setInterval(analyzePatterns, aiConfig.patternIntervalMs);
         setInterval(()=>{
@@ -3988,6 +4017,28 @@
         }, aiConfig.alertIntervalMs);
 
         console.log('✅ AI Intelligence Layer inicializado correctamente');
+    }
+
+    function bindAIToSession(){
+        if(!window.gsAuth || typeof gsAuth.onSession !== 'function') return;
+        gsAuth.onSession((session)=>{
+            const isAuthenticated = !!(session && session.user);
+            const orgId = (typeof gsAuth.getOrganizationId === 'function') ? gsAuth.getOrganizationId() : 'default';
+            if(isAuthenticated){
+                attachAIRealtime(orgId);
+                loadAIData({ force: true, orgIdOverride: orgId });
+            }else{
+                detachAIRealtime();
+                applyDemoAIData();
+            }
+        });
+    }
+
+    function detachAIRealtime(){
+        if(Array.isArray(aiState.realtimeUnsubs)){
+            aiState.realtimeUnsubs.forEach(unsub=>{ try{ unsub && unsub(); }catch(err){} });
+        }
+        aiState.realtimeUnsubs = [];
     }
 
     function mapPredictionSlots() {
@@ -4017,11 +4068,40 @@
         aiState.charts[id] = canvas;
     }
 
-    async function loadAIData() {
-        if (aiState.loading) return;
+    function attachAIRealtime(orgId = 'default'){
+        const db = getDb();
+        if(!db){ applyDemoAIData(); return; }
+        detachAIRealtime();
+        const buffers = { clientes: aiState.data?.clientes || [], retiros: aiState.data?.retiros || [], pagos: aiState.data?.pagos || [] };
+        const push = ()=>{
+            aiState.data = { ...buffers };
+            aiState.lastUpdated = Date.now();
+            runPredictiveEngines();
+        };
+        const handleError = (err)=>{ console.warn('Realtime AI stream error', err); applyDemoAIData(); };
+        const listeners = [
+            db.collection('clientes').where('organizationId','==',orgId).limit(500).onSnapshot((snap)=>{
+                buffers.clientes = snap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+                push();
+            }, handleError),
+            db.collection('retiros').where('organizationId','==',orgId).where('fecha','>=', todayYMD()).limit(500).onSnapshot((snap)=>{
+                buffers.retiros = snap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+                push();
+            }, handleError),
+            db.collection('pagos').where('organizationId','==',orgId).where('mes','>=', currentMonth()).limit(500).onSnapshot((snap)=>{
+                buffers.pagos = snap.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+                push();
+            }, handleError)
+        ];
+        aiState.realtimeUnsubs = listeners.filter(Boolean);
+    }
+
+    async function loadAIData(options = {}) {
+        const { force = false, orgIdOverride } = options;
+        if (aiState.loading && !force) return;
         aiState.loading = true;
         const db = getDb();
-        const orgId = (window.gsAuth && typeof gsAuth.getOrganizationId === 'function') ? gsAuth.getOrganizationId() : 'default';
+        const orgId = orgIdOverride || ((window.gsAuth && typeof gsAuth.getOrganizationId === 'function') ? gsAuth.getOrganizationId() : 'default');
 
         try {
             if (!db) {
@@ -4076,9 +4156,24 @@
         const financeInsights = buildFinancePredictions(pagos);
 
         aiState.predictions = {
-            retiros: routeInsights?.demandForecast || {},
-            ingresos: financeInsights?.revenue || {},
-            eficiencia: routeInsights?.efficiency || {}
+            retiros: {
+                value: routeInsights?.efficiency?.planned || retiros.length,
+                trend: average((routeInsights?.demandForecast || []).map(df=>df.growth || 0)) || 0,
+                confidence: Math.min(98, 70 + (retiros.length * 0.3)),
+                sparkline: (routeInsights?.demandForecast || []).map(df=>df.expected || 0)
+            },
+            ingresos: {
+                value: financeInsights?.revenue?.value || 0,
+                trend: financeInsights?.revenue?.trend || 0,
+                confidence: financeInsights?.revenue?.confidence || 0,
+                sparkline: financeInsights?.revenue?.sparkline || []
+            },
+            eficiencia: {
+                value: routeInsights?.efficiency?.savings || 0,
+                trend: ((routeInsights?.efficiency?.optimizedStops || 0) - (routeInsights?.efficiency?.planned || 0)) / Math.max(routeInsights?.efficiency?.planned || 1, 1) * 100,
+                confidence: (routeInsights?.efficiency?.timePrediction?.confidence || 0.8) * 100,
+                sparkline: buildEfficiencySparkline(retiros)
+            }
         };
 
         aiState.recommendations = buildAIRecommendations(clientInsights, routeInsights, financeInsights);
@@ -4277,6 +4372,17 @@
             windowRecommendation: variable > 20 ? 'Usar ventanas de 90 minutos' : 'Ventanas de 60 minutos',
             confidence: 0.8
         };
+    }
+
+    function buildEfficiencySparkline(retiros = []) {
+        const durations = retiros.slice(0, 24).map(r=> toNumber(r.duracion || r.tiempo || 18));
+        if(!durations.length) return [];
+        const rolling = [];
+        durations.forEach((val, idx)=>{
+            const window = durations.slice(Math.max(0, idx-4), idx+1);
+            rolling.push(average(window));
+        });
+        return rolling;
     }
 
     function deriveRoutePatterns(retiros = []) {

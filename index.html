@@ -20,6 +20,7 @@
       --nav:#0f3346; --nav2:#0b2a3b;
       --nav-contrast:#ffffff; --nav-contrast-soft:rgba(255,255,255,.85); --nav-contrast-muted:rgba(255,255,255,.65);
       --shadow:0 16px 45px rgba(13,43,61,.18);
+      --header-height:72px;
     }
     *{box-sizing:border-box}
     html,body{height:100%}
@@ -178,7 +179,7 @@
     .logout{width:100%;gap:10px;background:rgba(255,255,255,.12);color:var(--nav-contrast)}
     .logout:hover{background:rgba(255,255,255,.18)}
 
-    .main{display:flex;flex-direction:column;min-height:100vh;max-height:100vh;overflow-y:auto;background:linear-gradient(180deg,rgba(255,255,255,.78) 0%,rgba(255,255,255,.96) 100%)}
+    .main{display:flex;flex-direction:column;min-height:100vh;max-height:100vh;height:100vh;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.78) 0%,rgba(255,255,255,.96) 100%)}
     .header{
       position:sticky;top:0;z-index:2;
       background:rgba(255,255,255,.92); backdrop-filter:blur(10px);
@@ -197,7 +198,7 @@
     .menu-toggle:hover{background:#eef6fb}
     .menu-toggle:focus-visible{outline:3px solid rgba(16,113,150,.25);}
 
-    .viewer{flex:1 1 auto; position:relative; background:linear-gradient(180deg,#f6fafc 0%,#ffffff 60%);}
+    .viewer{flex:1 1 auto; position:relative; background:linear-gradient(180deg,#f6fafc 0%,#ffffff 60%); height:calc(100vh - var(--header-height)); overflow:hidden;}
     .viewer iframe{
       position:absolute; inset:0; width:100%; height:100%;
       border:0; background:transparent; opacity:0; transition:opacity .24s ease;
@@ -233,7 +234,7 @@
     .btn.outline:hover{background:rgba(16,113,150,.08);}
     .btn.outline:focus-visible{outline:3px solid rgba(16,113,150,.25);}
 
-    .home-wrap{padding:28px 24px 40px;display:grid;gap:28px;content-visibility:auto;contain-intrinsic-size:780px;}
+    .home-wrap{padding:28px 24px 40px;display:grid;gap:28px;content-visibility:auto;contain-intrinsic-size:780px;max-height:calc(100vh - var(--header-height));overflow:auto;}
     .home-hero{display:grid;gap:10px;max-width:760px}
     .home-hero h2{margin:0;color:var(--ink);font-size:30px;letter-spacing:.01em}
     .home-hero p{margin:0;color:var(--muted);font-size:16px;line-height:1.5}
@@ -447,7 +448,27 @@
         gap: 1.5rem;
         margin-bottom: 2rem;
     }
-    
+
+    .action-toolbar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.25rem;
+        align-items: center;
+        padding: 18px 20px;
+        background: linear-gradient(120deg, rgba(29,191,115,.08), rgba(13,43,61,.05));
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        box-shadow: var(--shadow-light);
+        margin-bottom: 2rem;
+    }
+
+    .action-text h3 { margin: 4px 0 6px; color: var(--text-primary); }
+    .action-text p { margin: 0; color: var(--text-secondary); }
+    .action-text .eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: 12px; color: var(--text-secondary); }
+
+    .action-buttons { display:flex; flex-wrap:wrap; gap:10px; justify-content:flex-start; }
+    .action-buttons .btn { height:auto; padding:10px 14px; }
+
     .kpi-card {
         background: var(--bg-secondary);
         border: 1px solid var(--border-color);
@@ -1089,18 +1110,7 @@
         </div>
       </section>
 
-      <section class="cta-final" id="contacto">
-        <div class="wrap">
-          <div class="card">
-            <h2 style="color:#eaffff">Empezá tu gestión sostenible hoy</h2>
-            <p style="margin:.3rem 0 1rem;color:#cfeaf3">Solicitá una demo o pedí tu acceso personalizado. Te acompañamos en la puesta en marcha.</p>
-            <div class="login-cta">
-              <a class="btn primary" href="#loginPanel" data-action="focus-login">Iniciar sesión</a>
-              <a class="btn ghost" href="/cdn-cgi/l/email-protection#e78488899386849388a7808294938e88899488949382898e858b82c984888ad89492858d828493daa3828a88c2d5d7a08294938e245489c2d5d7b488949382898e858b82">Solicitar demo</a>
-            </div>
-          </div>
-        </div>
-      </section>
+      <!-- CTA final removida para evitar mensajes repetidos de inicio de sesión -->
     </div>
 
     <section class="login-panel" id="loginPanel">
@@ -1170,7 +1180,7 @@
                 <!-- Las alertas se cargan dinámicamente -->
               </div>
             </div>
-            
+
             <!-- Period Selector -->
             <div class="period-selector" id="periodSelector">
               <button class="period-btn active" data-period="today">Hoy</button>
@@ -1179,7 +1189,87 @@
               <button class="period-btn" data-period="quarter">Este Trimestre</button>
               <button class="period-btn" data-period="year">Este Año</button>
             </div>
-            
+
+            <!-- KPI Cards Grid (datos primero) -->
+            <div class="kpi-grid" id="kpiGrid">
+
+              <!-- Retiros Programados Card -->
+              <div class="kpi-card" data-kpi="retiros" data-module="retiros.html">
+                <div class="kpi-header">
+                  <h3 class="kpi-title">Retiros Programados</h3>
+                  <div class="kpi-icon">📅</div>
+                </div>
+                <div class="kpi-metrics">
+                  <div class="kpi-value" id="retirosValue">—</div>
+                  <div class="kpi-change positive" id="retirosChange">
+                    <svg width="16" height="16" fill="currentColor">
+                      <use href="#icon-trending-up"></use>
+                    </svg>
+                    <span id="retirosChangeValue">—</span>
+                  </div>
+                </div>
+                <div class="kpi-chart-container">
+                  <canvas class="kpi-chart" id="retirosChart"></canvas>
+                </div>
+              </div>
+
+              <!-- Ingresos Diarios Card -->
+              <div class="kpi-card" data-kpi="ingresos" data-module="finanzas.html">
+                <div class="kpi-header">
+                  <h3 class="kpi-title">Ingresos Diarios</h3>
+                  <div class="kpi-icon">💰</div>
+                </div>
+                <div class="kpi-metrics">
+                  <div class="kpi-value" id="ingresosValue">—</div>
+                  <div class="kpi-change positive" id="ingresosChange">
+                    <svg width="16" height="16" fill="currentColor">
+                      <use href="#icon-trending-up"></use>
+                    </svg>
+                    <span id="ingresosChangeValue">—</span>
+                  </div>
+                </div>
+                <div class="kpi-chart-container">
+                  <canvas class="kpi-chart" id="ingresosChart"></canvas>
+                </div>
+              </div>
+
+              <!-- Eficiencia Operativa Card -->
+              <div class="kpi-card" data-kpi="eficiencia" data-module="configuracion.html">
+                <div class="kpi-header">
+                  <h3 class="kpi-title">Eficiencia Operativa</h3>
+                  <div class="kpi-icon">⚡</div>
+                </div>
+                <div class="kpi-metrics">
+                  <div class="kpi-value" id="eficienciaValue">—</div>
+                  <div class="kpi-change positive" id="eficienciaChange">
+                    <svg width="16" height="16" fill="currentColor">
+                      <use href="#icon-trending-up"></use>
+                    </svg>
+                    <span id="eficienciaChangeValue">—</span>
+                  </div>
+                </div>
+                <div class="kpi-chart-container">
+                  <canvas class="kpi-chart" id="eficienciaChart"></canvas>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Acciones rápidas alineadas a datos -->
+            <div class="action-toolbar" id="actionToolbar">
+              <div class="action-text">
+                <p class="eyebrow">Acciones inmediatas</p>
+                <h3>Gestioná sin salir del tablero</h3>
+                <p>Usa datos en vivo para actuar: altas, cobros, rutas y reportes.</p>
+              </div>
+              <div class="action-buttons">
+                <button class="btn primary" type="button" onclick="openModuleAndSendAction('clientes', { type:'gs-action', action:'focus-alta' })">➕ Alta de cliente</button>
+                <button class="btn secondary" type="button" onclick="openModuleAndSendAction('finanzas', { type:'gs-action', action:'finanzas:registrar' })">💵 Registrar cobro</button>
+                <button class="btn secondary" type="button" onclick="openModuleAndSendAction('rutas', { type:'gs-action', action:'rutas:optimizar' })">🗺️ Optimizar rutas</button>
+                <button class="btn primary" type="button" onclick="downloadKPIReport('ingresos', 'pdf')">📄 Exportar informe AI</button>
+              </div>
+            </div>
+
             <!-- AI Intelligence Panel -->
             <div class="ai-intelligence-panel" id="aiIntelligencePanel">
               <div class="ai-panel-header">
@@ -1194,28 +1284,28 @@
                 <div class="ai-section">
                   <h4>📈 Predicciones Próximos 7 Días</h4>
                   <div class="predictions-grid" id="predictionsGrid">
-                    <div class="prediction-item">
+                    <div class="prediction-item" data-prediction="retiros">
                       <div class="prediction-icon">📅</div>
                       <div class="prediction-content">
                         <div class="prediction-title">Retiros Estimados</div>
-                        <div class="prediction-value">156 <span class="prediction-trend up">+12%</span></div>
-                        <div class="prediction-confidence">Confianza: 94%</div>
+                        <div class="prediction-value">—</div>
+                        <div class="prediction-confidence">Confianza: —</div>
                       </div>
                     </div>
-                    <div class="prediction-item">
+                    <div class="prediction-item" data-prediction="ingresos">
                       <div class="prediction-icon">💰</div>
                       <div class="prediction-content">
                         <div class="prediction-title">Ingresos Proyectados</div>
-                        <div class="prediction-value">$287,500 <span class="prediction-trend up">+8.5%</span></div>
-                        <div class="prediction-confidence">Confianza: 91%</div>
+                        <div class="prediction-value">—</div>
+                        <div class="prediction-confidence">Confianza: —</div>
                       </div>
                     </div>
-                    <div class="prediction-item">
+                    <div class="prediction-item" data-prediction="eficiencia">
                       <div class="prediction-icon">⚡</div>
                       <div class="prediction-content">
                         <div class="prediction-title">Eficiencia Esperada</div>
-                        <div class="prediction-value">92.3% <span class="prediction-trend up">+1.8%</span></div>
-                        <div class="prediction-confidence">Confianza: 89%</div>
+                        <div class="prediction-value">—</div>
+                        <div class="prediction-confidence">Confianza: —</div>
                       </div>
                     </div>
                   </div>
@@ -1294,71 +1384,6 @@
               </div>
             </div>
             
-            <!-- KPI Cards Grid -->
-            <div class="kpi-grid" id="kpiGrid">
-              
-              <!-- Retiros Programados Card -->
-              <div class="kpi-card" data-kpi="retiros" data-module="retiros.html">
-                <div class="kpi-header">
-                  <h3 class="kpi-title">Retiros Programados</h3>
-                  <div class="kpi-icon">📅</div>
-                </div>
-                <div class="kpi-metrics">
-                  <div class="kpi-value" id="retirosValue">—</div>
-                  <div class="kpi-change positive" id="retirosChange">
-                    <svg width="16" height="16" fill="currentColor">
-                      <use href="#icon-trending-up"></use>
-                    </svg>
-                    <span id="retirosChangeValue">—</span>
-                  </div>
-                </div>
-                <div class="kpi-chart-container">
-                  <canvas class="kpi-chart" id="retirosChart"></canvas>
-                </div>
-              </div>
-              
-              <!-- Ingresos Diarios Card -->
-              <div class="kpi-card" data-kpi="ingresos" data-module="finanzas.html">
-                <div class="kpi-header">
-                  <h3 class="kpi-title">Ingresos Diarios</h3>
-                  <div class="kpi-icon">💰</div>
-                </div>
-                <div class="kpi-metrics">
-                  <div class="kpi-value" id="ingresosValue">—</div>
-                  <div class="kpi-change positive" id="ingresosChange">
-                    <svg width="16" height="16" fill="currentColor">
-                      <use href="#icon-trending-up"></use>
-                    </svg>
-                    <span id="ingresosChangeValue">—</span>
-                  </div>
-                </div>
-                <div class="kpi-chart-container">
-                  <canvas class="kpi-chart" id="ingresosChart"></canvas>
-                </div>
-              </div>
-              
-              <!-- Eficiencia Operativa Card -->
-              <div class="kpi-card" data-kpi="eficiencia" data-module="configuracion.html">
-                <div class="kpi-header">
-                  <h3 class="kpi-title">Eficiencia Operativa</h3>
-                  <div class="kpi-icon">⚡</div>
-                </div>
-                <div class="kpi-metrics">
-                  <div class="kpi-value" id="eficienciaValue">—</div>
-                  <div class="kpi-change positive" id="eficienciaChange">
-                    <svg width="16" height="16" fill="currentColor">
-                      <use href="#icon-trending-up"></use>
-                    </svg>
-                    <span id="eficienciaChangeValue">—</span>
-                  </div>
-                </div>
-                <div class="kpi-chart-container">
-                  <canvas class="kpi-chart" id="eficienciaChart"></canvas>
-                </div>
-              </div>
-              
-            </div>
-            
           </div>
           
           <!-- Drilldown Modal -->
@@ -1407,7 +1432,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
   
   <!-- Firebase compat -->
-  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
 
@@ -1483,6 +1508,28 @@
       return DEFAULT_BRAND_NAME;
     };
     const focusLoginBtns = Array.from(document.querySelectorAll('[data-action="focus-login"]'));
+    const autoDemoAllowedHosts = ['localhost','127.0.0.1',''];
+    const autoDemoRequested = new URLSearchParams(location.search).get('autodemo') === '1';
+    const allowAutoDemo = autoDemoRequested && ['file:', 'http:'].includes(location.protocol)
+      && autoDemoAllowedHosts.includes(location.hostname);
+    let currentSession = null;
+    let demoAutostartTimer = null;
+
+    function scheduleDemoAutostart(){
+      const dataset = window.GS_DEMO_DATA || window.demoData;
+      if(!allowAutoDemo || !dataset || !window.gsAuth || typeof gsAuth.startDemoSession !== 'function'){ return; }
+      clearTimeout(demoAutostartTimer);
+      demoAutostartTimer = setTimeout(()=>{
+        const hasSession = !!(currentSession && currentSession.user);
+        if(document.body.classList.contains('app-ready') || hasSession){ return; }
+        try{
+          gsAuth.startDemoSession(dataset, { persist: false, resetTheme: false });
+          console.info('ℹ️ Demo activada automáticamente para evitar bloqueo de navegación sin sesión.');
+        }catch(err){ console.warn('No se pudo iniciar la demo automática', err); }
+      }, 2800);
+    }
+
+    scheduleDemoAutostart();
     const focusLoginForm = (event)=>{
       if(event){ event.preventDefault(); }
       document.body.classList.add('login-open');
@@ -1565,7 +1612,6 @@
         window.location.replace(target);
       }
     };
-    let currentSession = null;
     let sessionAbilities = {};
     let lastProfileStamp = null;
     let appInitializedFor = null;
@@ -2806,6 +2852,10 @@
     }
 
     gsAuth.onSession((session)=>{
+      if(demoAutostartTimer){
+        clearTimeout(demoAutostartTimer);
+        demoAutostartTimer = null;
+      }
       currentSession = session;
       const role = normalizeRole(session && session.role, session && session.user);
       applyBodyRole(role, session && session.user);
@@ -2842,6 +2892,7 @@
           const previousMode = (lastSession && lastSession.status === 'demo') ? 'demo' : 'full';
           ensureLandingRedirect(previousMode);
         }
+        scheduleDemoAutostart();
       }
 
       lastSession = session;
@@ -3331,8 +3382,19 @@
                 }]
             }
         };
-        
-        return sampleData[kpiType] || sampleData['retiros'];
+        const base = sampleData[kpiType] || sampleData['retiros'];
+        const spark = Array.isArray(data?.sparkline) && data.sparkline.length ? data.sparkline : null;
+        const dataset = base.datasets[0];
+        return {
+            labels: spark ? spark.map((_,i)=>`T${i+1}`) : base.labels,
+            datasets: [{
+                label: dataset.label,
+                data: spark || dataset.data,
+                borderColor: dataset.borderColor,
+                backgroundColor: dataset.backgroundColor,
+                fill: dataset.fill
+            }]
+        };
     }
     
     // ========================================
@@ -3666,59 +3728,44 @@
     }
     
     function generateDetailedContent(kpiType, container) {
-        // Generar contenido detallado según el tipo de KPI
-        const detailedContent = {
-            'retiros': {
-                summary: 'Análisis detallado de retiros programados',
-                metrics: [
-                    { label: 'Total Retiros', value: '147', change: '+12%' },
-                    { label: 'Completados', value: '132', change: '+8%' },
-                    { label: 'Pendientes', value: '15', change: '-5%' },
-                    { label: 'Eficiencia', value: '89.8%', change: '+2.1%' }
-                ],
-                actions: [
-                    'Ver agenda completa',
-                    'Exportar reporte',
-                    'Configurar alertas'
-                ]
-            },
-            'ingresos': {
-                summary: 'Análisis detallado de ingresos y facturación',
-                metrics: [
-                    { label: 'Ingresos Hoy', value: '$45,230', change: '+15%' },
-                    { label: 'Pagos Recibidos', value: '38', change: '+8%' },
-                    { label: 'Pagos Pendientes', value: '12', change: '-3%' },
-                    { label: 'Tasa Conversión', value: '94.2%', change: '+1.5%' }
-                ],
-                actions: [
-                    'Ver todas las facturas',
-                    'Generar reporte DGI',
-                    'Configurar cobranzas'
-                ]
-            },
-            'eficiencia': {
-                summary: 'Métricas de eficiencia operativa del sistema',
-                metrics: [
-                    { label: 'Productividad', value: '94.5%', change: '+3.2%' },
-                    { label: 'Tiempo Respuesta', value: '1.2s', change: '-0.3s' },
-                    { label: 'Satisfacción', value: '4.8/5', change: '+0.2' },
-                    { label: 'Disponibilidad', value: '99.8%', change: '+0.1%' }
-                ],
-                actions: [
-                    'Ver métricas detalladas',
-                    'Configurar optimizaciones',
-                    'Generar reporte ejecutivo'
-                ]
-            }
+        const prediction = aiState.predictions && aiState.predictions[kpiType] ? aiState.predictions[kpiType] : null;
+        const recs = (aiState.recommendations || []).filter(r=> r.id?.includes(kpiType) || !kpiType).slice(0,3);
+        const patterns = (aiState.patterns || []).filter(p=> p.title && (!kpiType || p.title.toLowerCase().includes(kpiType))).slice(0,3);
+
+        const metrics = prediction ? [
+            { label: 'Valor proyectado', value: kpiType === 'ingresos' ? formatCurrency(prediction.value||0) : `${toNumber(prediction.value||0).toFixed(1)}${kpiType==='eficiencia'?'%':''}`, change: `${(prediction.trend||0)>=0?'+':''}${(prediction.trend||0).toFixed(1)}% tendencia` },
+            { label: 'Confianza del modelo', value: `${(prediction.confidence||0).toFixed(0)}%`, change: 'Basado en datos recientes' },
+            { label: 'Última actualización', value: new Date(aiState.lastUpdated||Date.now()).toLocaleString(), change: 'Sesión activa' }
+        ] : [
+            { label: 'Sin datos recientes', value: '—', change: 'Conectá Firebase o usa demo' }
+        ];
+
+        const actions = {
+            retiros: [
+                { label: 'Abrir calendario', onclick: "openModuleAndSendAction('rutas', { action:'rutas:optimizar' })" },
+                { label: 'Exportar rutas', onclick: "downloadKPIReport('retiros','csv')" }
+            ],
+            ingresos: [
+                { label: 'Registrar cobro ahora', onclick: "openModuleAndSendAction('finanzas', { action:'finanzas:registrar' })" },
+                { label: 'Exportar ingresos', onclick: "downloadKPIReport('ingresos','csv')" }
+            ],
+            eficiencia: [
+                { label: 'Ver clientes críticos', onclick: "openModuleAndSendAction('clientes', { action:'focus-alta' })" },
+                { label: 'Optimizar rutas', onclick: "openModuleAndSendAction('rutas', { action:'rutas:optimizar' })" }
+            ]
         };
-        
-        const content = detailedContent[kpiType] || detailedContent['retiros'];
-        
+
+        const content = {
+            summary: prediction ? 'Detalle en vivo alimentado por AI' : 'Datos en preparación',
+            metrics,
+            actions: actions[kpiType] || []
+        };
+
         container.innerHTML = `
             <div style="padding: 1rem;">
-                <p style="color: var(--text-secondary); margin-bottom: 2rem;">${content.summary}</p>
-                
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">${content.summary}</p>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
                     ${content.metrics.map(metric => `
                         <div style="background: var(--bg-primary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
                             <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">${metric.label}</div>
@@ -3727,25 +3774,20 @@
                         </div>
                     `).join('')}
                 </div>
-                
+
                 <div>
-                    <h4 style="margin-bottom: 1rem; color: var(--text-primary);">Acciones Disponibles</h4>
+                    <h4 style="margin-bottom: 0.75rem; color: var(--text-primary);">Acciones Disponibles</h4>
                     <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;" id="action-buttons">
-                        <button onclick="downloadKPIReport('${kpiType}', 'csv')" style="padding: 0.5rem 1rem; background: var(--accent-color); color: white; border: none; border-radius: 6px; cursor: pointer;">
-                            📊 Exportar CSV
-                        </button>
-                        <button onclick="downloadKPIReport('${kpiType}', 'pdf')" style="padding: 0.5rem 1rem; background: var(--accent-color); color: white; border: none; border-radius: 6px; cursor: pointer;">
-                            📄 Exportar PDF
-                        </button>
-                        <button onclick="downloadKPIReport('${kpiType}', 'excel')" style="padding: 0.5rem 1rem; background: var(--accent-color); color: white; border: none; border-radius: 6px; cursor: pointer;">
-                            📈 Exportar Excel
-                        </button>
-                        <button onclick="refreshKPIData('${kpiType}')" style="padding: 0.5rem 1rem; background: var(--accent2); color: white; border: none; border-radius: 6px; cursor: pointer;">
-                            🔄 Actualizar
-                        </button>
+                        ${content.actions.map(action=>`<button onclick="${action.onclick}" style="padding: 0.5rem 1rem; background: var(--accent-color); color: white; border: none; border-radius: 6px; cursor: pointer;">${action.label}</button>`).join('') || '<span style="color:var(--text-secondary)">Sin acciones sugeridas.</span>'}
+                        <button onclick="downloadKPIReport('${kpiType}', 'pdf')" style="padding: 0.5rem 1rem; background: var(--accent2); color: white; border: none; border-radius: 6px; cursor: pointer;">📄 Exportar PDF</button>
+                        <button onclick="refreshKPIData('${kpiType}')" style="padding: 0.5rem 1rem; background: var(--accent2); color: white; border: none; border-radius: 6px; cursor: pointer;">🔄 Actualizar</button>
                     </div>
                 </div>
-                
+
+                ${patterns.length ? `<div style="margin-top:12px;"><h4>Patrones relacionados</h4><ul style="padding-left:18px;color:var(--text-primary);">${patterns.map(p=>`<li>${p.title}: ${p.description||''}</li>`).join('')}</ul></div>` : ''}
+
+                ${recs.length ? `<div style="margin-top:12px;"><h4>Recomendaciones de AI</h4><ul style="padding-left:18px;color:var(--text-primary);">${recs.map(r=>`<li>${r.title}: ${r.description||''}</li>`).join('')}</ul></div>` : ''}
+
                 <div id="download-status" style="margin-top: 1rem; text-align: center; color: var(--text-secondary); display: none;">
                     <div style="padding: 1rem;">
                         <div style="animation: spin 1s linear infinite; margin: 0 auto 0.5rem; width: 20px; height: 20px; border: 2px solid var(--accent-color); border-top: 2px solid transparent; border-radius: 50%;"></div>
@@ -3798,32 +3840,62 @@
             }
         }, 1500);
     }
+
+    function getAIDataset(){
+        if(aiState.data){ return aiState.data; }
+        if(window.gsAuth && typeof gsAuth.getDemoData === 'function'){
+            const demo = gsAuth.getDemoData();
+            return {
+                clientes: demo?.clientes || [],
+                retiros: demo?.retiros?.items || [],
+                pagos: demo?.pagos?.items || []
+            };
+        }
+        return { clientes: [], retiros: [], pagos: [] };
+    }
+
+    function buildExportRows(kpiType){
+        const { clientes = [], retiros = [], pagos = [] } = getAIDataset();
+        switch(kpiType){
+            case 'retiros':
+                return [
+                    ['Fecha','Cliente','Estado','Km','Ventana'],
+                    ...retiros.slice(0,80).map(r=>[
+                        r.fecha || r.dia || '',
+                        r.cliente || r.clienteNombre || '—',
+                        r.estado || r.estadoRuta || 'pendiente',
+                        r.km || r.distancia || '',
+                        r.ventana || r.horario || ''
+                    ])
+                ];
+            case 'ingresos':
+                return [
+                    ['Fecha','Cliente','Monto','Estado','Concepto'],
+                    ...pagos.slice(0,120).map(p=>[
+                        p.fecha || p.mes || '',
+                        p.clienteNombre || p.clienteId || '—',
+                        formatCurrency(toNumber(p.monto || p.importe || 0)),
+                        p.estado || 'pendiente',
+                        p.concepto || ''
+                    ])
+                ];
+            case 'eficiencia':
+            default:
+                return [
+                    ['Cliente','Segmento','Contrato','Monto','Actualizado'],
+                    ...clientes.slice(0,120).map(c=>[
+                        c.nombre || 'Cliente',
+                        c.segmento || 'General',
+                        c.contrato ? 'Sí' : 'No',
+                        formatCurrency(toNumber(c.monto || 0)),
+                        c.updatedAt || c.createdAt || ''
+                    ])
+                ];
+        }
+    }
     
     function downloadCSV(kpiType, filename) {
-        // Datos de ejemplo - en producción vendrían de Firebase
-        const data = {
-            'retiros': [
-                ['Fecha', 'Cliente', 'Monto', 'Estado', 'Eficiencia'],
-                ['2025-11-25', 'Juan Pérez', '$5,000', 'Completado', '95%'],
-                ['2025-11-25', 'María García', '$3,200', 'En proceso', '87%'],
-                ['2025-11-24', 'Carlos López', '$7,800', 'Completado', '92%']
-            ],
-            'ingresos': [
-                ['Fecha', 'Concepto', 'Monto', 'Método', 'Estado'],
-                ['2025-11-25', 'Retiro #001', '$5,000', 'Transferencia', 'Confirmado'],
-                ['2025-11-25', 'Retiro #002', '$3,200', 'Efectivo', 'Confirmado'],
-                ['2025-11-24', 'Retiro #003', '$7,800', 'Transferencia', 'Confirmado']
-            ],
-            'eficiencia': [
-                ['Métrica', 'Valor Actual', 'Objetivo', 'Variación'],
-                ['Productividad', '94.5%', '95%', '+3.2%'],
-                ['Tiempo Respuesta', '1.2s', '1.0s', '-0.3s'],
-                ['Satisfacción', '4.8/5', '4.5/5', '+0.2'],
-                ['Disponibilidad', '99.8%', '99.5%', '+0.1%']
-            ]
-        };
-        
-        const rows = data[kpiType] || data['retiros'];
+        const rows = buildExportRows(kpiType);
         const csvContent = rows.map(row => row.map(field => `"${field}"`).join(',')).join('\n');
         
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -3841,6 +3913,7 @@
         const predictions = aiState.predictions || {};
         const recs = aiState.recommendations || [];
         const patterns = aiState.patterns || [];
+        const rows = buildExportRows(kpiType).slice(0, 40);
         const pred = predictions[kpiType] || { value: 0, trend: 0, confidence: 0 };
         const title = kpiType.charAt(0).toUpperCase() + kpiType.slice(1);
 
@@ -3859,6 +3932,8 @@
     .chips { display:flex; gap:8px; flex-wrap:wrap; }
     .chip { padding:6px 10px; border-radius:999px; background:#e8fff5; color:#0f7a4c; border:1px solid #b7f1d2; font-weight:600; font-size:13px; }
     ul { line-height:1.6; }
+    table { border-collapse:collapse; width:100%; margin-top:10px; }
+    th,td { border-bottom:1px solid #e1e8f0; padding:6px; text-align:left; }
   </style>
 </head>
 <body>
@@ -3869,7 +3944,7 @@
 
   <div class="kpi">
     <h3>Métrica principal</h3>
-    <p><strong>Valor:</strong> ${kpiType === 'ingresos' ? `$${Math.round(pred.value).toLocaleString()}` : pred.value.toFixed ? pred.value.toFixed(1) : pred.value}</p>
+    <p><strong>Valor:</strong> ${kpiType === 'ingresos' ? formatCurrency(pred.value || 0) : (pred.value?.toFixed ? pred.value.toFixed(1) : pred.value)}</p>
     <p><strong>Tendencia:</strong> ${(pred.trend || 0).toFixed(1)}%</p>
     <p><strong>Confianza:</strong> ${(pred.confidence || 0).toFixed(0)}%</p>
     <div class="chips">
@@ -3893,36 +3968,35 @@
     </ul>
   </div>
 
+  <div class="section">
+    <h3>Datos de soporte</h3>
+    <table>
+      <thead><tr>${rows[0].map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+      <tbody>
+        ${rows.slice(1,16).map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}
+      </tbody>
+    </table>
+  </div>
+
   <p style="margin-top:28px;color:#6b7c8a;">Gestión Sostenible — AI Intelligence Layer</p>
 </body>
 </html>`;
 
-        const printWindow = window.open('', '_blank');
-        if(!printWindow){ showNotification('Habilita ventanas emergentes para descargar el reporte', 'error'); return; }
-        printWindow.document.open();
-        printWindow.document.write(reportContent);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(()=>{
+        const blob = new Blob([reportContent], { type: 'text/html;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const printWindow = window.open(url, '_blank');
+        if(!printWindow){ showNotification('Habilitá ventanas emergentes para descargar el reporte', 'error'); URL.revokeObjectURL(url); return; }
+        printWindow.onload = ()=>{
+            printWindow.focus();
             printWindow.print();
-            printWindow.close();
-        }, 300);
+            setTimeout(()=>{ printWindow.close(); URL.revokeObjectURL(url); }, 500);
+        };
         showNotification('Reporte preparado: si no se descarga, usa Ctrl+P para guardar como PDF', 'info');
     }
     
     function downloadExcel(kpiType, filename) {
-        // Excel básico usando CSV con extensión .xls
-        const data = [
-            ['Reporte Ejecutivo - ' + kpiType.charAt(0).toUpperCase() + kpiType.slice(1)],
-            ['Generado el', new Date().toLocaleDateString()],
-            [''],
-            ['Métrica', 'Valor', 'Variación'],
-            ['Total registros', '147', '+12%'],
-            ['Completados', '132', '+8%'],
-            ['Eficiencia', '89.8%', '+2.1%']
-        ];
-        
-        const excelContent = data.map(row => row.join('\t')).join('\n');
+        const rows = buildExportRows(kpiType);
+        const excelContent = rows.map(row => row.join('\t')).join('\n');
         const blob = new Blob([excelContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
@@ -3970,7 +4044,7 @@
         notification.textContent = message;
         
         document.body.appendChild(notification);
-        
+
         // Remover después de 3 segundos
         setTimeout(() => {
             if (notification.parentNode) {
@@ -3978,7 +4052,29 @@
             }
         }, 3000);
     }
-    
+
+    // Enviar acciones a módulos embebidos conservando navegación
+    function openModuleAndSendAction(moduleKey, actionPayload = null) {
+        const navLink = document.querySelector(`.nav a[data-module-key="${moduleKey}"]`);
+        if(navLink && navLink.getAttribute('href')){
+            location.hash = navLink.getAttribute('href');
+        }
+        const send = ()=>{
+            const frame = document.querySelector(`iframe[data-module-key="${moduleKey}"]`);
+            if(frame && frame.contentWindow && actionPayload){
+                frame.contentWindow.postMessage(Object.assign({ source:'gs-shell', type:'gs-action' }, actionPayload), '*');
+                return true;
+            }
+            return !!frame;
+        };
+        // Intentar varias veces hasta que cargue el iframe
+        let attempts = 0;
+        const timer = setInterval(()=>{
+            attempts += 1;
+            if(send() || attempts > 10){ clearInterval(timer); }
+        }, 400);
+    }
+
     // ========================================
     // AI INTELLIGENCE LAYER (MEJORADO)
     // ========================================
@@ -4466,6 +4562,30 @@
                 drawSparkline(aiState.charts[id], spark);
             }
         });
+
+        syncDashboardWithPredictions(merged);
+    }
+
+    function syncDashboardWithPredictions(predictions = {}){
+        const mapping = {
+            retiros: predictions.retiros || {},
+            ingresos: predictions.ingresos || {},
+            eficiencia: predictions.eficiencia || {}
+        };
+        Object.entries(mapping).forEach(([kpiType, pred])=>{
+            const trend = Number.isFinite(toNumber(pred.trend)) ? toNumber(pred.trend) : 0;
+            const value = Number.isFinite(toNumber(pred.value)) ? toNumber(pred.value) : 0;
+            const spark = Array.isArray(pred.sparkline) ? pred.sparkline : [];
+            const formatted = kpiType === 'ingresos' ? formatCurrency(value) : `${value.toFixed(1)}${kpiType==='eficiencia'?'%':''}`;
+            const data = {
+                value: formatted,
+                change: `${trend >= 0 ? '+' : ''}${trend.toFixed(1)}% vs período previo`,
+                trend: trend >= 0 ? 'positive' : 'negative',
+                sparkline: spark
+            };
+            updateKPICard(kpiType, data);
+            createOrUpdateChart(kpiType, data);
+        });
     }
 
     function drawSparkline(canvas, values = []) {
@@ -4908,12 +5028,6 @@
         setupDrilldownModal();
     }
 
-    warmupModules();
-    registerGsServiceWorker();
-    applyThemeToggle();
-    attachGlobalLoadingStates();
-    applyNavPermissions();
-  </script>
   <!-- SVG Icons para Executive Command Center -->
   <svg width="0" height="0" class="sr-only">
     <symbol id="icon-refresh" viewBox="0 0 24 24">

@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Gestión Sostenible — Demo interactiva</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://www.gstatic.com https://www.googleapis.com https://firestore.googleapis.com https://www.google.com https://maps.googleapis.com data: blob:; frame-ancestors 'self'; script-src 'self' https://www.gstatic.com https://www.googleapis.com https://maps.googleapis.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://maps.googleapis.com https://maps.gstatic.com; connect-src 'self' https://www.googleapis.com https://firestore.googleapis.com https://maps.googleapis.com https://identitytoolkit.googleapis.com;" />
+  <style>
+    :root{
+      color-scheme: light;
+      --ink:#0d2636;
+      --ink-soft:#2b4b5e;
+      --muted:#5f7382;
+      --muted-strong:#415767;
+      --accent:#1dbf73;
+      --accent-dark:#14915a;
+      --accent-soft:rgba(29,191,115,.1);
+      --bg:#f3f7fb;
+      --bg-card:#ffffff;
+      --border:#dbe6f0;
+      --shadow:0 30px 60px rgba(13,38,54,.15);
+      font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    }
+    *,*::before,*::after{box-sizing:border-box;}
+    body{
+      margin:0;
+      background:linear-gradient(180deg,#f7fbff 0%,#edf4fb 40%,#f8fbff 100%);
+      color:var(--ink);
+      min-height:100vh;
+      display:flex;
+      flex-direction:column;
+    }
+    header{
+      position:sticky;
+      top:0;
+      z-index:10;
+      backdrop-filter:blur(12px);
+      background:rgba(243,247,251,.85);
+      border-bottom:1px solid rgba(219,230,240,.6);
+    }
+    .nav{
+      max-width:1200px;
+      margin:0 auto;
+      padding:18px clamp(20px,5vw,48px);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:24px;
+    }
+    .brand{display:flex;align-items:center;gap:14px;text-decoration:none;color:var(--ink);font-weight:600;}
+    .brand-logo{
+      width:46px;height:46px;border-radius:14px;display:grid;place-items:center;
+      font-weight:700;font-size:1.1rem;color:#fff;
+      background:linear-gradient(135deg,var(--accent),#12a05b);
+      box-shadow:0 12px 24px rgba(29,191,115,.35);
+    }
+    nav{display:flex;align-items:center;gap:20px;font-size:.96rem;flex-wrap:wrap;}
+    nav a{text-decoration:none;color:var(--muted);font-weight:500;}
+    nav a:hover{color:var(--ink);}
+    .nav-cta{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+    .btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 22px;border-radius:999px;font-weight:600;text-decoration:none;transition:transform .18s ease,box-shadow .18s ease;background:transparent;border:1px solid transparent;color:inherit;touch-action:manipulation;}
+    .btn-primary{background:var(--accent);color:#fff;box-shadow:0 20px 38px rgba(29,191,115,.28);}
+    .btn-primary:hover{transform:translateY(-1px);background:var(--accent-dark);} 
+    .btn-secondary{border-color:rgba(13,38,54,.15);color:var(--ink-soft);}
+    .btn-secondary:hover{background:rgba(13,38,54,.06);}
+
+    main{flex:1;display:flex;flex-direction:column;gap:96px;padding:48px clamp(20px,5vw,72px) 96px;content-visibility:auto;contain-intrinsic-size:1600px;}
+    .hero{display:grid;gap:42px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));align-items:center;max-width:1200px;margin:0 auto;}
+    .hero-copy h1{margin:0;font-size:clamp(2.3rem,5vw,3.4rem);line-height:1.05;}
+    .hero-copy p{margin:18px 0 28px;font-size:1.1rem;color:var(--muted-strong);max-width:560px;}
+    .metrics{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-top:30px;}
+    .metric-card{background:var(--bg-card);border-radius:20px;padding:18px 20px;border:1px solid rgba(255,255,255,.6);box-shadow:0 18px 36px rgba(13,38,54,.08);display:grid;gap:4px;}
+    .metric-card strong{font-size:1.35rem;color:var(--ink);}
+    .metric-card span{font-size:.9rem;color:var(--muted);}
+    .hero-preview{position:relative;background:radial-gradient(circle at top left,rgba(29,191,115,.28),rgba(29,191,115,0) 68%),linear-gradient(200deg,#102c3f 0%,#16455e 65%,#0d2330 100%);border-radius:28px;padding:38px;min-height:340px;box-shadow:var(--shadow);color:#e8f6ff;display:grid;gap:18px;overflow:hidden;}
+    .hero-preview::after{content:'';position:absolute;inset:-60px auto auto -60px;width:220px;height:220px;background:radial-gradient(circle at center,rgba(255,255,255,.14),transparent 70%);opacity:.6;}
+    .hero-preview h2{margin:0;font-size:1.4rem;}
+    .hero-preview ul{margin:0;padding-left:20px;display:grid;gap:8px;font-size:.95rem;color:rgba(232,246,255,.86);} 
+    .hero-preview .badge{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.16);padding:8px 16px;border-radius:999px;font-size:.85rem;color:#fff;font-weight:600;width:max-content;}
+
+    .modules{max-width:1200px;margin:0 auto;display:grid;gap:28px;}
+    .modules header h2{margin:0;font-size:2.1rem;color:var(--ink);}
+    .modules header p{margin:8px 0 0;color:var(--muted);max-width:700px;}
+    .module-grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));}
+    .module-card{background:var(--bg-card);border-radius:22px;padding:24px;border:1px solid var(--border);box-shadow:0 22px 38px rgba(13,38,54,.08);display:grid;gap:12px;transition:transform .18s ease,box-shadow .18s ease;content-visibility:auto;contain-intrinsic-size:240px;}
+    .module-card:hover{transform:translateY(-4px);box-shadow:0 28px 50px rgba(13,38,54,.12);}
+    .module-card span.icon{font-size:1.6rem;}
+    .module-card h3{margin:0;font-size:1.15rem;color:var(--ink-soft);}
+    .module-card p{margin:0;color:var(--muted);font-size:.95rem;line-height:1.45;}
+
+    .workflow{max-width:1100px;margin:0 auto;display:grid;gap:32px;}
+    .workflow header h2{margin:0;font-size:2rem;color:var(--ink);}
+    .workflow header p{margin:6px 0 0;color:var(--muted);max-width:640px;}
+    .step-grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));}
+    .step{background:linear-gradient(180deg,#fff 0%,#f4f8fc 100%);border-radius:20px;padding:22px;border:1px solid rgba(16,38,54,.08);display:grid;gap:10px;box-shadow:0 16px 34px rgba(13,38,54,.07);content-visibility:auto;contain-intrinsic-size:180px;}
+    .step strong{font-size:1rem;color:var(--ink-soft);}
+    .step span{font-size:.88rem;color:var(--muted);line-height:1.5;}
+
+    .cta{max-width:960px;margin:0 auto;background:linear-gradient(135deg,#102c3f 0%,#174a64 60%,#0d2839 100%);border-radius:30px;color:#e8f6ff;padding:48px clamp(20px,6vw,72px);box-shadow:0 32px 60px rgba(10,32,45,.35);display:grid;gap:26px;text-align:center;}
+    .cta h2{margin:0;font-size:clamp(2rem,4vw,2.6rem);}
+    .cta p{margin:0 auto;max-width:560px;color:rgba(232,246,255,.82);font-size:1.05rem;}
+    .cta-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:16px;}
+    .cta .btn-primary{box-shadow:0 24px 40px rgba(29,191,115,.38);} 
+    .cta .btn-secondary{border-color:rgba(232,246,255,.55);color:#e8f6ff;}
+    .cta .btn-secondary:hover{background:rgba(232,246,255,.14);}
+
+    footer{text-align:center;padding:32px 16px 48px;font-size:.9rem;color:var(--muted);content-visibility:auto;contain-intrinsic-size:120px;}
+    footer a{color:var(--muted-strong);text-decoration:none;font-weight:500;}
+    footer a:hover{text-decoration:underline;}
+
+    @media (max-width:720px){
+      main{gap:72px;padding-bottom:72px;}
+      .hero-preview{min-height:auto;padding:28px;}
+      .cta{padding:42px 28px;}
+    }
+    @media (prefers-reduced-motion: reduce){
+      .btn,.module-card,.step,.hero-preview{transition:none;transform:none;box-shadow:0 8px 18px rgba(13,38,54,.06);}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="nav">
+      <a class="brand" href="#inicio">
+        <span class="brand-logo">GS</span>
+        <span>Gestión Sostenible</span>
+      </a>
+      <nav>
+        <a href="#modulos">Módulos</a>
+        <a href="#flujo">Cómo funciona</a>
+        <a href="README.md" target="_blank" rel="noopener">Documentación</a>
+      </nav>
+      <div class="nav-cta">
+        <a class="btn btn-primary" href="index.html?demo=1">Iniciar demo guiada</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="inicio">
+      <div class="hero-copy">
+        <h1>Una plataforma para controlar retiros, clientes, finanzas y compliance sin planillas.</h1>
+        <p>Dashboard ejecutivo, rutas con Google Maps, checklist fiscal guiado y gestión de usuarios con roles. Todo sincronizado con Firebase para que tu operación funcione desde el primer día.</p>
+        <div class="nav-cta">
+          <a class="btn btn-primary" href="index.html?demo=1">Probar demo interactiva</a>
+          <a class="btn btn-secondary" href="#modulos">Recorrer módulos</a>
+        </div>
+        <div class="metrics" role="list">
+          <article class="metric-card" role="listitem">
+            <strong>+45%</strong>
+            <span>Más velocidad al planificar retiros y rutas diarias.</span>
+          </article>
+          <article class="metric-card" role="listitem">
+            <strong>100%</strong>
+            <span>Checklist fiscal guiado para DGI y BPS actualizado.</span>
+          </article>
+          <article class="metric-card" role="listitem">
+            <strong>2 roles</strong>
+            <span>Control y Administrador con auditoría automática.</span>
+          </article>
+        </div>
+      </div>
+      <aside class="hero-preview" aria-label="Vista previa del panel">
+        <span class="badge">Inicio · KPIs en vivo</span>
+        <h2>Inicio con métricas clave</h2>
+        <ul>
+          <li>Retiros del día, cumplimiento y valor estimado por ruta.</li>
+          <li>Cartera activa, clientes a regularizar y cobranzas pendientes.</li>
+          <li>Historial de accesos y actividad auditada por usuario.</li>
+        </ul>
+        <h2>Experiencia fluida entre módulos</h2>
+        <ul>
+          <li>Cada vista se precarga en segundo plano para navegar sin esperas.</li>
+          <li>Una sola autenticación desbloquea clientes, rutas, finanzas y temas.</li>
+          <li>Modo demo de solo lectura para recorrer la plataforma sin riesgo.</li>
+        </ul>
+      </aside>
+    </section>
+
+    <section class="modules" id="modulos">
+      <header>
+        <h2>Módulos listos para tu operación</h2>
+        <p>Todos los accesos están integrados dentro del visor principal. Personalizá los nombres desde Configuración para adaptarlos a tu rubro.</p>
+      </header>
+      <div class="module-grid">
+        <article class="module-card">
+          <span class="icon" aria-hidden="true">🏠</span>
+          <h3>Inicio ejecutivo</h3>
+          <p>KPIs de agenda, cartera, cobranzas y últimos accesos apenas ingresás. Ideal para una mirada rápida del estado del negocio.</p>
+        </article>
+        <article class="module-card">
+          <span class="icon" aria-hidden="true">👤</span>
+          <h3>Clientes</h3>
+          <p>Base unificada con contratos, notas, importación masiva y filtros dinámicos. Preparada para exportar reportes o alimentar campañas.</p>
+        </article>
+        <article class="module-card">
+          <span class="icon" aria-hidden="true">🗺️</span>
+          <h3>Calendario / Rutas</h3>
+          <p>Agenda inteligente con integración a Google Maps y Geocoding. Generá rutas óptimas con los retiros pendientes y seguí el progreso en vivo.</p>
+        </article>
+        <article class="module-card">
+          <span class="icon" aria-hidden="true">💵</span>
+          <h3>Finanzas y DGI</h3>
+          <p>Checklist fiscal asistido, enlaces oficiales a formularios DGI/BPS y seguimiento de cobranzas del mes para evitar sorpresas.</p>
+        </article>
+        <article class="module-card">
+          <span class="icon" aria-hidden="true">🎨</span>
+          <h3>Temas</h3>
+          <p>Subí tu logotipo, elegí paleta automática y definí marca y módulos personalizados para que el sistema hable tu mismo idioma.</p>
+        </article>
+        <article class="module-card">
+          <span class="icon" aria-hidden="true">🛡️</span>
+          <h3>Gestión de Cuentas</h3>
+          <p>Alta y baja de usuarios Control o Administrador, contraseñas iniciales y correos de bienvenida automáticos con auditoría.</p>
+        </article>
+        <article class="module-card">
+          <span class="icon" aria-hidden="true">⚙️</span>
+          <h3>Configuración de cuenta</h3>
+          <p>Actualizá datos responsables, vinculá teléfono, cambiá contraseña y personalizá los nombres de cada módulo según tu negocio.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="workflow" id="flujo">
+      <header>
+        <h2>Cómo se integra en tu día a día</h2>
+        <p>En tres pasos tenés una demo funcionando y lista para mostrar al equipo. Cuando estés conforme, conectás tu Firebase y comenzás a operar.</p>
+      </header>
+      <div class="step-grid">
+        <article class="step">
+          <strong>1. Probá sin riesgo</strong>
+          <span>Ingresá al modo demo (solo lectura) para recorrer todos los módulos, personalizar colores y validar el flujo con tu equipo.</span>
+        </article>
+        <article class="step">
+          <strong>2. Conectá tus datos</strong>
+          <span>Habilitá tu dominio en Firebase Authentication, importá clientes desde Excel y activá Google Maps con tus propias claves.</span>
+        </article>
+        <article class="step">
+          <strong>3. Ajustá roles y branding</strong>
+          <span>Definí cuentas de Control y Administrador, personalizá los nombres de los módulos y comenzá a registrar retiros, cobranzas y trámites.</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="cta" id="cta">
+      <h2>¿Listo para coordinar todo desde un único lugar?</h2>
+      <p>Gestión Sostenible combina operación, finanzas y cumplimiento en una sola experiencia. Compartí la demo con tu equipo y lanzá en cuestión de horas.</p>
+      <div class="cta-actions">
+        <a class="btn btn-primary" href="index.html?demo=1">Explorar demo</a>
+        <a class="btn btn-secondary" href="mailto:contacto@gestionsostenible.com?subject=Quiero%20acceso%20a%20Gestión%20Sostenible">Solicitar acceso</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    © <span id="year"></span> Gestión Sostenible · <a href="landing.html">Plataforma</a> · <a href="README.md" target="_blank" rel="noopener">Guía rápida</a>
+  </footer>
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

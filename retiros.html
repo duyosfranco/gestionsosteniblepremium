@@ -1,0 +1,1259 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Retiros / Ruta del día – Gestión Sostenible</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://www.gstatic.com https://www.googleapis.com https://firestore.googleapis.com https://www.google.com https://maps.googleapis.com data: blob:; frame-ancestors 'self'; script-src 'self' https://www.gstatic.com https://www.googleapis.com https://maps.googleapis.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://maps.googleapis.com https://maps.gstatic.com; connect-src 'self' https://www.googleapis.com https://firestore.googleapis.com https://maps.googleapis.com https://identitytoolkit.googleapis.com;" />
+  <script>
+    if(window.self !== window.top){
+      document.documentElement.classList.add('is-embedded');
+    }
+    if(window.self === window.top){
+      window.location.replace('index.html#/retiros');
+    }
+  </script>
+  <style>
+    :root{--ink:#0D2B3D;--accent:#1DBF73;--accent2:#16a062;--bg:#F4F7FA;--line:#e5edf4;--muted:#5e6f7c;--pill:#FFF5D1;--pill2:#DDF5E7}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;background:linear-gradient(180deg,#f2f7fb 0%,#ffffff 60%);margin:0;padding:28px;color:#0b1f2a;min-height:100vh}
+    body.gs-authenticated #loginCard{display:none}
+    body:not(.gs-authenticated) .requires-auth{display:none}
+    html.is-embedded body #loginCard{display:none}
+    html.is-embedded body:not(.gs-authenticated) .requires-auth{display:none}
+    html.is-embedded body:not(.gs-authenticated) .module-loader{display:flex}
+    body.checking-session #loginCard{opacity:0;pointer-events:none;visibility:hidden}
+    body.checking-session .requires-auth{display:none}
+    body.loading-data .module-loader{display:flex}
+    .wrap{max-width:1100px;margin:auto;display:grid;gap:20px;padding-bottom:40px}
+    .page-head{display:grid;gap:8px}
+    .page-head h1{margin:0;color:var(--ink);font-size:30px;letter-spacing:.01em}
+    .page-head p{margin:0;color:var(--muted);font-size:15px;line-height:1.5}
+    .card{background:#fff;padding:18px 20px;border-radius:18px;box-shadow:0 12px 32px rgba(13,43,61,.08);border:1px solid var(--line)}
+    h1{margin:0 0 12px;font-size:22px;color:var(--ink)}
+    h2{margin:0 0 12px;font-size:19px;color:var(--ink)}
+    input,button,select,textarea{font-size:15px;padding:10px 12px;border-radius:12px;border:1px solid #d7e3ec;transition:border .2s ease,box-shadow .2s ease,transform .2s ease}
+    textarea{resize:vertical}
+    button{background:var(--accent);color:#fff;border:none;cursor:pointer;box-shadow:0 10px 20px rgba(29,191,115,.18)}
+    button:hover{background:var(--accent2);transform:translateY(-1px)}
+    button:active{transform:translateY(0)}
+    button.secondary{background:#eef4fa;color:#0b1f2a;border:1px solid #d7e3ec;box-shadow:none}
+    button.secondary:hover{background:#e0ebf5}
+    button.danger{background:#e53935;box-shadow:none}
+    button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(16,113,150,.25);outline-offset:2px}
+    input:focus-visible,select:focus-visible,textarea:focus-visible{border-color:#5eb2d3;box-shadow:0 0 0 3px rgba(16,113,150,.16)}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0;align-items:center}
+    .row:first-of-type{margin-top:0}
+    .table-wrap{overflow:auto;border-radius:14px;border:1px solid var(--line)}
+    .map-wrap{margin-top:18px;border-radius:18px;overflow:hidden;border:1px solid var(--line);position:relative;background:#eef4fa}
+    #mapCanvas{width:100%;height:360px;min-height:300px}
+    #mapStatus{padding:12px 16px;font-size:13px;color:var(--muted);border-top:1px solid var(--line);background:#f9fcff}
+    body.maps-disabled #mapCanvas{display:none}
+    body.maps-disabled #mapStatus{border-top:0}
+    body.maps-disabled #mapStatus::before{content:""}
+    table{width:100%;border-collapse:collapse;min-width:720px;background:#fff}
+    th,td{padding:12px;border-bottom:1px solid #eef3f7;font-size:14px;vertical-align:top}
+    th{color:#587082;text-align:left;font-weight:600}
+    .right{display:flex;gap:12px;margin-left:auto;align-items:center}
+    .ok{color:#0d8a52}.err{color:#b00020}
+    .pill{padding:2px 10px;border-radius:999px;font-size:12px;display:inline-flex;align-items:center;gap:6px}
+    .pill.pending{background:var(--pill);color:#8A5A00;border:1px solid #F7E3A1}
+    .pill.done{background:var(--pill2);color:#0C6B45;border:1px solid #BFE9D2}
+    .muted{color:var(--muted);font-size:13px}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+    .insights{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+    .insight{background:linear-gradient(180deg,#ffffff 0%,#f6fbff 100%);border:1px solid var(--line);box-shadow:0 10px 24px rgba(13,43,61,.08);border-radius:16px;padding:18px 16px;display:grid;gap:6px}
+    .insight .label{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+    .insight .value{font-size:24px;font-weight:700;color:var(--ink)}
+    .insight .meta{font-size:13px;color:var(--muted)}
+    .module-loader{display:none;align-items:center;gap:16px;font-size:14px;color:var(--muted)}
+    .module-loader strong{display:block;color:var(--ink);font-size:16px}
+    .module-loader .loader{width:28px;height:28px;border-radius:50%;border:3px solid rgba(13,43,61,.12);border-top-color:var(--accent);animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    body.gs-authenticated .module-loader{display:none}
+    .perm-notice{margin:8px 0 0;color:var(--muted);font-size:13px}
+    .read-only-label{color:#8A5A00;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+    button[disabled]{cursor:not-allowed;opacity:.6}
+    @media (max-width:720px){
+      body{padding:22px 18px}
+      .card{padding:16px 16px}
+      .table-wrap{border-radius:12px}
+      table{min-width:620px}
+    }
+    @media print{
+      .no-print{display:none !important}
+      body{padding:0;background:#fff}
+      .card{box-shadow:none;border-radius:0;margin:0;border:0}
+      h1{font-size:18px}
+      th,td{font-size:12px;padding:6px}
+    }
+  </style>
+</head>
+<body class="checking-session" data-google-maps-key="AIzaSyBZyr4r8pEvv7fh1Cnt0qjraMzqVE87ehs" data-google-geocode-key="AIzaSyAkmcOl1jYuOqkhZJ2sdFWKR3GrXpmOMqQ">
+  <script>
+    document.documentElement.classList.add('theme-applied');
+    document.body.classList.add('theme-applied');
+  </script>
+  <div class="wrap">
+    <header class="page-head">
+      <h1>Retiros y ruta diaria</h1>
+      <p>Organizá turnos, seguí la ruta del día y exportá los datos necesarios sin salir de tu sesión principal.</p>
+    </header>
+    <div class="card module-loader" role="status" aria-live="polite">
+      <div class="loader" aria-hidden="true"></div>
+      <div>
+        <strong id="moduleLoaderTitle">Gestión Sostenible</strong>
+        <span id="moduleLoaderCaption">Cargando…</span>
+      </div>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="card no-print" id="loginCard" aria-labelledby="loginTitle">
+      <h1 id="loginTitle">Login</h1>
+      <form class="row" id="loginForm" novalidate>
+        <label class="sr-only" for="email">Correo electrónico</label>
+        <input id="email" name="email" type="email" placeholder="Correo (ej. prueba@gestionsostenible.com)" autocomplete="username" required />
+        <label class="sr-only" for="pass">Contraseña</label>
+        <input id="pass" name="password" type="password" placeholder="Contraseña" autocomplete="current-password" required />
+        <button id="btnLogin" type="submit">Iniciar sesión</button>
+        <div id="loginMsg" role="status" aria-live="polite"></div>
+      </form>
+    </div>
+
+    <section class="insights requires-auth" aria-label="Resumen del día">
+      <article class="insight">
+        <span class="label">Retiros pendientes</span>
+        <span class="value" id="kpiPendientes">0</span>
+        <span class="meta">Retiros sin marcar como realizados</span>
+      </article>
+      <article class="insight">
+        <span class="label">Retiros realizados</span>
+        <span class="value" id="kpiRealizados">0</span>
+        <span class="meta">Confirmados para la fecha seleccionada</span>
+      </article>
+      <article class="insight">
+        <span class="label">Total estimado</span>
+        <span class="value" id="kpiMonto">$ 0</span>
+        <span class="meta">Suma del valor mensual de los clientes agendados</span>
+      </article>
+    </section>
+
+    <!-- AGENDAR RETIRO -->
+    <div class="card no-print requires-auth" aria-labelledby="agendarTitle">
+      <h1 id="agendarTitle">Agendar retiro</h1>
+      <form class="row" id="formAgendar" novalidate>
+        <label>Fecha<br><input id="fecha" name="fecha" type="date" required/></label>
+        <label>Franja horaria<br>
+          <select id="slot" name="slot">
+            <option>09:00-13:00</option>
+            <option>13:00-17:00</option>
+          </select>
+        </label>
+        <label>Cliente<br>
+          <select id="cliente" name="cliente"></select>
+        </label>
+        <label style="flex:1 1 100%">
+          Notas (tipo de residuo, referencias, etc.)<br>
+          <textarea id="notas" name="notas" rows="2" style="width:100%"></textarea>
+        </label>
+      </form>
+      <div class="row">
+        <button id="btnGuardar" type="button">Guardar turno</button>
+        <div id="saveMsg" role="status" aria-live="polite"></div>
+      </div>
+      <div id="permNotice" class="perm-notice" role="status" aria-live="polite"></div>
+    </div>
+
+    <!-- RUTA DEL DÍA -->
+    <div class="card requires-auth" aria-labelledby="rutaTitle">
+      <div class="row">
+        <h1 id="rutaTitle" style="margin-right:auto">Ruta del día</h1>
+        <label class="sr-only" for="filtroFecha">Filtrar por fecha</label>
+        <input id="filtroFecha" type="date"/>
+        <button class="secondary no-print" id="btnHoy" type="button">Hoy</button>
+        <button class="secondary no-print" id="btnExport" type="button">Exportar CSV</button>
+        <button class="secondary no-print" id="btnExportXlsx" type="button">Exportar XLSX</button>
+        <button class="secondary no-print" id="btnPrint" type="button">Imprimir</button>
+        <button class="secondary no-print" id="btnRefresh" type="button">Refrescar</button>
+      </div>
+
+      <div class="muted" id="subtitle" role="status" aria-live="polite"></div>
+
+      <div class="table-wrap">
+        <table aria-describedby="subtitle info totalCount totalMonto" role="grid">
+          <caption class="sr-only">Retiros programados</caption>
+          <thead>
+            <tr>
+              <th scope="col">Hora</th>
+              <th scope="col">Cliente</th>
+              <th scope="col">Dirección</th>
+              <th scope="col">Notas</th>
+              <th scope="col">Estado</th>
+              <th scope="col" class="no-print" style="text-align:right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="6">Conectando…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="row">
+        <div id="info" class="muted" role="status" aria-live="polite">—</div>
+        <div class="right muted" aria-live="polite">
+          <span id="totalCount">0 retiros</span> ·
+          <span id="totalMonto">$ 0</span>
+        </div>
+      </div>
+      <div class="map-wrap" aria-live="polite" aria-label="Mapa de ruta con retiros pendientes">
+        <div id="mapCanvas" role="presentation"></div>
+        <div id="mapStatus" role="status" aria-live="polite">Añadí tu clave de Google Maps en el atributo <code>data-google-maps-key</code> del &lt;body&gt; para visualizar la ruta.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase compat -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
+  <script src="assets/gs-auth.js"></script>
+  <!-- SheetJS para XLSX -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script>
+    // Mantener la vista embebida sin redirecciones mientras sincroniza la sesión compartida.
+    requireLogin({
+      message: 'Iniciá sesión desde la pantalla principal para gestionar retiros.',
+      redirectTo: 'index.html#/retiros',
+      allowedRoles: ['admin','control','demo']
+    });
+
+    const db = firebase.firestore();
+    const FieldValue = firebase.firestore.FieldValue || null;
+    const SLOT_LIMIT = 6; // máximo de retiros simultáneos por franja
+    const persistedCoords = new Set();
+    let unsubRet=null;
+    let clientes=[];
+    let itemsActuales=[]; // últimos retiros renderizados
+    let currentUserId = null;
+    let currentOrganizationId = 'default';
+    let lastAgendaUpdated = null;
+    const storage = (()=>{
+      try{
+        const key='gs:testr';
+        localStorage.setItem(key,'1');
+        localStorage.removeItem(key);
+        return localStorage;
+      }catch(err){
+        return null;
+      }
+    })();
+    const CACHE_CLIENTES_PREFIX = 'gs:retiros:clientes:';
+    const CACHE_AGENDA_PREFIX   = 'gs:retiros:agenda:';
+    const fmtDateTime = (ts)=> ts ? new Intl.DateTimeFormat('es-UY',{dateStyle:'short',timeStyle:'short'}).format(new Date(ts)) : '';
+
+    const cacheKey = (prefix, uid, org)=> `${prefix}${uid || 'anon'}:${org || 'default'}`;
+
+    const loadClientesCache = (uid)=>{
+      if(!storage || !uid) return null;
+      try{
+        const raw = storage.getItem(cacheKey(CACHE_CLIENTES_PREFIX, uid, currentOrganizationId));
+        return raw ? JSON.parse(raw) : null;
+      }catch(err){ return null; }
+    };
+    const saveClientesCache = ()=>{
+      if(!storage || !currentUserId) return;
+      try{
+        storage.setItem(cacheKey(CACHE_CLIENTES_PREFIX, currentUserId, currentOrganizationId), JSON.stringify({
+          updatedAt: Date.now(),
+          list: clientes
+        }));
+      }catch(err){ /* sin almacenamiento */ }
+    };
+
+    // Persistimos coordenadas para acelerar rutas futuras
+    function rememberClienteCoords(clienteId, coords){
+      if(!clienteId || !coords){ return; }
+      const target = clientes.find((row)=> row.id === clienteId);
+      if(target){
+        target.lat = coords.lat;
+        target.lng = coords.lng;
+      }
+    }
+
+    async function persistClienteCoords(clienteId, coords){
+      if(!clienteId || !coords){ return; }
+      if(isDemoSession()){ return; }
+      const cacheKeyCoords = `${clienteId}:${coords.lat}:${coords.lng}`;
+      if(persistedCoords.has(cacheKeyCoords)){ return; }
+      persistedCoords.add(cacheKeyCoords);
+      try{
+        const ref = db.collection('clientes').doc(clienteId);
+        const payload = {
+          lat: coords.lat,
+          lng: coords.lng
+        };
+        if(FieldValue && typeof FieldValue.serverTimestamp === 'function'){
+          payload.updatedAt = FieldValue.serverTimestamp();
+        }else{
+          payload.updatedAt = new Date().toISOString();
+        }
+        await ref.set(payload, { merge: true });
+        rememberClienteCoords(clienteId, coords);
+        saveClientesCache();
+      }catch(err){
+        console.warn('No se pudo guardar la geolocalización del cliente', clienteId, err);
+      }
+    }
+    const loadAgendaCache = (uid)=>{
+      if(!storage || !uid) return null;
+      try{
+        const raw = storage.getItem(cacheKey(CACHE_AGENDA_PREFIX, uid, currentOrganizationId));
+        return raw ? JSON.parse(raw) : null;
+      }catch(err){ return null; }
+    };
+    const saveAgendaCache = (items, fecha)=>{
+      if(!storage || !currentUserId) return;
+      try{
+        storage.setItem(cacheKey(CACHE_AGENDA_PREFIX, currentUserId, currentOrganizationId), JSON.stringify({
+          updatedAt: lastAgendaUpdated,
+          fecha,
+          items
+        }));
+      }catch(err){ /* sin almacenamiento */ }
+    };
+    const $=id=>document.getElementById(id);
+    const permNotice = $('permNotice');
+    const btnGuardar = $('btnGuardar');
+    const btnExport = $('btnExport');
+    const btnExportXlsx = $('btnExportXlsx');
+    const btnPrint = $('btnPrint');
+    const btnHoy = $('btnHoy');
+    const btnRefresh = $('btnRefresh');
+    const formAgendar = document.getElementById('formAgendar');
+    let canManageRetiros = false;
+    let canExportData = true;
+    let mapsLoading = false;
+    let mapInitialized = false;
+    let directionsService = null;
+    let directionsRenderer = null;
+    let geocoder = null;
+    let singleMarker = null;
+    let pendingRouteStops = [];
+    let integrationKeysCache = null;
+    let integrationKeysPromise = null;
+    const geocodeCache = new Map();
+    const isDemoSession = ()=> !!(window.gsAuth && typeof gsAuth.isDemoSession === 'function' && gsAuth.isDemoSession());
+
+    const INTEGRATION_HINTS = {
+      maps: ['googleMapsKey','google_maps_key','mapsKey','maps_key','googleMaps','google_maps','maps'],
+      geocoding: ['googleGeocodingKey','google_geocoding_key','googleGeocodeKey','google_geocode_key','geocodingKey','geocodeKey','geocoding','geocode']
+    };
+
+    const mapStatusEl = $('mapStatus');
+    const mapCanvasEl = $('mapCanvas');
+    const moduleLoaderTitle = document.getElementById('moduleLoaderTitle');
+    const moduleLoaderCaption = document.getElementById('moduleLoaderCaption');
+    let mapInstance = null;
+
+    const getBrandName = ()=>{
+      try{
+        const snap = typeof getThemeSnapshot === 'function' ? getThemeSnapshot() : null;
+        return (snap && snap.brandName) ? snap.brandName : 'Gestión Sostenible';
+      }catch(err){
+        return 'Gestión Sostenible';
+      }
+    };
+    if(moduleLoaderTitle){ moduleLoaderTitle.textContent = getBrandName(); }
+    if(moduleLoaderCaption){ moduleLoaderCaption.textContent = 'Cargando…'; }
+
+    // Utils
+    const pad=n=>String(n).padStart(2,'0');
+    const today=()=>{ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+    const csv=(rows)=>rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(';')).join('\n');
+    const by=(arr,fn)=>arr.slice().sort((a,b)=>fn(a).localeCompare(fn(b),'es'));
+    const toNumber = (v)=> Number(String(v||'').replace(/[^\d.,-]/g,'').replace('.','').replace(',','.')) || 0;
+    const fmtMoney = (n)=> new Intl.NumberFormat('es-UY',{style:'currency',currency:'UYU',maximumFractionDigits:0}).format(n);
+    const escapeHtml = (str='')=> String(str).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+
+    function applyPermissionState(){
+      const inSession = document.body.classList.contains('gs-authenticated');
+      if(formAgendar){
+        formAgendar.querySelectorAll('input, select, textarea').forEach(el=>{
+          el.disabled = !canManageRetiros;
+          if(!canManageRetiros){ el.setAttribute('aria-disabled','true'); }
+          else{ el.removeAttribute('aria-disabled'); }
+        });
+      }
+      if(btnGuardar){
+        btnGuardar.disabled = !canManageRetiros;
+        btnGuardar.setAttribute('aria-disabled', String(!canManageRetiros));
+        btnGuardar.title = canManageRetiros ? '' : 'Necesitás permisos de administración para agendar retiros';
+      }
+      if(permNotice){
+        if(!inSession){
+          permNotice.textContent = 'Iniciá sesión desde el panel principal para gestionar la ruta.';
+        }else if(canManageRetiros){
+          permNotice.textContent = 'Podés agendar, marcar y eliminar retiros desde esta vista.';
+        }else{
+          permNotice.textContent = 'Esta sesión no puede modificar la agenda. Podés consultar, coordinar y exportar reportes; solicitá cambios a un administrador.';
+        }
+      }
+    }
+
+    // Login
+    $('loginForm').addEventListener('submit', async (event)=>{
+      event.preventDefault();
+      try{
+        await gsAuth.signInWithEmailAndPassword($('email').value.trim(),$('pass').value.trim());
+        $('loginMsg').innerHTML='<span class="ok">✅ Sesión iniciada</span>';
+      }catch(e){
+        const friendly = (gsAuth && typeof gsAuth.describeError === 'function') ? gsAuth.describeError(e) : null;
+        const text = friendly || e?.message || 'Error de login';
+        $('loginMsg').innerHTML='<span class="err">❌ '+text+'</span>';
+        if(e && e.code === 'auth/operation-not-allowed'){
+          $('loginMsg').innerHTML += '<br><small>Agregá este dominio en Firebase Auth → Settings → Authorized domains.</small>';
+        }
+      }
+    });
+
+    function renderClientesSelect(){
+      const sel=$('cliente');
+      if(!sel) return;
+      const current = sel.value;
+      sel.innerHTML='';
+      sel.appendChild(new Option('Seleccioná un cliente',''));
+      clientes.forEach(c=> sel.appendChild(new Option(c.nombre||'', c.id)));
+      if(current){ sel.value = current; }
+    }
+
+    function applyDemoAgenda(){
+      const dataset = (window.gsAuth && typeof gsAuth.getDemoData === 'function') ? gsAuth.getDemoData() : {};
+      const demoClientes = Array.isArray(dataset && dataset.clientes) ? dataset.clientes : [];
+      clientes = demoClientes.map((c, index)=> Object.assign({ id: c && c.id ? c.id : `demo-cli-${index+1}` }, c));
+      clientes = by(clientes, x=> x.nombre || '');
+      currentOrganizationId = 'demo';
+      canManageRetiros = false;
+      canExportData = false;
+      applyPermissionState();
+      renderClientesSelect();
+      const agenda = dataset && dataset.retiros ? dataset.retiros : {};
+      const fechaDemo = agenda.fecha || today();
+      $('filtroFecha').value = fechaDemo;
+      $('fecha').value = fechaDemo;
+      const items = Array.isArray(agenda.items) ? agenda.items.map((item, index)=> Object.assign({
+        id: item && item.id ? item.id : `demo-ret-${index+1}`,
+        clienteId: item && (item.clienteId || item.cliente) ? (item.clienteId || item.cliente) : (clientes[index]?.id || ''),
+        estado: item && item.estado ? item.estado : 'pendiente',
+        slot: item && item.slot ? item.slot : '',
+        notas: item && item.notas ? item.notas : ''
+      }, item)) : [];
+      document.body.classList.add('demo-mode');
+      document.body.classList.remove('loading-data');
+      document.body.classList.remove('checking-session');
+      renderTabla(items, { fromCache: true });
+      const info = $('info');
+      if(info){ info.textContent = `Demo sin conexión · ${items.length} retiros listados`; }
+      if(btnGuardar){ btnGuardar.disabled = true; btnGuardar.setAttribute('aria-disabled','true'); }
+      if(btnRefresh){ btnRefresh.disabled = true; btnRefresh.setAttribute('aria-disabled','true'); }
+    }
+
+    gsAuth.onAuthStateChanged(async (user)=>{
+      document.body.classList.remove('checking-session');
+      if(isDemoSession()){
+        applyDemoAgenda();
+        return;
+      }
+      if(user){
+        currentUserId = user.uid || 'default';
+        currentOrganizationId = (window.gsAuth && typeof gsAuth.getOrganizationId === 'function')
+          ? gsAuth.getOrganizationId()
+          : currentOrganizationId;
+        $('loginMsg').innerHTML='<span class="ok">✅ Sesión activa</span>';
+        $('email').value = user.email || '';
+        const cachedClientes = loadClientesCache(currentUserId);
+        if(cachedClientes && Array.isArray(cachedClientes.list)){
+          clientes = cachedClientes.list;
+          renderClientesSelect();
+        }
+        const cachedAgenda = loadAgendaCache(currentUserId);
+        let cacheFechaAplicada = false;
+        if(cachedAgenda && Array.isArray(cachedAgenda.items)){
+          if(cachedAgenda.fecha){
+            $('filtroFecha').value = cachedAgenda.fecha;
+            if(!$('fecha').value) $('fecha').value = cachedAgenda.fecha;
+            cacheFechaAplicada = true;
+          }
+          lastAgendaUpdated = cachedAgenda.updatedAt || null;
+          renderTabla(cachedAgenda.items, { fromCache: true });
+        }
+        if(!cacheFechaAplicada){
+          setDefaultDates();
+        }else{
+          setSubtitle();
+        }
+        document.body.classList.add('loading-data');
+        await cargarClientes();
+        if(cachedAgenda && Array.isArray(cachedAgenda.items)){
+          renderTabla(cachedAgenda.items, { fromCache: true });
+        }
+        suscribirRetiros();
+      }else{
+        currentUserId = null;
+        currentOrganizationId = 'default';
+        lastAgendaUpdated = null;
+        if(unsubRet){
+          unsubRet();
+          unsubRet=null;
+        }
+        clientes=[];
+        itemsActuales=[];
+        $('loginMsg').textContent='';
+        $('email').value='';
+        $('pass').value='';
+        $('fecha').value='';
+        $('filtroFecha').value='';
+        $('notas').value='';
+        const selCliente = $('cliente');
+        if(selCliente) selCliente.innerHTML='';
+        $('saveMsg').textContent='';
+        const tbody=$('tbody'); if(tbody) tbody.innerHTML='<tr><td colspan="6">Conectando…</td></tr>';
+        $('info').textContent='—';
+        $('totalCount').textContent='0 retiros';
+        $('totalMonto').textContent='$ 0';
+        $('kpiPendientes').textContent='0';
+        $('kpiRealizados').textContent='0';
+        $('kpiMonto').textContent='$ 0';
+        document.body.classList.remove('loading-data');
+        pendingRouteStops = [];
+        if(directionsRenderer){ directionsRenderer.set('directions', null); }
+        if(singleMarker){ singleMarker.setMap(null); singleMarker = null; }
+        if(mapStatusEl){ mapStatusEl.textContent = 'Iniciá sesión para ver la ruta planificada.'; }
+        integrationKeysCache = null;
+        integrationKeysPromise = null;
+        geocodeCache.clear();
+      }
+    });
+
+    gsAuth.onSession((session)=>{
+      canManageRetiros = !!(session && session.abilities && session.abilities.manageRetiros);
+      canExportData = !!(session && session.abilities && session.abilities.exportData);
+      const sessionOrgId = session && session.profile && session.profile.organizationId
+        ? session.profile.organizationId
+        : ((window.gsAuth && typeof gsAuth.getOrganizationId === 'function') ? gsAuth.getOrganizationId() : currentOrganizationId);
+      const normalizedOrg = sessionOrgId || 'default';
+      if(normalizedOrg !== currentOrganizationId){
+        currentOrganizationId = normalizedOrg;
+        if(currentUserId && !isDemoSession()){
+          const cachedClientes = loadClientesCache(currentUserId);
+          if(cachedClientes && Array.isArray(cachedClientes.list)){
+            clientes = cachedClientes.list;
+            renderClientesSelect();
+          }
+          const cachedAgenda = loadAgendaCache(currentUserId);
+          if(cachedAgenda && Array.isArray(cachedAgenda.items)){
+            renderTabla(cachedAgenda.items, { fromCache: true });
+          }else if(itemsActuales.length){
+            renderTabla(itemsActuales, { fromCache: true });
+          }
+          suscribirRetiros();
+        }
+      }
+      applyPermissionState();
+      if(Array.isArray(itemsActuales) && itemsActuales.length){
+        renderTabla(itemsActuales, { fromCache: true });
+      }
+    });
+
+    function setDefaultDates(){
+      $('fecha').value = today();
+      $('filtroFecha').value = today();
+      setSubtitle();
+    }
+    function setSubtitle(){
+      const f = $('filtroFecha').value || today();
+      const partes = f.split('-'); // YYYY-MM-DD
+      $('subtitle').textContent = `Fecha: ${partes[2]}/${partes[1]}/${partes[0]}`;
+    }
+
+    // Cargar clientes
+    async function cargarClientes(){
+      if(isDemoSession()){
+        return;
+      }
+      const orgId = currentOrganizationId || 'default';
+      let query = db.collection('clientes');
+      if(orgId && orgId !== 'default'){
+        query = query.where('organizationId','==',orgId);
+      }
+      const snap = await query.get();
+      let rows = snap.docs.map(d=>({id:d.id,...d.data()}));
+      if(orgId === 'default'){
+        rows = rows.filter(row=>{
+          const rowOrg = row.organizationId || row.organization || null;
+          return !rowOrg || rowOrg === 'default';
+        });
+      }
+      clientes = by(rows, x=>x.nombre||'');
+      renderClientesSelect();
+      saveClientesCache();
+    }
+
+    // Guardar retiro
+    $('btnGuardar').addEventListener('click', async ()=>{
+      if(isDemoSession()){
+        $('saveMsg').innerHTML = '<span class="err">La demo es de solo lectura.</span>';
+        return;
+      }
+      if(!canManageRetiros){
+        $('saveMsg').innerHTML = '<span class="err">Solo administradores pueden agendar retiros.</span>';
+        return;
+      }
+      const fecha=$('fecha').value;
+      const slot=$('slot').value;
+      const clienteId=$('cliente').value;
+      const notas=$('notas').value.trim();
+      if(!fecha){ $('saveMsg').innerHTML='<span class="err">Seleccioná la fecha del retiro.</span>'; return; }
+      if(!slot){ $('saveMsg').innerHTML='<span class="err">Elegí una franja horaria.</span>'; return; }
+      if(!clienteId){ $('saveMsg').innerHTML='<span class="err">Seleccioná un cliente.</span>'; return; }
+      const slotCount = itemsActuales.filter((item)=> (item.slot||'') === slot && item.estado !== 'cancelado' && item.estado !== 'realizado').length;
+      if(slotCount >= SLOT_LIMIT){
+        $('saveMsg').innerHTML = `<span class="err">La franja ${slot} ya tiene ${SLOT_LIMIT} retiros programados. Ajustá la agenda o elegí otra franja.</span>`;
+        return;
+      }
+      const clienteSeleccionado = clientes.find((c)=> c.id === clienteId) || {};
+      try{
+        const payload = {
+          fecha,
+          slot,
+          notas,
+          clienteId,
+          organizationId: currentOrganizationId || 'default',
+          estado:'pendiente',
+          createdAt: new Date().toISOString()
+        };
+        if(clienteSeleccionado && typeof clienteSeleccionado.lat === 'number' && typeof clienteSeleccionado.lng === 'number'){
+          payload.clienteLat = clienteSeleccionado.lat;
+          payload.clienteLng = clienteSeleccionado.lng;
+        }
+        await db.collection('retiros').add(payload);
+        $('saveMsg').innerHTML='<span class="ok">✅ Turno guardado</span>';
+        $('notas').value='';
+        suscribir(true);
+      }catch(e){
+        $('saveMsg').innerHTML='<span class="err">❌ '+e.message+'</span>';
+      }
+    });
+
+    // Suscripción a retiros del día filtrado
+    function suscribirRetiros(){
+      if(isDemoSession()){
+        applyDemoAgenda();
+        return;
+      }
+      if(unsubRet) unsubRet();
+      const f = $('filtroFecha').value || today();
+      setSubtitle();
+      document.body.classList.add('loading-data');
+      const orgId = currentOrganizationId || 'default';
+      let query = db.collection('retiros').where('fecha','==',f);
+      if(orgId && orgId !== 'default'){
+        query = query.where('organizationId','==',orgId);
+      }
+      unsubRet = query.onSnapshot((snap)=>{
+        const items = snap.docs.map(d=>({id:d.id,...d.data()})).filter((row)=>{
+          const rowOrg = row.organizationId || row.organization || null;
+          if(orgId === 'default'){
+            return !rowOrg || rowOrg === 'default';
+          }
+          return rowOrg === orgId;
+        });
+        renderTabla(items);
+      },(err)=>{
+        $('info').innerHTML='<span class="err">❌ '+err.message+'</span>';
+        document.body.classList.remove('loading-data');
+      });
+    }
+
+    function renderTabla(items, options={}){
+      const fromCache = !!options.fromCache;
+      const tbody=$('tbody'); tbody.innerHTML='';
+      const mapCli = Object.fromEntries(clientes.map(c=>[c.id,c]));
+      const rows = items.map(r=>{
+        const c = mapCli[r.clienteId] || {};
+        return {
+          ...r,
+          clienteNombre:c.nombre||'—',
+          direccion:c.direccion||'—',
+          monto:c.monto||'',
+          lat: typeof r.clienteLat === 'number' ? r.clienteLat : (typeof c.lat === 'number' ? c.lat : (c.latitud ?? null)),
+          lng: typeof r.clienteLng === 'number' ? r.clienteLng : (typeof c.lng === 'number' ? c.lng : (c.longitud ?? null))
+        };
+      }).sort((a,b)=>{
+        const s = (a.slot||'').localeCompare(b.slot||'');
+        return s!==0 ? s : (a.clienteNombre||'').localeCompare(b.clienteNombre||'','es');
+      });
+
+      itemsActuales = rows;
+
+      if(rows.length===0){ tbody.innerHTML='<tr><td colspan="6">No hay retiros para esta fecha.</td></tr>'; }
+      rows.forEach(r=>{
+        const mapsUrl = r.direccion ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.direccion)}` : '#';
+        const tr=document.createElement('tr');
+        const direccionCell = r.direccion
+          ? `<a href="${mapsUrl}" target="_blank" rel="noopener">${escapeHtml(r.direccion)}</a>`
+          : '—';
+        const actions = canManageRetiros
+          ? `<button class="secondary" data-done="${r.id}">${r.estado==='realizado'?'Desmarcar':'Marcar realizado'}</button> <button class="danger" data-del="${r.id}">Eliminar</button>`
+          : '<span class="read-only-label">Solo lectura</span>';
+        tr.innerHTML=`
+          <td>${escapeHtml(r.slot||'')}</td>
+          <td>${escapeHtml(r.clienteNombre||'')}</td>
+          <td>${direccionCell}</td>
+          <td>${escapeHtml(r.notas||'')}</td>
+          <td><span class="pill ${r.estado==='realizado'?'done':'pending'}">${r.estado==='realizado'?'Realizado':'Pendiente'}</span></td>
+          <td class="no-print" style="text-align:right">${actions}</td>`;
+        tbody.appendChild(tr);
+      });
+
+      // Totales
+      const total = rows.length;
+      const totalMonto = rows.reduce((acc,r)=> acc + toNumber(r.monto), 0);
+      const totalRealizados = rows.filter(r=>r.estado==='realizado').length;
+      const totalPendientes = total - totalRealizados;
+      if(!fromCache){
+        lastAgendaUpdated = Date.now();
+      }
+      const fechaActual = $('filtroFecha').value || today();
+      if(!fromCache){
+        saveAgendaCache(items, fechaActual);
+      }
+      const updatedText = lastAgendaUpdated ? ` · Actualizado ${fmtDateTime(lastAgendaUpdated)}${fromCache?' (memoria)':''}` : '';
+      $('info').textContent=`Total retiros: ${total}${updatedText}`;
+      $('totalCount').textContent = `${total} retiros`;
+      $('totalMonto').textContent = fmtMoney(totalMonto);
+      $('kpiPendientes').textContent = totalPendientes;
+      $('kpiRealizados').textContent = totalRealizados;
+      $('kpiMonto').textContent = fmtMoney(totalMonto);
+      document.body.classList.remove('loading-data');
+      updateRouteMap(rows);
+    }
+
+    // Controles fecha y refresh
+    $('filtroFecha').addEventListener('change', suscribirRetiros);
+    $('btnHoy').onclick=()=>{ $('filtroFecha').value=today(); suscribirRetiros(); };
+    $('btnRefresh').onclick=suscribirRetiros;
+
+    // Delegación de acciones: marcar realizado / eliminar
+    $('tbody').addEventListener('click', async (e)=>{
+      const doneId = e.target.getAttribute('data-done');
+      const delId  = e.target.getAttribute('data-del');
+      if(doneId){
+        if(!canManageRetiros){
+          alert('Solo administradores pueden actualizar retiros.');
+          return;
+        }
+        try{
+          const ref = db.collection('retiros').doc(doneId);
+          const snap = await ref.get();
+          const estado = snap.data()?.estado==='realizado'?'pendiente':'realizado';
+          await ref.update({estado});
+        }catch(err){ alert('Error: '+err.message); }
+      }else if(delId){
+        if(!canManageRetiros){
+          alert('Solo administradores pueden eliminar retiros.');
+          return;
+        }
+        if(confirm('¿Eliminar este retiro?')){
+          try{ await db.collection('retiros').doc(delId).delete(); }
+          catch(err){ alert('Error: '+err.message); }
+        }
+      }
+    });
+
+    // Export CSV (con BOM y ;)
+    $('btnExport').onclick=async()=>{
+      if(!canExportData){
+        alert('Tu rol actual no permite exportar datos.');
+        return;
+      }
+      const f=$('filtroFecha').value||today();
+      let exportData = Array.isArray(itemsActuales) && itemsActuales.length ? itemsActuales.slice() : null;
+      if(!exportData){
+        const snap=await db.collection('retiros').where('fecha','==',f).get();
+        const mapCli=Object.fromEntries(clientes.map(c=>[c.id,c]));
+        exportData = snap.docs.map((d)=>{
+          const r = d.data();
+          const c = mapCli[r.clienteId] || {};
+          return {
+            slot: r.slot || '',
+            clienteNombre: c.nombre || '',
+            direccion: c.direccion || '',
+            monto: r.monto !== undefined ? r.monto : (c.monto || ''),
+            notas: r.notas || '',
+            estado: r.estado || '',
+            fecha: r.fecha || f
+          };
+        });
+      }
+      exportData.sort((a,b)=> (a.slot||'').localeCompare(b.slot||''));
+      const rows=[["Fecha","Franja","Cliente","Dirección","Monto","Notas","Estado"]];
+      exportData.forEach((r)=>{
+        const montoValor = toNumber(r.monto);
+        const montoCelda = montoValor ? fmtMoney(montoValor) : '';
+        rows.push([
+          r.fecha || f,
+          r.slot || '',
+          r.clienteNombre || '',
+          r.direccion || '',
+          montoCelda,
+          r.notas || '',
+          r.estado || ''
+        ]);
+      });
+      const contenido = csv(rows);
+      const BOM = '\ufeff';
+      const blob=new Blob([BOM+contenido],{type:'text/csv;charset=utf-8;'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`ruta_${f}.csv`; a.click();
+      URL.revokeObjectURL(a.href);
+    };
+
+    // Export XLSX (Excel real) con SheetJS
+    $('btnExportXlsx').onclick=async()=>{
+      if(!canExportData){
+        alert('Tu rol actual no permite exportar datos.');
+        return;
+      }
+      const f=$('filtroFecha').value||today();
+      let exportData = Array.isArray(itemsActuales) && itemsActuales.length ? itemsActuales.slice() : null;
+      if(!exportData){
+        const snap=await db.collection('retiros').where('fecha','==',f).get();
+        const mapCli=Object.fromEntries(clientes.map(c=>[c.id,c]));
+        exportData = snap.docs.map((d)=>{
+          const r = d.data();
+          const c = mapCli[r.clienteId] || {};
+          return {
+            slot: r.slot || '',
+            clienteNombre: c.nombre || '',
+            direccion: c.direccion || '',
+            monto: r.monto !== undefined ? r.monto : (c.monto || ''),
+            notas: r.notas || '',
+            estado: r.estado || '',
+            fecha: r.fecha || f
+          };
+        });
+      }
+      exportData.sort((a,b)=> (a.slot||'').localeCompare(b.slot||''));
+      const rows=[["Fecha","Franja","Cliente","Dirección","Monto","Notas","Estado"]];
+      exportData.forEach((r)=>{
+        const montoValor = toNumber(r.monto);
+        const montoCelda = montoValor ? fmtMoney(montoValor) : '';
+        rows.push([
+          r.fecha || f,
+          r.slot || '',
+          r.clienteNombre || '',
+          r.direccion || '',
+          montoCelda,
+          r.notas || '',
+          r.estado || ''
+        ]);
+      });
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, `Ruta ${f}`);
+      XLSX.writeFile(wb, `ruta_${f}.xlsx`);
+    };
+
+    // Imprimir (vista limpia)
+    $('btnPrint').onclick=()=>{ window.print(); };
+
+    function updateRouteMap(rows){
+      pendingRouteStops = rows.filter(r=> (r.estado||'') !== 'realizado' && r.direccion && r.direccion.trim() !== '');
+      if(!mapStatusEl){ return; }
+      if(pendingRouteStops.length === 0){
+        if(directionsRenderer){ directionsRenderer.set('directions', null); }
+        if(singleMarker){ singleMarker.setMap(null); singleMarker = null; }
+        mapStatusEl.textContent = 'No hay retiros pendientes para la fecha seleccionada.';
+        return;
+      }
+      mapStatusEl.textContent = 'Preparando ruta con Google Maps…';
+      ensureMapsLoaded().then((ready)=>{
+        if(ready && mapInitialized){
+          buildRoute().catch(console.error);
+        }
+      }).catch((err)=>{
+        console.warn('No se pudo preparar Google Maps', err);
+      });
+    }
+
+    function pickIntegrationKey(source, hints, depth=0){
+      if(source === null || source === undefined || depth > 6){ return ''; }
+      if(typeof source === 'string'){ return source.trim(); }
+      if(Array.isArray(source)){
+        for(const entry of source){
+          const nested = pickIntegrationKey(entry, hints, depth + 1);
+          if(nested){ return nested; }
+        }
+        return '';
+      }
+      if(typeof source !== 'object'){ return ''; }
+      for(const key of hints){
+        if(!Object.prototype.hasOwnProperty.call(source, key)){ continue; }
+        const value = source[key];
+        if(typeof value === 'string' && value.trim()){ return value.trim(); }
+        if(value && typeof value === 'object'){
+          const nested = pickIntegrationKey(value, hints, depth + 1);
+          if(nested){ return nested; }
+        }
+      }
+      for(const value of Object.values(source)){
+        if(value && typeof value === 'object'){
+          const nested = pickIntegrationKey(value, hints, depth + 1);
+          if(nested){ return nested; }
+        }
+      }
+      return '';
+    }
+
+    function mergeIntegrationKeys(target, source){
+      if(!source){ return; }
+      for(const [type, hints] of Object.entries(INTEGRATION_HINTS)){
+        if(target[type]){ continue; }
+        const candidate = pickIntegrationKey(source, hints);
+        if(candidate){
+          target[type] = candidate;
+        }
+      }
+    }
+
+    async function resolveIntegrationKeys(){
+      if(integrationKeysCache){ return integrationKeysCache; }
+      if(integrationKeysPromise){ return integrationKeysPromise; }
+      integrationKeysPromise = (async ()=>{
+        const resolved = {};
+        if(document && document.body){
+          const attrMaps = (document.body.getAttribute('data-google-maps-key') || '').trim();
+          if(attrMaps){ resolved.maps = attrMaps; }
+          const attrGeo = (document.body.getAttribute('data-google-geocode-key') || document.body.getAttribute('data-google-geocoding-key') || '').trim();
+          if(attrGeo){ resolved.geocoding = attrGeo; }
+        }
+        if(!resolved.maps){
+          const globalMaps = typeof window.GS_MAPS_KEY === 'string' ? window.GS_MAPS_KEY.trim() : '';
+          if(globalMaps){ resolved.maps = globalMaps; }
+        }
+        if(!resolved.geocoding){
+          const globalGeo = typeof window.GS_GEOCODE_KEY === 'string' ? window.GS_GEOCODE_KEY.trim() : '';
+          if(globalGeo){ resolved.geocoding = globalGeo; }
+        }
+        if(window.gsAuth && typeof window.gsAuth.getSession === 'function'){
+          try{
+            const session = window.gsAuth.getSession();
+            if(session && session.profile){
+              mergeIntegrationKeys(resolved, session.profile);
+              if(session.profile.integrations){ mergeIntegrationKeys(resolved, session.profile.integrations); }
+              if(session.profile.integraciones){ mergeIntegrationKeys(resolved, session.profile.integraciones); }
+            }
+          }catch(err){
+            console.warn('No se pudo leer la configuración de integraciones de la sesión', err);
+          }
+        }
+        if((!resolved.maps || !resolved.geocoding) && db){
+          const docPaths = [
+            ['configuracion','integraciones'],
+            ['config','integraciones'],
+            ['ajustes','integraciones'],
+            ['settings','integrations']
+          ];
+          for(const [collection, docId] of docPaths){
+            try{
+              const snap = await db.collection(collection).doc(docId).get();
+              if(snap.exists){
+                const data = snap.data() || {};
+                mergeIntegrationKeys(resolved, data);
+                if(data.integrations){ mergeIntegrationKeys(resolved, data.integrations); }
+                if(data.integraciones){ mergeIntegrationKeys(resolved, data.integraciones); }
+              }
+            }catch(err){
+              console.warn(`No se pudo obtener la configuración de integraciones desde ${collection}/${docId}`, err);
+            }
+            if(resolved.maps && resolved.geocoding){ break; }
+          }
+        }
+        if(!resolved.geocoding && resolved.maps){
+          resolved.geocoding = resolved.maps;
+        }
+        integrationKeysCache = {
+          maps: resolved.maps || '',
+          geocoding: resolved.geocoding || ''
+        };
+        return integrationKeysCache;
+      })();
+      try{
+        return await integrationKeysPromise;
+      }finally{
+        integrationKeysPromise = null;
+      }
+    }
+
+    async function resolveMapsKey(){
+      const keys = await resolveIntegrationKeys();
+      return keys.maps || '';
+    }
+
+    async function resolveGeocodeKey(){
+      const keys = await resolveIntegrationKeys();
+      return keys.geocoding || '';
+    }
+
+    async function ensureMapsLoaded(){
+      if(document.body){ document.body.classList.remove('maps-disabled'); }
+      if(mapInitialized || (window.google && window.google.maps)){ initRetirosMap(); return true; }
+      if(mapsLoading) return false;
+      if(mapStatusEl){
+        mapStatusEl.textContent = 'Buscando configuración de Google Maps…';
+      }
+      let key = '';
+      try{
+        key = await resolveMapsKey();
+      }catch(err){
+        console.warn('No se pudo resolver la clave de Google Maps', err);
+        key = '';
+      }
+      if(!key){
+        if(mapStatusEl){
+          mapStatusEl.innerHTML = 'Añadí tus claves de Google Maps y Geocoding en los atributos <code>data-google-maps-key</code> / <code>data-google-geocode-key</code> del &lt;body&gt; o registralas en la configuración para visualizar la ruta.';
+        }
+        if(document.body){ document.body.classList.add('maps-disabled'); }
+        return false;
+      }
+      mapsLoading = true;
+      if(mapStatusEl){
+        mapStatusEl.textContent = 'Conectando con Google Maps…';
+      }
+      const script=document.createElement('script');
+      const encodedKey = encodeURIComponent(key);
+      script.src=`https://maps.googleapis.com/maps/api/js?key=${encodedKey}&callback=initRetirosMap&libraries=places`;
+      script.async=true;
+      script.defer=true;
+      script.onerror=()=>{
+        mapsLoading=false;
+        mapStatusEl.textContent='No se pudo cargar Google Maps. Verificá la clave ingresada.';
+        if(document.body){ document.body.classList.add('maps-disabled'); }
+      };
+      document.head.appendChild(script);
+      return true;
+    }
+
+    async function geocodeViaRest(address){
+      const key = await resolveGeocodeKey();
+      if(!key){
+        const err = new Error('NO_GEOCODE_KEY');
+        err.code = 'NO_GEOCODE_KEY';
+        throw err;
+      }
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${encodeURIComponent(key)}`;
+      const response = await fetch(url);
+      if(!response.ok){
+        const err = new Error('GEOCODE_HTTP_ERROR');
+        err.code = 'GEOCODE_HTTP_ERROR';
+        err.statusCode = response.status;
+        throw err;
+      }
+      const payload = await response.json();
+      if(payload.status === 'OK' && payload.results && payload.results[0]){
+        const loc = payload.results[0].geometry && payload.results[0].geometry.location;
+        if(loc && typeof loc.lat !== 'undefined' && typeof loc.lng !== 'undefined'){
+          return { lat: Number(loc.lat), lng: Number(loc.lng) };
+        }
+      }
+      if(payload.status === 'ZERO_RESULTS'){
+        return null;
+      }
+      const err = new Error(payload.status || 'GEOCODE_ERROR');
+      err.code = payload.status || 'GEOCODE_ERROR';
+      throw err;
+    }
+
+    function geocodeWithMaps(address){
+      return new Promise((resolve, reject)=>{
+        if(!geocoder){
+          const err = new Error('GEOCODER_NOT_READY');
+          err.code = 'GEOCODER_NOT_READY';
+          reject(err);
+          return;
+        }
+        geocoder.geocode({ address }, (results, status)=>{
+          if(status === 'OK' && results && results[0]){
+            const loc = results[0].geometry.location;
+            resolve({ lat: loc.lat(), lng: loc.lng() });
+          }else if(status === 'ZERO_RESULTS'){
+            resolve(null);
+          }else{
+            const err = new Error(status || 'GEOCODER_ERROR');
+            err.code = status || 'GEOCODER_ERROR';
+            reject(err);
+          }
+        });
+      });
+    }
+
+    async function geocodeAddress(address){
+      const normalized = (address || '').trim();
+      if(!normalized){ return null; }
+      const cacheKey = normalized.toLowerCase();
+      if(geocodeCache.has(cacheKey)){ return geocodeCache.get(cacheKey); }
+      let coords = null;
+      if(geocoder){
+        try{
+          coords = await geocodeWithMaps(normalized);
+        }catch(err){
+          const fallbackStatuses = ['OVER_QUERY_LIMIT','REQUEST_DENIED','UNKNOWN_ERROR','INVALID_REQUEST'];
+          if(!fallbackStatuses.includes(err.code)){ throw err; }
+          coords = await geocodeViaRest(normalized);
+        }
+      }else{
+        coords = await geocodeViaRest(normalized);
+      }
+      geocodeCache.set(cacheKey, coords || null);
+      return coords;
+    }
+
+    window.initRetirosMap = function initRetirosMap(){
+      mapsLoading = false;
+      if(mapInitialized){ return; }
+      if(!(window.google && window.google.maps) || !mapCanvasEl){ return; }
+      const defaultCenter = {lat:-34.9011, lng:-56.1645};
+      mapInstance = new google.maps.Map(mapCanvasEl,{
+        center: defaultCenter,
+        zoom: 12,
+        streetViewControl:false,
+        mapTypeControl:false,
+        fullscreenControl:true
+      });
+      directionsService = new google.maps.DirectionsService();
+      directionsRenderer = new google.maps.DirectionsRenderer({
+        map: mapInstance,
+        suppressMarkers:false,
+        preserveViewport:false
+      });
+      geocoder = new google.maps.Geocoder();
+      mapInitialized = true;
+      if(mapStatusEl){
+        mapStatusEl.textContent = pendingRouteStops.length ? 'Calculando ruta…' : 'Seleccioná una fecha para ver retiros pendientes.';
+      }
+      if(pendingRouteStops.length){
+        buildRoute().catch(console.error);
+      }
+    };
+
+    async function buildRoute(){
+      if(!mapInitialized || !pendingRouteStops.length){ return; }
+      if(!mapStatusEl){ return; }
+      mapStatusEl.textContent = 'Calculando ruta…';
+      const locatedStops = [];
+      const unresolvedStops = [];
+      let geocodeKeyMissing = false;
+      for(const stop of pendingRouteStops){
+        if(geocodeKeyMissing){ break; }
+        try{
+          const location = await resolveStopLocation(stop);
+          if(location){
+            locatedStops.push({...stop, location});
+          }else{
+            unresolvedStops.push(stop);
+          }
+        }catch(err){
+          const code = err && (err.code || err.message);
+          const needsKey = ['NO_GEOCODE_KEY','REQUEST_DENIED','OVER_QUERY_LIMIT','GEOCODE_HTTP_ERROR','GEOCODE_ERROR','INVALID_REQUEST','UNKNOWN_ERROR'].includes(code);
+          if(needsKey){
+            geocodeKeyMissing = true;
+            if(mapStatusEl){
+              mapStatusEl.innerHTML = 'Google Maps cargó, pero falta habilitar o configurar la clave de Geocoding para ubicar las direcciones de la ruta.';
+            }
+            if(document.body){ document.body.classList.add('maps-disabled'); }
+            console.warn('Falta una clave válida de Geocoding de Google Maps para calcular la ruta.', err);
+          }else{
+            console.warn('No se pudo geolocalizar', stop, err);
+            unresolvedStops.push(stop);
+          }
+        }
+      }
+      if(geocodeKeyMissing){
+        if(directionsRenderer){ directionsRenderer.set('directions', null); }
+        if(singleMarker){ singleMarker.setMap(null); singleMarker = null; }
+        return;
+      }
+      if(unresolvedStops.length && mapStatusEl){
+        const destacados = unresolvedStops.slice(0,3).map((stop)=> escapeHtml(stop.clienteNombre || stop.direccion || stop.clienteId || 'Dirección desconocida'));
+        const extra = unresolvedStops.length > 3 ? ` y ${unresolvedStops.length - 3} más` : '';
+        mapStatusEl.innerHTML = `No pudimos ubicar ${unresolvedStops.length} dirección${unresolvedStops.length===1?'':'es'} en el mapa (${destacados.join(', ')}${extra}). Revisá las direcciones o añadí coordenadas en Clientes.`;
+      }else if(mapStatusEl && !pendingRouteStops.length){
+        mapStatusEl.textContent = 'Seleccioná una fecha para ver retiros pendientes.';
+      }
+      if(!locatedStops.length){
+        if(directionsRenderer){ directionsRenderer.set('directions', null); }
+        if(singleMarker){ singleMarker.setMap(null); singleMarker = null; }
+        mapStatusEl.textContent = 'No se pudieron ubicar en el mapa las direcciones pendientes.';
+        return;
+      }
+      if(locatedStops.length === 1){
+        if(directionsRenderer){ directionsRenderer.set('directions', null); }
+        const only = locatedStops[0];
+        if(!singleMarker){ singleMarker = new google.maps.Marker({map: mapInstance}); }
+        singleMarker.setMap(mapInstance);
+        singleMarker.setPosition(only.location);
+        singleMarker.setTitle(only.clienteNombre || only.direccion || 'Retiro pendiente');
+        mapInstance.setCenter(only.location);
+        mapInstance.setZoom(14);
+        mapStatusEl.textContent = `1 retiro pendiente: ${only.clienteNombre || only.direccion}.`;
+        return;
+      }
+      if(singleMarker){ singleMarker.setMap(null); singleMarker = null; }
+      const origin = locatedStops[0];
+      const destination = locatedStops[locatedStops.length - 1];
+      const waypoints = locatedStops.slice(1, -1).map(stop=>({ location: stop.location, stopover:true }));
+      await new Promise((resolve)=>{
+        directionsService.route({
+          origin: origin.location,
+          destination: destination.location,
+          waypoints,
+          optimizeWaypoints: true,
+          travelMode: google.maps.TravelMode.DRIVING
+        },(response,status)=>{
+          if(status === 'OK' && response){
+            directionsRenderer.setDirections(response);
+            const bounds = new google.maps.LatLngBounds();
+            locatedStops.forEach(stop=>{
+              bounds.extend(stop.location);
+            });
+            mapInstance.fitBounds(bounds);
+            if(unresolvedStops.length){
+              const anterior = mapStatusEl.innerHTML || '';
+              const separador = anterior ? '<br>' : '';
+              mapStatusEl.innerHTML = `${anterior}${separador}Ruta optimizada con ${locatedStops.length} retiros pendientes.`;
+            }else{
+              mapStatusEl.textContent = `Ruta optimizada con ${locatedStops.length} retiros pendientes.`;
+            }
+          }else{
+            directionsRenderer.set('directions', null);
+            mapStatusEl.textContent = `No se pudo calcular la ruta (${status}).`;
+          }
+          resolve();
+        });
+      });
+    }
+
+    async function resolveStopLocation(stop){
+      if(!stop){ return null; }
+      if(typeof stop.lat === 'number' && typeof stop.lng === 'number' && !Number.isNaN(stop.lat) && !Number.isNaN(stop.lng)){
+        return { lat: stop.lat, lng: stop.lng };
+      }
+      const coords = await geocodeAddress(stop.direccion || '');
+      if(coords && stop.clienteId){
+        rememberClienteCoords(stop.clienteId, coords);
+        persistClienteCoords(stop.clienteId, coords).catch(()=>{});
+      }
+      return coords;
+    }
+  </script>
+</body>
+</html>

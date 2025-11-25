@@ -1,0 +1,1453 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Configuración de cuenta – Gestión Sostenible</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://www.gstatic.com https://www.googleapis.com https://firestore.googleapis.com https://www.google.com https://maps.googleapis.com data: blob:; frame-ancestors 'self'; script-src 'self' https://www.gstatic.com https://www.googleapis.com https://maps.googleapis.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://maps.googleapis.com https://maps.gstatic.com; connect-src 'self' https://www.googleapis.com https://firestore.googleapis.com https://maps.googleapis.com https://identitytoolkit.googleapis.com;" />
+  <script>
+    if(window.self !== window.top){
+      document.documentElement.classList.add('is-embedded');
+    }
+    if(window.self === window.top){
+      window.location.replace('index.html#/configuracion');
+    }
+  </script>
+  <style>
+    :root{
+      --ink:#0D2B3D; --ink2:#0b1f2a;
+      --muted:#5e6f7c; --line:#dfe8f1;
+      --bg:#f2f6fb; --bg2:#ffffff;
+      --accent:#1DBF73; --accent2:#16a062; --accent3:#13a660;
+      --accent-soft:#E8FFF5;
+      --nav:#0f3346; --nav-contrast:#ffffff;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;background:linear-gradient(180deg,var(--bg) 0%,#ffffff 70%);color:var(--ink2);min-height:100vh;padding:28px}
+    body.gs-authenticated #loginCard{display:none}
+    body:not(.gs-authenticated) .requires-auth{display:none}
+    html.is-embedded body #loginCard{display:none}
+    html.is-embedded body:not(.gs-authenticated) .module-loader{display:flex}
+    .wrap{max-width:1040px;margin:0 auto;display:grid;gap:22px;padding-bottom:44px}
+    .page-head{display:grid;gap:8px}
+    .page-head h1{margin:0;font-size:30px;color:var(--ink)}
+    .page-head p{margin:0;font-size:16px;color:var(--muted);line-height:1.5}
+    .card{background:linear-gradient(180deg,#ffffff 0%,#f9fcff 100%);border-radius:18px;border:1px solid var(--line);box-shadow:0 10px 24px rgba(13,43,61,.1);padding:20px 22px;display:grid;gap:18px}
+    .account-card{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));align-items:start}
+    .account-main{display:grid;gap:10px}
+    .account-role{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;background:var(--accent-soft);color:var(--nav);width:max-content}
+    .account-role[data-role="admin"]{background:rgba(16,113,150,.12);color:var(--nav)}
+    .account-role[data-role="control"]{background:rgba(29,191,115,.12);color:var(--accent2)}
+    .account-main h2{margin:0;font-size:22px;color:var(--ink)}
+    .account-main p{margin:0;font-size:15px;color:var(--muted);line-height:1.5}
+    .account-meta{margin:0;display:grid;gap:12px;font-size:14px;color:var(--muted)}
+    .account-meta div{display:grid;gap:4px}
+    .account-meta dt{font-weight:600;color:var(--ink2);font-size:13px;text-transform:uppercase;letter-spacing:.06em}
+    .account-meta dd{margin:0;font-size:15px;color:var(--ink2)}
+    .role-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+    .role-card{background:#fff;border-radius:18px;border:1px solid var(--line);box-shadow:0 10px 24px rgba(13,43,61,.1);padding:20px;display:grid;gap:12px;transition:border .2s ease,box-shadow .2s ease,transform .2s ease}
+    .role-card header{display:flex;align-items:center;gap:12px}
+    .role-card header span{font-size:22px}
+    .role-card h3{margin:0;font-size:18px;color:var(--ink)}
+    .role-card p{margin:0;font-size:14px;color:var(--muted);line-height:1.5}
+    .role-card ul{margin:0;padding-left:18px;font-size:13px;color:var(--muted);line-height:1.5}
+    .role-card.active{border-color:rgba(29,191,115,.5);box-shadow:0 16px 32px rgba(29,191,115,.18);transform:translateY(-2px)}
+    .form-card .form-head{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
+    .form-card h2{margin:0;font-size:20px;color:var(--ink)}
+    .form-card p{margin:0;font-size:14px;color:var(--muted)}
+    .form-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));align-items:end}
+    label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+    input{font-size:15px;padding:10px 12px;border-radius:12px;border:1px solid #d7e3ec;transition:border .2s ease,box-shadow .2s ease}
+    input:focus-visible{outline:3px solid rgba(16,113,150,.25);outline-offset:2px;border-color:#5eb2d3;box-shadow:0 0 0 3px rgba(16,113,150,.16)}
+    input[readonly]{background:#f3f7fb;color:#6b7c8a}
+    .form-actions{display:flex;justify-content:flex-end;grid-column:1 / -1}
+    .btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:12px;cursor:pointer;font-weight:600;height:44px;padding:0 18px;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
+    .btn.primary{background:var(--accent);color:#fff;box-shadow:0 10px 22px rgba(29,191,115,.24)}
+    .btn.primary:hover{background:var(--accent2);transform:translateY(-1px);box-shadow:0 12px 26px rgba(22,160,98,.28)}
+    .btn.primary:active{background:var(--accent3);transform:translateY(0)}
+    .btn[disabled]{opacity:.7;cursor:not-allowed;transform:none;box-shadow:none}
+    .btn.subtle{background:rgba(15,51,70,.04);color:var(--nav);border:1px solid rgba(15,51,70,.12);box-shadow:none}
+    .btn.subtle:hover{background:rgba(15,51,70,.08)}
+    .btn.subtle:active{background:rgba(15,51,70,.12)}
+    .status-badge{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:6px 14px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;background:rgba(192,118,2,.18);color:#c07602}
+    .status-badge.warn{background:rgba(192,118,2,.18);color:#c07602}
+    .status-badge.ok{background:rgba(29,191,115,.18);color:var(--accent2)}
+    .status-msg{min-height:20px;font-size:13px;color:var(--muted)}
+    .status-msg:empty{display:none}
+    .status-msg.ok{color:#0d8a52}
+    .status-msg.err{color:#b00020}
+    .status-msg.warn{color:#c07602}
+    .security-card{display:grid;gap:16px}
+    .security-body{display:grid;gap:16px}
+    .security-actions{display:flex;gap:12px;flex-wrap:wrap}
+    .code-row{display:grid;gap:10px}
+    .code-row.hidden{display:none}
+    .code-input{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    .code-input input{flex:1 1 120px;max-width:180px;text-align:center;font-weight:600;letter-spacing:.25em}
+    .recaptcha-container{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+    .storage-card{display:grid;gap:16px}
+    .storage-stats{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin:0}
+    .storage-stats div{display:grid;gap:6px}
+    .storage-stats dt{margin:0;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+    .storage-stats dd{margin:0;font-size:18px;color:var(--ink);font-weight:600}
+    .activity-card{display:grid;gap:16px}
+    .activity-card.is-loading{opacity:.65;pointer-events:none}
+    .activity-card[aria-busy="true"]{opacity:.65}
+    .activity-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap}
+    .activity-head h2{margin:0;font-size:20px;color:var(--ink)}
+    .activity-head p{margin:4px 0 0;font-size:14px;color:var(--muted)}
+    .activity-list{margin:0;padding:0;list-style:none;display:grid;gap:12px}
+    .activity-item{padding:14px 16px;border-radius:16px;border:1px solid var(--line);background:linear-gradient(180deg,#ffffff 0%,#f4f9fd 100%);box-shadow:0 10px 22px rgba(13,43,61,.1);display:grid;gap:6px}
+    .activity-title{font-weight:600;color:var(--ink);font-size:15px}
+    .activity-meta{font-size:13px;color:var(--muted)}
+    .activity-detail{font-size:13px;color:var(--muted)}
+    .activity-empty{margin:0;font-size:14px;color:var(--muted)}
+    .activity-empty.hidden{display:none}
+    .module-loader{position:fixed;inset:0;background:rgba(248,252,255,.92);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;font-size:15px;color:var(--muted);backdrop-filter:blur(6px);transition:opacity .25s ease,visibility .25s ease;z-index:10}
+    .module-loader.hidden{opacity:0;visibility:hidden;pointer-events:none}
+    .spinner{width:36px;height:36px;border-radius:50%;border:3px solid rgba(16,113,150,.18);border-top-color:var(--accent);animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .login-card{max-width:420px;margin:60px auto 0;padding:26px;background:rgba(15,51,70,.9);color:#f0fbff;border-radius:20px;box-shadow:0 18px 40px rgba(0,0,0,.3);text-align:center}
+    .login-card h1{margin:0 0 12px;font-size:22px}
+    .login-card p{margin:0;font-size:15px;line-height:1.5;color:#e2f4ff}
+    @media(max-width:640px){
+      body{padding:22px}
+      .card{padding:20px}
+      .form-grid{grid-template-columns:1fr}
+      .account-card{grid-template-columns:1fr}
+      .role-grid{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <script>
+    document.documentElement.classList.add('theme-applied');
+    document.body.classList.add('theme-applied');
+  </script>
+  <main class="wrap requires-auth" id="configWrap">
+    <header class="page-head">
+      <h1>Configuración de cuenta</h1>
+      <p>Personalizá los datos del responsable, asociá un teléfono celular y mantené segura tu contraseña corporativa.</p>
+    </header>
+    <section class="card account-card" aria-labelledby="accountRoleBadge">
+      <div class="account-main">
+        <span class="account-role" id="accountRoleBadge" data-role="guest">Sesión invitada</span>
+        <h2 id="accountHeading">Sincronizando tu perfil…</h2>
+        <p id="accountCopy">Actualizá tu información de contacto cuando estés autenticado.</p>
+      </div>
+      <dl class="account-meta">
+        <div>
+          <dt>Correo corporativo</dt>
+          <dd id="accountEmail">—</dd>
+        </div>
+        <div>
+          <dt>Nombre responsable</dt>
+          <dd id="accountNameDisplay">—</dd>
+        </div>
+        <div>
+          <dt>Teléfono asociado</dt>
+          <dd id="accountPhoneDisplay">—</dd>
+        </div>
+        <div>
+          <dt>Último acceso</dt>
+          <dd id="accountLastAccess">—</dd>
+        </div>
+        <div>
+          <dt>Actualizado</dt>
+          <dd id="accountUpdated">—</dd>
+        </div>
+      </dl>
+    </section>
+    <section class="role-grid" aria-label="Comparativa de roles disponibles">
+      <article class="role-card" data-role="admin" aria-current="false">
+        <header><span aria-hidden="true">🛡️</span><h3>Administrador</h3></header>
+        <p>Control total del sistema para definir accesos, revisar indicadores y registrar nuevas cuentas.</p>
+        <ul>
+          <li>Gestiona clientes, retiros y cobranzas.</li>
+          <li>Actualiza checklist fiscales y adjunta comprobantes.</li>
+          <li>Invita cuentas de Control o Administrador.</li>
+        </ul>
+      </article>
+      <article class="role-card" data-role="control" aria-current="false">
+        <header><span aria-hidden="true">📊</span><h3>Control</h3></header>
+        <p>Orienta la operación diaria con acceso a clientes, agenda y cobranzas sin modificar permisos.</p>
+        <ul>
+          <li>Opera clientes, retiros y cobranzas.</li>
+          <li>Exporta reportes y completa formularios guiados.</li>
+          <li>No modifica roles ni crea nuevas cuentas.</li>
+        </ul>
+      </article>
+    </section>
+    <section class="card form-card" aria-labelledby="profileFormTitle">
+      <div class="form-head">
+        <div>
+          <h2 id="profileFormTitle">Datos del responsable</h2>
+          <p>Actualizá el nombre visible en tu cuenta y el número celular vinculado a la operativa.</p>
+        </div>
+      </div>
+      <form id="profileForm" class="form-grid" novalidate>
+        <label for="profileName">Nombre y apellido
+          <input type="text" id="profileName" name="name" autocomplete="name" required />
+        </label>
+        <label for="profileEmail">Correo corporativo
+          <input type="email" id="profileEmail" name="email" autocomplete="email" readonly />
+        </label>
+        <label for="profilePhone">Teléfono móvil
+          <input type="tel" id="profilePhone" name="phone" autocomplete="tel" placeholder="Ej: +598 91 234 567" />
+        </label>
+        <div class="form-actions">
+          <button class="btn primary" type="submit" id="profileSubmit">Guardar cambios</button>
+        </div>
+      </form>
+      <p class="status-msg" id="profileMsg" role="status" aria-live="polite"></p>
+    </section>
+    <section class="card form-card" aria-labelledby="passwordFormTitle">
+      <div class="form-head">
+        <div>
+          <h2 id="passwordFormTitle">Actualizá tu contraseña</h2>
+          <p>Protegé el acceso cambiando la contraseña cuando detectes actividad inusual.</p>
+        </div>
+      </div>
+      <form id="passwordForm" class="form-grid" novalidate>
+        <label for="passwordCurrent">Contraseña actual
+          <input type="password" id="passwordCurrent" name="current" autocomplete="current-password" required />
+        </label>
+        <label for="passwordNew">Contraseña nueva
+          <input type="password" id="passwordNew" name="new" autocomplete="new-password" minlength="8" required />
+        </label>
+        <label for="passwordConfirm">Confirmá contraseña
+          <input type="password" id="passwordConfirm" name="confirm" autocomplete="new-password" minlength="8" required />
+        </label>
+        <div class="form-actions">
+          <button class="btn primary" type="submit" id="passwordSubmit">Actualizar contraseña</button>
+        </div>
+      </form>
+      <p class="status-msg" id="passwordMsg" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card form-card" id="modulesCard" aria-labelledby="modulesFormTitle" hidden>
+      <div class="form-head">
+        <div>
+          <h2 id="modulesFormTitle">Personalizá los módulos</h2>
+          <p>Renombrá la navegación principal para que refleje el rubro de tu negocio.</p>
+        </div>
+        <span class="status-badge warn" id="modulesBadge">Solo administradores</span>
+      </div>
+      <form id="modulesForm" class="form-grid" novalidate>
+        <label for="moduleHome">Inicio
+          <input type="text" id="moduleHome" data-module-input="home" maxlength="60" required />
+        </label>
+        <label for="moduleClientes">Clientes
+          <input type="text" id="moduleClientes" data-module-input="clientes" maxlength="60" required />
+        </label>
+        <label for="moduleRutas">Calendario / Rutas
+          <input type="text" id="moduleRutas" data-module-input="rutas" maxlength="60" required />
+        </label>
+        <label for="moduleFinanzas">Finanzas y DGI
+          <input type="text" id="moduleFinanzas" data-module-input="finanzas" maxlength="60" required />
+        </label>
+        <label for="moduleTemas">Temas
+          <input type="text" id="moduleTemas" data-module-input="temas" maxlength="60" required />
+        </label>
+        <label for="moduleUsuarios">Gestión de Cuentas
+          <input type="text" id="moduleUsuarios" data-module-input="usuarios" maxlength="60" required />
+        </label>
+        <label for="moduleConfiguracion">Configuración
+          <input type="text" id="moduleConfiguracion" data-module-input="configuracion" maxlength="60" required />
+        </label>
+        <div class="form-actions">
+          <button class="btn subtle" type="button" id="modulesReset">Restablecer</button>
+          <button class="btn primary" type="submit" id="modulesSubmit">Guardar nombres</button>
+        </div>
+      </form>
+      <p class="status-msg" id="modulesMsg" role="status" aria-live="polite"></p>
+    </section>
+    <section class="card security-card" aria-labelledby="securityTitle">
+      <div class="form-head">
+        <div>
+          <h2 id="securityTitle">Seguridad avanzada</h2>
+          <p>Sumá un paso de verificación por SMS para reforzar tu acceso y proteger los datos operativos.</p>
+        </div>
+        <span class="status-badge warn" id="securityStatusBadge">SMS pendiente</span>
+      </div>
+      <div class="security-body">
+        <p>Utilizamos el número móvil indicado en tu perfil. Si cambiás de dispositivo, solicitá un nuevo código para validar el ingreso.</p>
+        <div class="security-actions">
+          <button class="btn primary" type="button" id="phoneVerifySend">Enviar código por SMS</button>
+          <button class="btn subtle" type="button" id="phoneVerifyCancel" disabled>Cancelar</button>
+        </div>
+        <div class="code-row hidden" id="phoneCodeRow">
+          <label for="phoneVerifyCode">Código de verificación</label>
+          <div class="code-input">
+            <input type="text" id="phoneVerifyCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000" />
+            <button class="btn primary" type="button" id="phoneVerifyConfirm" disabled>Confirmar</button>
+          </div>
+        </div>
+        <p class="status-msg" id="phoneVerifyMsg" role="status" aria-live="polite"></p>
+      </div>
+      <div id="phoneRecaptcha" class="recaptcha-container" aria-hidden="true"></div>
+    </section>
+    <section class="card storage-card" aria-labelledby="storageTitle">
+      <div class="form-head">
+        <div>
+          <h2 id="storageTitle">Salud del almacenamiento</h2>
+          <p>Conocé el espacio disponible para cachés y operación sin conexión en este navegador.</p>
+        </div>
+        <button class="btn subtle" type="button" id="storageRefresh">Volver a medir</button>
+      </div>
+      <dl class="storage-stats">
+        <div>
+          <dt>Uso aproximado</dt>
+          <dd id="storageUsage">—</dd>
+        </div>
+        <div>
+          <dt>Espacio libre</dt>
+          <dd id="storageQuota">—</dd>
+        </div>
+        <div>
+          <dt>Nivel de confianza</dt>
+          <dd id="storageConfidence">—</dd>
+        </div>
+      </dl>
+      <p class="status-msg" id="storageMsg" role="status" aria-live="polite"></p>
+    </section>
+    <section class="card activity-card" id="activityCard" aria-labelledby="activityTitle" aria-busy="false">
+      <div class="activity-head">
+        <div>
+          <h2 id="activityTitle">Actividad reciente</h2>
+          <p>Revisá tus últimos accesos y cambios importantes registrados por tu cuenta.</p>
+        </div>
+        <button class="btn subtle" type="button" id="activityRefresh">Actualizar</button>
+      </div>
+      <p class="activity-empty" id="activityEmpty">Se mostrarán tus inicios de sesión, cambios de contraseña y modificaciones del perfil.</p>
+      <ol class="activity-list" id="activityList" aria-live="polite"></ol>
+      <p class="status-msg" id="activityMsg" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <div class="module-loader" id="moduleLoader" role="status" aria-live="polite" aria-busy="true">
+    <div class="spinner" aria-hidden="true"></div>
+    <p id="loaderText">Sincronizando cuenta…</p>
+  </div>
+
+  <section class="login-card" id="loginCard" aria-labelledby="loginTitle">
+    <h1 id="loginTitle">Iniciá sesión</h1>
+    <p>Ingresá desde la pantalla principal de Gestión Sostenible y luego volvé a esta vista para configurar tu cuenta.</p>
+  </section>
+
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
+  <script src="assets/demo-data.js"></script>
+  <script src="assets/gs-auth.js"></script>
+  <script>
+    const $ = (id)=> document.getElementById(id);
+    const moduleLoader = $('moduleLoader');
+    const loaderText = $('loaderText');
+    const accountRoleBadge = $('accountRoleBadge');
+    const accountHeading = $('accountHeading');
+    const accountCopy = $('accountCopy');
+    const accountEmail = $('accountEmail');
+    const accountNameDisplay = $('accountNameDisplay');
+    const accountPhoneDisplay = $('accountPhoneDisplay');
+    const accountLastAccess = $('accountLastAccess');
+    const accountUpdated = $('accountUpdated');
+    const profileForm = $('profileForm');
+    const profileName = $('profileName');
+    const profileEmailInput = $('profileEmail');
+    const profilePhone = $('profilePhone');
+    const profileSubmit = $('profileSubmit');
+    const profileMsg = $('profileMsg');
+    const passwordForm = $('passwordForm');
+    const passwordCurrent = $('passwordCurrent');
+    const passwordNew = $('passwordNew');
+    const passwordConfirm = $('passwordConfirm');
+    const passwordSubmit = $('passwordSubmit');
+    const passwordMsg = $('passwordMsg');
+    const securityStatusBadge = $('securityStatusBadge');
+    const phoneVerifySend = $('phoneVerifySend');
+    const phoneVerifyCancel = $('phoneVerifyCancel');
+    const phoneVerifyCodeRow = $('phoneCodeRow');
+    const phoneVerifyCode = $('phoneVerifyCode');
+    const phoneVerifyConfirm = $('phoneVerifyConfirm');
+    const phoneVerifyMsg = $('phoneVerifyMsg');
+    const storageUsage = $('storageUsage');
+    const storageQuota = $('storageQuota');
+    const storageConfidence = $('storageConfidence');
+    const storageMsg = $('storageMsg');
+    const storageRefresh = $('storageRefresh');
+    const activityCard = $('activityCard');
+    const activityList = $('activityList');
+    const activityEmpty = $('activityEmpty');
+    const activityMsg = $('activityMsg');
+    const activityRefresh = $('activityRefresh');
+    const roleCards = Array.from(document.querySelectorAll('.role-card'));
+    const modulesCard = $('modulesCard');
+    const modulesForm = $('modulesForm');
+    const modulesMsg = $('modulesMsg');
+    const modulesReset = $('modulesReset');
+    const modulesSubmit = $('modulesSubmit');
+    const modulesBadge = $('modulesBadge');
+    const moduleInputs = {
+      home: $('moduleHome'),
+      clientes: $('moduleClientes'),
+      rutas: $('moduleRutas'),
+      finanzas: $('moduleFinanzas'),
+      temas: $('moduleTemas'),
+      usuarios: $('moduleUsuarios'),
+      configuracion: $('moduleConfiguracion')
+    };
+
+    const ROLE_LABELS = Object.assign({ guest: 'Invitado' }, (window.gsAuth && gsAuth.roleLabels) ? gsAuth.roleLabels : {});
+    const normalizeRole = (window.gsAuth && typeof gsAuth.normalizeRole === 'function')
+      ? (role, context)=> gsAuth.normalizeRole(role, context)
+      : (role)=> typeof role === 'string' ? role.toLowerCase() : 'control';
+    const ROLE_COPY = {
+      admin: 'Tenés permisos completos para gestionar datos operativos y dar de alta nuevas cuentas.',
+      control: 'Podés operar clientes, retiros y cobranzas diarios sin modificar roles ni accesos.',
+      guest: 'Iniciá sesión con tu usuario corporativo para acceder a esta configuración.'
+    };
+    const EVENT_LABELS = {
+      'session.login': 'Inicio de sesión',
+      'session.logout': 'Cierre de sesión',
+      'security.password.change': 'Actualizaste tu contraseña',
+      'profile.update': 'Actualizaste tus datos',
+      'users.create': 'Creaste un usuario',
+      'users.delete': 'Eliminaste un usuario',
+      'account.provisioned': 'Cuenta creada',
+      'account.removed': 'Cuenta eliminada',
+      'theme.update': 'Actualizaste el tema visual'
+    };
+    const PROFILE_FIELD_LABELS = {
+      displayName: 'nombre visible',
+      responsableName: 'responsable',
+      phone: 'teléfono',
+      phoneNumber: 'teléfono',
+      notes: 'notas internas'
+    };
+    const MODULE_KEYS = ['home','clientes','rutas','finanzas','temas','usuarios','configuracion'];
+    const DEFAULT_MODULE_LABELS = Object.freeze({
+      home: 'Inicio',
+      clientes: 'Clientes',
+      rutas: 'Calendario / Rutas',
+      finanzas: 'Finanzas y DGI',
+      temas: 'Temas',
+      usuarios: 'Gestión de Cuentas',
+      configuracion: 'Configuración'
+    });
+
+    function mapErrorMessage(err, context){
+      const code = err && (err.code || err.errorCode || (typeof err.message === 'string' && err.message.includes('index') ? 'failed-precondition' : null)) || '';
+      switch(context){
+        case 'profile':
+          if(code === 'permission-denied'){ return 'No tenés permisos para modificar estos datos.'; }
+          if(code === 'unavailable'){ return 'Servicio temporalmente fuera de línea. Probá nuevamente en unos instantes.'; }
+          return 'No pudimos actualizar los datos del responsable. Intentá nuevamente en unos minutos.';
+        case 'password':
+          if(code === 'auth/wrong-password' || code === 'wrong-password'){ return 'La contraseña actual no es correcta. Revisala e intentá otra vez.'; }
+          if(code === 'auth/weak-password' || code === 'weak-password'){ return 'La nueva contraseña es demasiado sencilla. Elegí una combinación más segura.'; }
+          if(code === 'permission-denied'){ return 'No tenés permisos para cambiar la contraseña en este entorno.'; }
+          return 'No pudimos actualizar la contraseña en este momento. Intentá nuevamente más tarde.';
+        case 'activity':
+          if(code === 'permission-denied'){ return 'No tenés permisos para ver la actividad reciente de esta cuenta.'; }
+          if(code === 'failed-precondition'){ return 'La actividad se está preparando. Volvé a intentarlo en unos minutos.'; }
+          if(code === 'unavailable'){ return 'La actividad no está disponible temporalmente. Intentá de nuevo más tarde.'; }
+          return 'No pudimos mostrar la actividad reciente en este momento. Intentá nuevamente más tarde.';
+        default:
+          return 'Se produjo un error. Intentá nuevamente.';
+      }
+    }
+
+    function mapErrorState(err){
+      const code = err && (err.code || err.errorCode || (typeof err.message === 'string' && err.message.includes('index') ? 'failed-precondition' : null)) || '';
+      if(code === 'failed-precondition' || code === 'unavailable'){ return 'warn'; }
+      return 'err';
+    }
+
+    let activeUid = null;
+    let nameDirty = false;
+    let phoneDirty = false;
+    let profileSaving = false;
+    let passwordSaving = false;
+    let activityUnsub = null;
+    let activityPending = false;
+    let activityReady = false;
+    let lastAuditUid = null;
+    let activityItems = [];
+    let activityRefreshTimer = null;
+    let phoneVerificationId = null;
+    let phoneVerificationPending = false;
+    let moduleLabels = Object.assign({}, DEFAULT_MODULE_LABELS);
+    let canCustomizeModules = false;
+    let modulesDirty = false;
+    let modulesSaving = false;
+    const isDemoSession = ()=> !!(window.gsAuth && typeof gsAuth.isDemoSession === 'function' && gsAuth.isDemoSession());
+
+    const dateTimeFormatter = new Intl.DateTimeFormat('es-UY',{ dateStyle:'medium', timeStyle:'short' });
+
+    function toMillis(value){
+      if(!value && value !== 0){ return null; }
+      if(typeof value === 'number'){ return value; }
+      if(typeof value === 'string'){ const parsed = Date.parse(value); return Number.isNaN(parsed) ? null : parsed; }
+      if(value && typeof value.toDate === 'function'){ return value.toDate().getTime(); }
+      if(value && typeof value.seconds === 'number'){ return (value.seconds * 1000) + Math.floor((value.nanoseconds || 0)/1e6); }
+      return null;
+    }
+
+    function formatTimestamp(value){
+      const ms = toMillis(value);
+      if(!ms){ return '—'; }
+      return dateTimeFormatter.format(new Date(ms));
+    }
+
+    function setLoader(visible, text){
+      if(!moduleLoader) return;
+      if(typeof text === 'string'){ loaderText.textContent = text; }
+      moduleLoader.classList.toggle('hidden', !visible);
+    }
+
+    function updateRoleCards(role){
+      roleCards.forEach((card)=>{
+        const isActive = card.dataset.role === role;
+        card.classList.toggle('active', isActive);
+        card.setAttribute('aria-current', isActive ? 'true' : 'false');
+      });
+    }
+
+    function updateAccountPreview(){
+      if(accountNameDisplay && profileName){
+        const value = profileName.value.trim();
+        accountNameDisplay.textContent = value || '—';
+      }
+      if(accountPhoneDisplay && profilePhone){
+        const value = profilePhone.value.trim();
+        accountPhoneDisplay.textContent = value || '—';
+      }
+    }
+
+    function setProfileStatus(text='', state){
+      if(!profileMsg) return;
+      profileMsg.textContent = text;
+      profileMsg.classList.remove('ok','err');
+      if(state === 'ok'){ profileMsg.classList.add('ok'); }
+      if(state === 'err'){ profileMsg.classList.add('err'); }
+    }
+
+    function setProfilePending(pending){
+      profileSaving = !!pending;
+      if(profileSubmit){
+        profileSubmit.textContent = profileSaving ? 'Guardando…' : 'Guardar cambios';
+        profileSubmit.disabled = profileSaving;
+      }
+      if(profileForm){
+        const elements = profileForm.querySelectorAll('input');
+        elements.forEach((el)=>{
+          if(el === profileEmailInput){ return; }
+          el.disabled = profileSaving;
+        });
+      }
+    }
+
+    function setPasswordStatus(text='', state){
+      if(!passwordMsg) return;
+      passwordMsg.textContent = text;
+      passwordMsg.classList.remove('ok','err');
+      if(state === 'ok'){ passwordMsg.classList.add('ok'); }
+      if(state === 'err'){ passwordMsg.classList.add('err'); }
+    }
+
+    function setModulesStatus(text='', state){
+      if(!modulesMsg) return;
+      modulesMsg.textContent = text;
+      modulesMsg.classList.remove('ok','err','warn');
+      if(state){ modulesMsg.classList.add(state); }
+    }
+
+    function setModulesPending(pending){
+      modulesSaving = !!pending;
+      if(modulesSubmit){
+        modulesSubmit.disabled = modulesSaving || !canCustomizeModules;
+        modulesSubmit.textContent = modulesSaving ? 'Guardando…' : 'Guardar nombres';
+      }
+      if(modulesReset){
+        modulesReset.disabled = modulesSaving || !canCustomizeModules;
+      }
+      MODULE_KEYS.forEach((key)=>{
+        const input = moduleInputs[key];
+        if(!input){ return; }
+        input.disabled = modulesSaving || !canCustomizeModules;
+      });
+    }
+
+    function syncModuleInputs(labels){
+      const source = Object.assign({}, DEFAULT_MODULE_LABELS, labels || {});
+      MODULE_KEYS.forEach((key)=>{
+        const input = moduleInputs[key];
+        if(!input){ return; }
+        const value = source[key] || DEFAULT_MODULE_LABELS[key];
+        if(input.value !== value){
+          input.value = value;
+        }
+      });
+      moduleLabels = source;
+      modulesDirty = false;
+    }
+
+    function toggleModulesCard(enabled){
+      canCustomizeModules = !!enabled;
+      if(modulesCard){
+        modulesCard.hidden = !enabled;
+      }
+      if(modulesBadge){
+        modulesBadge.classList.remove('ok','warn');
+        if(enabled){
+          modulesBadge.textContent = 'Editable';
+          modulesBadge.classList.add('ok');
+        }else{
+          modulesBadge.textContent = 'Solo administradores';
+          modulesBadge.classList.add('warn');
+        }
+      }
+      setModulesPending(false);
+      if(enabled){
+        syncModuleInputs(moduleLabels);
+        setModulesStatus('');
+      }else{
+        setModulesStatus('');
+      }
+    }
+
+    function setPhoneVerificationState(text='', state){
+      if(!phoneVerifyMsg) return;
+      phoneVerifyMsg.textContent = text;
+      phoneVerifyMsg.classList.remove('ok','err','warn');
+      if(state){ phoneVerifyMsg.classList.add(state); }
+    }
+
+    function togglePhoneVerificationControls(){
+      if(phoneVerifySend){ phoneVerifySend.disabled = phoneVerificationPending; }
+      if(phoneVerifyConfirm){ phoneVerifyConfirm.disabled = phoneVerificationPending || !phoneVerificationId; }
+      if(phoneVerifyCancel){ phoneVerifyCancel.disabled = phoneVerificationPending || !phoneVerificationId; }
+      if(phoneVerifyCode){ phoneVerifyCode.disabled = phoneVerificationPending || !phoneVerificationId; }
+    }
+
+    function updateSecurityBadge(phoneNumber, verified){
+      if(securityStatusBadge){
+        securityStatusBadge.textContent = verified ? 'Verificación activa' : 'SMS pendiente';
+        securityStatusBadge.classList.toggle('ok', verified);
+        securityStatusBadge.classList.toggle('warn', !verified);
+      }
+      if(accountPhoneDisplay){
+        accountPhoneDisplay.textContent = phoneNumber || '—';
+      }
+    }
+
+    function formatBytes(bytes){
+      if(bytes === null || bytes === undefined){ return '—'; }
+      const units = ['B','KB','MB','GB'];
+      let value = bytes;
+      let unit = 0;
+      while(value >= 1024 && unit < units.length - 1){
+        value /= 1024;
+        unit += 1;
+      }
+      const precision = unit === 0 ? 0 : 1;
+      return `${value.toFixed(precision)} ${units[unit]}`;
+    }
+
+    async function refreshStorageEstimate(){
+      if(isDemoSession()){
+        if(storageUsage){ storageUsage.textContent = '—'; }
+        if(storageQuota){ storageQuota.textContent = '—'; }
+        if(storageConfidence){ storageConfidence.textContent = 'Demo'; }
+        if(storageMsg){
+          storageMsg.textContent = 'La demo no consulta el almacenamiento disponible.';
+          storageMsg.classList.remove('err');
+          storageMsg.classList.add('info');
+        }
+        return;
+      }
+      if(storageMsg){
+        storageMsg.textContent = 'Calculando espacio disponible…';
+        storageMsg.classList.remove('ok','err','warn');
+      }
+      if(!navigator.storage || typeof navigator.storage.estimate !== 'function'){
+        if(storageUsage){ storageUsage.textContent = '—'; }
+        if(storageQuota){ storageQuota.textContent = '—'; }
+        if(storageConfidence){ storageConfidence.textContent = '—'; }
+        if(storageMsg){
+          storageMsg.textContent = 'Tu navegador no informa el espacio disponible.';
+          storageMsg.classList.add('warn');
+        }
+        return;
+      }
+      try{
+        const { usage, quota } = await navigator.storage.estimate();
+        const used = usage || 0;
+        const total = quota || 0;
+        const free = Math.max(total - used, 0);
+        if(storageUsage){ storageUsage.textContent = formatBytes(used); }
+        if(storageQuota){ storageQuota.textContent = `${formatBytes(free)} libres de ${formatBytes(total)}`; }
+        if(storageConfidence){
+          const ratio = total ? used / total : 0;
+          let label = 'Óptimo';
+          if(ratio >= 0.8){ label = 'Crítico'; }
+          else if(ratio >= 0.5){ label = 'Moderado'; }
+          storageConfidence.textContent = label;
+        }
+        if(storageMsg){
+          storageMsg.textContent = 'Medición completada.';
+          storageMsg.classList.add('ok');
+        }
+      }catch(err){
+        console.error('No se pudo estimar el almacenamiento', err);
+        if(storageUsage){ storageUsage.textContent = '—'; }
+        if(storageQuota){ storageQuota.textContent = '—'; }
+        if(storageConfidence){ storageConfidence.textContent = '—'; }
+        if(storageMsg){
+          storageMsg.textContent = 'No se pudo medir el almacenamiento disponible.';
+          storageMsg.classList.add('err');
+        }
+      }
+    }
+
+    function setPasswordPending(pending){
+      passwordSaving = !!pending;
+      if(passwordSubmit){
+        passwordSubmit.textContent = passwordSaving ? 'Guardando…' : 'Actualizar contraseña';
+        passwordSubmit.disabled = passwordSaving;
+      }
+      if(passwordForm){
+        const elements = passwordForm.querySelectorAll('input');
+        elements.forEach((el)=> el.disabled = passwordSaving);
+      }
+    }
+
+    function labelRoleValue(role){
+      const key = normalizeRole(role);
+      return ROLE_LABELS[key] || ROLE_LABELS.guest || 'Invitado';
+    }
+
+    function labelProvider(provider){
+      if(!provider){ return ''; }
+      const map = {
+        password: 'Correo y contraseña',
+        'google.com': 'Google',
+        'facebook.com': 'Facebook',
+        'apple.com': 'Apple',
+        phone: 'Teléfono'
+      };
+      return map[provider] || provider;
+    }
+
+    function formatFieldList(fields){
+      if(!Array.isArray(fields) || !fields.length){ return ''; }
+      const mapped = fields.map((field)=> PROFILE_FIELD_LABELS[field] || field);
+      if(mapped.length === 1){ return mapped[0]; }
+      const head = mapped.slice(0, -1).join(', ');
+      return `${head} y ${mapped[mapped.length - 1]}`;
+    }
+
+    function describeEvent(item){
+      const event = item && item.event ? item.event : '';
+      const meta = item && item.meta && typeof item.meta === 'object' ? item.meta : {};
+      const fallbackTitle = EVENT_LABELS[event] || event || 'Actividad';
+      switch(event){
+        case 'session.login': {
+          const providerLabel = labelProvider(meta.provider);
+          return { title: fallbackTitle, detail: providerLabel ? `Método: ${providerLabel}` : '' };
+        }
+        case 'session.logout': {
+          const reason = meta.reason === 'sign-out' ? 'Cierre de sesión manual.' : (meta.reason || '');
+          return { title: fallbackTitle, detail: reason };
+        }
+        case 'security.password.change': {
+          const methodLabel = meta.method === 'self-service'
+            ? 'Cambio gestionado desde Configuración.'
+            : '';
+          return { title: fallbackTitle, detail: methodLabel };
+        }
+        case 'profile.update': {
+          const detail = formatFieldList(Array.isArray(meta.fields) ? meta.fields : []);
+          return { title: fallbackTitle, detail: detail ? `Campos: ${detail}` : '' };
+        }
+        case 'users.create': {
+          const roleLabel = meta.targetRole ? labelRoleValue(meta.targetRole) : '';
+          const email = meta.targetEmail || '';
+          const title = email ? `Creaste ${email}` : fallbackTitle;
+          const detail = roleLabel ? `Rol asignado: ${roleLabel}` : '';
+          return { title, detail };
+        }
+        case 'users.delete': {
+          const email = meta.targetEmail || '';
+          const title = email ? `Eliminaste ${email}` : fallbackTitle;
+          return { title, detail: '' };
+        }
+        case 'account.provisioned': {
+          const roleLabel = meta.targetRole ? labelRoleValue(meta.targetRole) : '';
+          const invitedBy = meta.invitedBy || meta.createdBy || '';
+          let detail = '';
+          if(roleLabel){ detail = `Rol asignado: ${roleLabel}`; }
+          if(invitedBy){ detail = detail ? `${detail} · Invitada por ${invitedBy}` : `Invitada por ${invitedBy}`; }
+          return { title: EVENT_LABELS[event] || 'Cuenta creada', detail };
+        }
+        case 'account.removed': {
+          const removedBy = meta.removedBy || '';
+          return { title: EVENT_LABELS[event] || 'Cuenta eliminada', detail: removedBy ? `Gestionada por ${removedBy}` : '' };
+        }
+        case 'theme.update': {
+          const source = meta.reset ? 'Volviste al estilo predeterminado.' : 'Renovaste la identidad visual de la cuenta.';
+          const accent = meta.accent || '';
+          const detailParts = [];
+          if(!meta.reset && accent){ detailParts.push(`Color destacado: ${accent}`); }
+          if(meta.hasLogo){ detailParts.push('Logotipo actualizado'); }
+          const detail = detailParts.length ? detailParts.join(' · ') : source;
+          return { title: EVENT_LABELS[event] || 'Actualizaste el tema visual', detail };
+        }
+        default:
+          return { title: fallbackTitle, detail: '' };
+      }
+    }
+
+    function formatActor(item){
+      const actor = item && item.actor ? item.actor : null;
+      if(!actor || !actor.uid){ return ''; }
+      if(activeUid && actor.uid === activeUid){ return ''; }
+      const label = actor.displayName || actor.email || '';
+      return label ? `Registrado por ${label}` : '';
+    }
+
+    function renderActivity(items){
+      if(!activityList){ return; }
+      activityItems = Array.isArray(items) ? items.slice(0, 40) : [];
+      activityList.innerHTML = '';
+      if(activityItems.length === 0){
+        if(activityEmpty){ activityEmpty.classList.remove('hidden'); }
+        return;
+      }
+      if(activityEmpty){ activityEmpty.classList.add('hidden'); }
+      const fragment = document.createDocumentFragment();
+      activityItems.forEach((item)=>{
+        const entry = describeEvent(item);
+        const li = document.createElement('li');
+        li.className = 'activity-item';
+        const title = document.createElement('span');
+        title.className = 'activity-title';
+        title.textContent = entry.title || EVENT_LABELS[item && item.event] || 'Actividad';
+        li.appendChild(title);
+        const metaLine = document.createElement('span');
+        metaLine.className = 'activity-meta';
+        const pieces = [];
+        pieces.push(formatTimestamp(item && item.occurredAt ? item.occurredAt : (item && item.createdAt ? item.createdAt : Date.now())));
+        const actorNote = formatActor(item);
+        if(actorNote){ pieces.push(actorNote); }
+        metaLine.textContent = pieces.join(' · ');
+        li.appendChild(metaLine);
+        if(entry.detail){
+          const detailEl = document.createElement('span');
+          detailEl.className = 'activity-detail';
+          detailEl.textContent = entry.detail;
+          li.appendChild(detailEl);
+        }
+        fragment.appendChild(li);
+      });
+      activityList.appendChild(fragment);
+    }
+
+    function setActivityStatus(text='', state){
+      if(!activityMsg){ return; }
+      activityMsg.textContent = text || '';
+      activityMsg.classList.remove('ok','err','warn');
+      if(state === 'ok'){ activityMsg.classList.add('ok'); }
+      if(state === 'err'){ activityMsg.classList.add('err'); }
+      if(state === 'warn'){ activityMsg.classList.add('warn'); }
+    }
+
+    function setActivityPending(pending){
+      activityPending = !!pending;
+      if(activityCard){
+        activityCard.classList.toggle('is-loading', activityPending);
+        activityCard.setAttribute('aria-busy', activityPending ? 'true' : 'false');
+      }
+      if(activityRefresh){
+        activityRefresh.disabled = activityPending;
+        activityRefresh.textContent = activityPending ? 'Actualizando…' : 'Actualizar';
+      }
+    }
+
+    function teardownAudit(resetList){
+      if(activityUnsub){ activityUnsub(); activityUnsub = null; }
+      if(activityRefreshTimer){ clearTimeout(activityRefreshTimer); activityRefreshTimer = null; }
+      if(resetList){
+        renderActivity([]);
+        if(activityEmpty){ activityEmpty.classList.remove('hidden'); }
+      }
+      activityItems = [];
+      setActivityPending(false);
+      setActivityStatus('');
+      activityReady = false;
+    }
+
+    function ensureAuditSubscription(session){
+      if(!window.gsAuth || typeof gsAuth.subscribeAuditLog !== 'function'){ return; }
+      const user = session && session.user ? session.user : null;
+      const uid = user && user.uid ? user.uid : null;
+      if(!uid){ return; }
+      if(activityUnsub && lastAuditUid === uid){ return; }
+      if(activityUnsub){ activityUnsub(); activityUnsub = null; }
+      if(lastAuditUid && lastAuditUid !== uid && activityItems.length){
+        renderActivity([]);
+      }
+      lastAuditUid = uid;
+      setActivityPending(true);
+      setActivityStatus('Sincronizando actividad reciente…');
+      activityUnsub = gsAuth.subscribeAuditLog({ uid, limit: 25 }, (payload)=>{
+        if(!payload){
+          setActivityPending(false);
+          return;
+        }
+        if(payload.error){
+          console.warn('No se pudo sincronizar la actividad reciente', payload.error);
+          const message = mapErrorMessage(payload.error, 'activity');
+          setActivityStatus(message, mapErrorState(payload.error));
+        }
+        if(Array.isArray(payload.items)){
+          renderActivity(payload.items);
+          if(payload.fromCache){
+            setActivityStatus('Mostrando actividad guardada localmente.', activityReady ? 'warn' : '');
+          }else if(!payload.error){
+            setActivityStatus('');
+          }
+          activityReady = true;
+        }
+        setActivityPending(false);
+      });
+      scheduleActivityRefresh(1200);
+    }
+
+    function refreshActivity(manual){
+      if(!window.gsAuth || typeof gsAuth.fetchAuditLog !== 'function'){ return; }
+      if(!activeUid){ return; }
+      setActivityPending(true);
+      if(manual){ setActivityStatus('Actualizando actividad…'); }
+      gsAuth.fetchAuditLog({ uid: activeUid, limit: 25 })
+        .then((payload)=>{
+          if(payload && Array.isArray(payload.items)){
+            renderActivity(payload.items);
+            if(manual){
+              if(payload.fromCache){
+                setActivityStatus('Mostrando actividad guardada localmente.', 'warn');
+              }else{
+                setActivityStatus('Actividad actualizada.', 'ok');
+              }
+            }else if(!payload.fromCache){
+              setActivityStatus('');
+            }
+          }
+        })
+        .catch((err)=>{
+          console.error('No se pudo actualizar la actividad', err);
+          const message = mapErrorMessage(err, 'activity');
+          setActivityStatus(message, mapErrorState(err));
+        })
+        .finally(()=>{
+          setActivityPending(false);
+        });
+    }
+
+    function scheduleActivityRefresh(delay){
+      if(typeof window === 'undefined'){ return; }
+      const ms = typeof delay === 'number' ? Math.max(delay, 200) : 400;
+      if(activityRefreshTimer){ clearTimeout(activityRefreshTimer); }
+      activityRefreshTimer = window.setTimeout(()=>{
+        activityRefreshTimer = null;
+        refreshActivity(false);
+      }, ms);
+    }
+
+    function applyDemoProfile(session){
+      const dataset = (window.gsAuth && typeof gsAuth.getDemoData === 'function') ? gsAuth.getDemoData() : {};
+      const sessionData = dataset && dataset.session ? dataset.session : {};
+      const displayName = sessionData.displayName || 'Cuenta demo';
+      const email = sessionData.email || 'demo@gestionsostenible.com';
+      const phone = sessionData.phoneNumber || '';
+      const role = 'demo';
+      setLoader(false);
+      activeUid = 'demo';
+      nameDirty = false;
+      phoneDirty = false;
+      if(profileName){
+        profileName.value = displayName;
+        profileName.disabled = true;
+        profileName.setAttribute('aria-disabled','true');
+      }
+      if(profileEmail){ profileEmail.textContent = email; }
+      if(profilePhone){
+        profilePhone.value = phone;
+        profilePhone.disabled = true;
+        profilePhone.setAttribute('aria-disabled','true');
+      }
+      setProfileStatus('Demo de solo lectura. Iniciá sesión para guardar cambios.', 'warn');
+      if(passwordForm){
+        passwordForm.querySelectorAll('input,button').forEach((el)=>{
+          el.disabled = true;
+          el.setAttribute('aria-disabled','true');
+        });
+      }
+      if(profileForm){
+        profileForm.querySelectorAll('button').forEach((el)=>{
+          el.disabled = true;
+          el.setAttribute('aria-disabled','true');
+        });
+      }
+      setPasswordStatus('La demo no permite actualizar contraseñas.', 'warn');
+      toggleModulesCard(false);
+      setModulesStatus('Disponible solo en cuentas administrativas reales.', 'warn');
+      updateSecurityBadge(phone, false);
+      updateRoleCards(role);
+      if(accountRoleBadge){
+        accountRoleBadge.textContent = ROLE_LABELS[role] || 'Demo';
+        accountRoleBadge.dataset.role = role;
+      }
+      if(accountEmail){ accountEmail.textContent = email; }
+      if(accountLastAccess){ accountLastAccess.textContent = formatTimestamp(dataset && dataset.home ? dataset.home.ultimoAcceso : Date.now()); }
+      if(accountUpdated){ accountUpdated.textContent = formatTimestamp(Date.now()); }
+      if(storageUsage){ storageUsage.textContent = '—'; }
+      if(storageQuota){ storageQuota.textContent = '—'; }
+      if(storageConfidence){ storageConfidence.textContent = 'Demo'; }
+      if(storageMsg){
+        storageMsg.classList.remove('err','warn');
+        storageMsg.classList.add('info');
+        storageMsg.textContent = 'Estimación disponible en la versión completa.';
+      }
+      if(storageRefresh){ storageRefresh.disabled = true; storageRefresh.setAttribute('aria-disabled','true'); }
+      const auditItems = dataset && Array.isArray(dataset.auditoria) ? dataset.auditoria.map((item)=> ({
+        id: item.id || `demo-audit-${Math.random().toString(36).slice(2)}`,
+        event: item.event || 'session.login',
+        createdAt: item.createdAt || Date.now(),
+        metadata: item.metadata || {}
+      })) : [];
+      activityItems = auditItems;
+      renderActivity(auditItems);
+      activityReady = true;
+      if(activityMsg){
+        activityMsg.classList.remove('err','warn');
+        activityMsg.classList.add('info');
+        activityMsg.textContent = 'Actividad de ejemplo. Iniciá sesión en la versión completa para ver tu historial real.';
+      }
+      if(phoneVerifySend){ phoneVerifySend.disabled = true; phoneVerifySend.setAttribute('aria-disabled','true'); }
+      if(phoneVerifyCancel){ phoneVerifyCancel.disabled = true; phoneVerifyCancel.setAttribute('aria-disabled','true'); }
+      if(phoneVerifyConfirm){ phoneVerifyConfirm.disabled = true; phoneVerifyConfirm.setAttribute('aria-disabled','true'); }
+      if(phoneVerifyCode){ phoneVerifyCode.disabled = true; phoneVerifyCode.setAttribute('aria-disabled','true'); }
+    }
+
+    function applySession(session){
+      const status = session ? session.status : 'signed-out';
+      const user = session && session.user ? session.user : null;
+      const isDemo = status === 'demo';
+      const authenticated = !!user && (status === 'authenticated' || isDemo);
+      if(!authenticated){
+        setLoader(true, 'Iniciá sesión para configurar tu cuenta.');
+        setProfileStatus('');
+        setPasswordStatus('');
+        toggleModulesCard(false);
+        modulesDirty = false;
+        modulesSaving = false;
+        setModulesStatus('');
+        teardownAudit(true);
+        activeUid = null;
+        phoneVerificationId = null;
+        phoneVerificationPending = false;
+        if(phoneVerifyCodeRow){ phoneVerifyCodeRow.classList.add('hidden'); }
+        togglePhoneVerificationControls();
+        setPhoneVerificationState('');
+        updateSecurityBadge('', false);
+        return;
+      }
+
+      if(isDemo){
+        applyDemoProfile(session);
+        return;
+      }
+
+      setLoader(false);
+      const uid = user.uid || null;
+      const profile = session.profile || {};
+      const role = normalizeRole(session.role, user) || 'guest';
+      const roleLabel = ROLE_LABELS[role] || ROLE_LABELS.guest || 'Invitado';
+      const abilities = session && session.abilities ? session.abilities : {};
+      const theme = profile.theme || (window.gsAuth && typeof gsAuth.getTheme === 'function' ? gsAuth.getTheme() : null);
+      moduleLabels = Object.assign({}, DEFAULT_MODULE_LABELS, (theme && theme.modules) ? theme.modules : {});
+      toggleModulesCard(!!abilities.customizeModules);
+      if(!canCustomizeModules){
+        modulesDirty = false;
+        setModulesStatus('');
+      }
+
+      if(activeUid !== uid){
+        activeUid = uid;
+        nameDirty = false;
+        phoneDirty = false;
+        setProfileStatus('');
+        setPasswordStatus('');
+        ensureAuditSubscription(session);
+      }else if(!activityUnsub){
+        ensureAuditSubscription(session);
+      }
+
+      if(accountRoleBadge){
+        accountRoleBadge.textContent = roleLabel;
+        accountRoleBadge.dataset.role = role;
+      }
+      if(accountHeading){
+        const displayName = profile.displayName || profile.responsableName || user.displayName || '';
+        accountHeading.textContent = displayName ? `Hola ${displayName.split(' ')[0] || displayName}!` : 'Revisá tus datos de acceso';
+      }
+      if(accountCopy){
+        accountCopy.textContent = ROLE_COPY[role] || ROLE_COPY.guest;
+      }
+      if(accountEmail){
+        accountEmail.textContent = user.email || '—';
+      }
+
+      const resolvedName = profile.displayName || profile.responsableName || user.displayName || '';
+      const resolvedPhone = profile.phone || user.phoneNumber || '';
+
+      if(profileEmailInput){
+        profileEmailInput.value = user.email || '';
+      }
+      if(profileName && !nameDirty){
+        profileName.value = resolvedName;
+      }
+      if(profilePhone && !phoneDirty){
+        profilePhone.value = resolvedPhone;
+      }
+
+      const phoneVerified = !!(user.phoneNumber || profile.phoneVerified);
+      updateSecurityBadge(resolvedPhone, phoneVerified);
+      setPhoneVerificationState('');
+      updateAccountPreview();
+
+      if(accountLastAccess){
+        accountLastAccess.textContent = formatTimestamp(profile.lastAccessAt || (user.metadata && user.metadata.lastSignInTime));
+      }
+      if(accountUpdated){
+        accountUpdated.textContent = formatTimestamp(profile.updatedAt);
+      }
+
+      updateRoleCards(role);
+      setProfilePending(false);
+      setPasswordPending(false);
+    }
+
+    if(profileName){
+      profileName.addEventListener('input', ()=>{
+        nameDirty = true;
+        if(!profileSaving){ setProfileStatus(''); }
+        updateAccountPreview();
+      });
+    }
+    if(profilePhone){
+      profilePhone.addEventListener('input', ()=>{
+        phoneDirty = true;
+        if(!profileSaving){ setProfileStatus(''); }
+        updateAccountPreview();
+      });
+    }
+    if(passwordForm){
+      passwordForm.addEventListener('input', ()=>{
+        if(!passwordSaving){ setPasswordStatus(''); }
+      });
+    }
+
+    if(profileForm){
+      profileForm.addEventListener('submit', async (event)=>{
+        event.preventDefault();
+        if(!window.gsAuth || typeof gsAuth.updateProfile !== 'function'){
+          setProfileStatus('La actualización de datos no está disponible en este entorno.', 'err');
+          return;
+        }
+        const name = profileName ? profileName.value.trim() : '';
+        const phone = profilePhone ? profilePhone.value.trim() : '';
+        if(!name){
+          setProfileStatus('Ingresá el nombre de la persona responsable.', 'err');
+          profileName?.focus();
+          return;
+        }
+        setProfilePending(true);
+        setProfileStatus('Guardando cambios…');
+        try{
+          await gsAuth.updateProfile({ displayName: name, responsableName: name, phone });
+          nameDirty = false;
+          phoneDirty = false;
+          updateAccountPreview();
+          setProfileStatus('Datos actualizados correctamente.', 'ok');
+          scheduleActivityRefresh(600);
+        }catch(err){
+          console.error('No se pudo actualizar el perfil', err);
+          const message = mapErrorMessage(err, 'profile');
+          setProfileStatus(message, mapErrorState(err));
+        }finally{
+          setProfilePending(false);
+          profileName?.focus();
+        }
+      });
+    }
+
+    if(passwordForm){
+      passwordForm.addEventListener('submit', async (event)=>{
+        event.preventDefault();
+        if(!window.gsAuth || typeof gsAuth.updatePassword !== 'function'){
+          setPasswordStatus('La actualización de contraseña no está disponible en este entorno.', 'err');
+          return;
+        }
+        const current = passwordCurrent ? passwordCurrent.value.trim() : '';
+        const next = passwordNew ? passwordNew.value.trim() : '';
+        const confirm = passwordConfirm ? passwordConfirm.value.trim() : '';
+        if(!current || !next){
+          setPasswordStatus('Completá tu contraseña actual y la nueva contraseña.', 'err');
+          return;
+        }
+        if(next.length < 8){
+          setPasswordStatus('La nueva contraseña debe tener al menos 8 caracteres.', 'err');
+          return;
+        }
+        if(next !== confirm){
+          setPasswordStatus('La confirmación no coincide con la nueva contraseña.', 'err');
+          return;
+        }
+        if(current === next){
+          setPasswordStatus('Elegí una contraseña diferente a la actual.', 'err');
+          return;
+        }
+        setPasswordPending(true);
+        setPasswordStatus('Actualizando contraseña…');
+        try{
+          await gsAuth.updatePassword(current, next);
+          setPasswordStatus('Contraseña actualizada correctamente.', 'ok');
+          passwordForm.reset();
+          scheduleActivityRefresh(600);
+        }catch(err){
+          console.error('No se pudo actualizar la contraseña', err);
+          const message = mapErrorMessage(err, 'password');
+          setPasswordStatus(message, mapErrorState(err));
+        }finally{
+          setPasswordPending(false);
+          passwordCurrent?.focus();
+        }
+      });
+    }
+
+    Object.values(moduleInputs).forEach((input)=>{
+      if(!input) return;
+      input.addEventListener('input', ()=>{
+        if(modulesSaving){ return; }
+        modulesDirty = true;
+        setModulesStatus('');
+      });
+    });
+
+    if(modulesReset){
+      modulesReset.addEventListener('click', ()=>{
+        if(!canCustomizeModules){ return; }
+        MODULE_KEYS.forEach((key)=>{
+          const input = moduleInputs[key];
+          if(!input){ return; }
+          input.value = DEFAULT_MODULE_LABELS[key];
+        });
+        modulesDirty = true;
+        setModulesStatus('Presioná “Guardar nombres” para aplicar los valores predeterminados.', 'warn');
+      });
+    }
+
+    if(modulesForm){
+      modulesForm.addEventListener('submit', async (event)=>{
+        event.preventDefault();
+        if(!canCustomizeModules){
+          setModulesStatus('Necesitás permisos de Administrador para editar la navegación.', 'warn');
+          return;
+        }
+        if(!window.gsAuth || typeof gsAuth.saveTheme !== 'function'){
+          setModulesStatus('La personalización de módulos no está disponible en este entorno.', 'err');
+          return;
+        }
+        const payload = {};
+        let hasEmpty = false;
+        MODULE_KEYS.forEach((key)=>{
+          const input = moduleInputs[key];
+          if(!input){ return; }
+          const value = input.value.trim();
+          if(!value){
+            if(!hasEmpty){
+              setModulesStatus('Completá todos los nombres de los módulos.', 'err');
+              input.focus();
+            }
+            hasEmpty = true;
+            return;
+          }
+          payload[key] = value;
+        });
+        if(hasEmpty){ return; }
+        let changed = false;
+        MODULE_KEYS.forEach((key)=>{
+          const nextValue = payload[key] || DEFAULT_MODULE_LABELS[key];
+          const currentValue = moduleLabels[key] || DEFAULT_MODULE_LABELS[key];
+          if(nextValue !== currentValue){ changed = true; }
+        });
+        if(!changed){
+          setModulesStatus('No hay cambios para guardar.', 'warn');
+          return;
+        }
+        setModulesPending(true);
+        setModulesStatus('Guardando nombres personalizados…');
+        try{
+          const theme = await gsAuth.saveTheme({ modules: payload });
+          const updated = (theme && theme.modules) ? theme.modules : payload;
+          syncModuleInputs(updated);
+          setModulesStatus('Navegación actualizada correctamente.', 'ok');
+          modulesDirty = false;
+          scheduleActivityRefresh(600);
+        }catch(err){
+          console.error('No se pudieron guardar los módulos personalizados', err);
+          const message = err && err.message ? err.message : 'No se pudieron guardar los módulos personalizados.';
+          setModulesStatus(message, 'err');
+        }finally{
+          setModulesPending(false);
+        }
+      });
+    }
+
+    if(phoneVerifySend){
+      phoneVerifySend.addEventListener('click', async ()=>{
+        if(phoneVerificationPending){ return; }
+        if(!window.gsAuth || typeof gsAuth.startPhoneVerification !== 'function'){
+          setPhoneVerificationState('La verificación por SMS no está disponible en este entorno.', 'err');
+          return;
+        }
+        const phone = profilePhone ? profilePhone.value.trim() : '';
+        if(!phone){
+          setPhoneVerificationState('Ingresá un número de teléfono en el formulario superior.', 'err');
+          profilePhone?.focus();
+          return;
+        }
+        phoneVerificationPending = true;
+        togglePhoneVerificationControls();
+        setPhoneVerificationState('Solicitando código SMS…');
+        try{
+          const { verificationId } = await gsAuth.startPhoneVerification(phone, { containerId: 'phoneRecaptcha' });
+          phoneVerificationId = verificationId;
+          if(phoneVerifyCodeRow){ phoneVerifyCodeRow.classList.remove('hidden'); }
+          setPhoneVerificationState('Enviamos un código de 6 dígitos. Ingresalo para validar tu teléfono.', 'warn');
+          phoneVerifyCode?.focus();
+        }catch(err){
+          console.error('No se pudo enviar el SMS de verificación', err);
+          const message = err && err.message ? err.message : 'No se pudo enviar el SMS de verificación.';
+          setPhoneVerificationState(message, 'err');
+          phoneVerificationId = null;
+          if(phoneVerifyCodeRow){ phoneVerifyCodeRow.classList.add('hidden'); }
+        }finally{
+          phoneVerificationPending = false;
+          togglePhoneVerificationControls();
+        }
+      });
+    }
+
+    if(phoneVerifyConfirm){
+      phoneVerifyConfirm.addEventListener('click', async ()=>{
+        if(!phoneVerificationId){
+          setPhoneVerificationState('Solicitá un código antes de confirmarlo.', 'err');
+          return;
+        }
+        const code = phoneVerifyCode ? phoneVerifyCode.value.trim() : '';
+        if(code.length < 6){
+          setPhoneVerificationState('Ingresá el código de 6 dígitos recibido por SMS.', 'err');
+          phoneVerifyCode?.focus();
+          return;
+        }
+        if(!window.gsAuth || typeof gsAuth.confirmPhoneVerification !== 'function'){
+          setPhoneVerificationState('La verificación por SMS no está disponible en este entorno.', 'err');
+          return;
+        }
+        phoneVerificationPending = true;
+        togglePhoneVerificationControls();
+        setPhoneVerificationState('Validando código…');
+        try{
+          const result = await gsAuth.confirmPhoneVerification(phoneVerificationId, code);
+          phoneVerificationId = null;
+          if(phoneVerifyCodeRow){ phoneVerifyCodeRow.classList.add('hidden'); }
+          if(phoneVerifyCode){ phoneVerifyCode.value = ''; }
+          const verifiedPhone = (result && result.phoneNumber) || (profilePhone ? profilePhone.value.trim() : '');
+          setPhoneVerificationState('Tu teléfono quedó verificado correctamente.', 'ok');
+          updateSecurityBadge(verifiedPhone, true);
+          scheduleActivityRefresh(800);
+        }catch(err){
+          console.error('No se pudo confirmar el SMS', err);
+          const message = err && err.message ? err.message : 'No se pudo confirmar el código. Revisá el número e intentá nuevamente.';
+          setPhoneVerificationState(message, 'err');
+        }finally{
+          phoneVerificationPending = false;
+          togglePhoneVerificationControls();
+        }
+      });
+    }
+
+    if(phoneVerifyCancel){
+      phoneVerifyCancel.addEventListener('click', ()=>{
+        phoneVerificationId = null;
+        phoneVerificationPending = false;
+        if(phoneVerifyCode){ phoneVerifyCode.value = ''; }
+        if(phoneVerifyCodeRow){ phoneVerifyCodeRow.classList.add('hidden'); }
+        setPhoneVerificationState('Se canceló la verificación en curso.', 'warn');
+        togglePhoneVerificationControls();
+      });
+    }
+
+    if(storageRefresh){
+      storageRefresh.addEventListener('click', ()=>{
+        refreshStorageEstimate();
+      });
+    }
+
+    togglePhoneVerificationControls();
+    refreshStorageEstimate();
+
+    if(activityRefresh){
+      activityRefresh.addEventListener('click', ()=>{
+        refreshActivity(true);
+      });
+    }
+
+    function applyThemeSnapshot(theme){
+      const labels = Object.assign({}, DEFAULT_MODULE_LABELS, (theme && theme.modules) ? theme.modules : {});
+      moduleLabels = labels;
+      if(canCustomizeModules){
+        if(modulesSaving){ return; }
+        if(modulesDirty){ return; }
+        syncModuleInputs(labels);
+        setModulesStatus('');
+      }else{
+        modulesDirty = false;
+      }
+    }
+
+    if(window.gsAuth && typeof gsAuth.onTheme === 'function'){
+      gsAuth.onTheme(applyThemeSnapshot);
+    }
+
+    if(window.gsAuth && typeof gsAuth.onSession === 'function'){
+      gsAuth.onSession(applySession);
+    }else{
+      setLoader(true, 'Sincronizando librerías de autenticación…');
+    }
+
+    if(typeof requireLogin === 'function'){
+      // Mantener la vista embebida sin redirecciones mientras sincroniza la sesión compartida.
+      requireLogin({
+        message: 'Iniciá sesión desde la pantalla principal para configurar tu cuenta.',
+        redirectTo: 'index.html#/configuracion',
+        allowedRoles: ['admin','control','demo']
+      });
+    }
+  </script>
+</body>
+</html>

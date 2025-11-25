@@ -1,0 +1,1473 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Gestión de Cuentas – Gestión Sostenible</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://www.gstatic.com https://www.googleapis.com https://firestore.googleapis.com https://www.google.com https://maps.googleapis.com data: blob:; frame-ancestors 'self'; script-src 'self' https://www.gstatic.com https://www.googleapis.com https://maps.googleapis.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://maps.googleapis.com https://maps.gstatic.com; connect-src 'self' https://www.googleapis.com https://firestore.googleapis.com https://maps.googleapis.com https://identitytoolkit.googleapis.com;" />
+  <script>
+    if(window.self !== window.top){
+      document.documentElement.classList.add('is-embedded');
+    }
+    if(window.self === window.top){
+      window.location.replace('index.html#/usuarios');
+    }
+  </script>
+  <style>
+    :root{--ink:#0D2B3D;--accent:#1DBF73;--accent2:#16a062;--muted:#5e6f7c;--line:#e0e8f1;--bg:#f4f7fb}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;background:linear-gradient(180deg,#f1f6fb 0%,#ffffff 60%);margin:0;padding:28px;color:#0b1f2a;min-height:100vh}
+    body.gs-authenticated #loginCard{display:none}
+    body:not(.gs-authenticated) .requires-auth{display:none}
+    html.is-embedded body #loginCard{display:none}
+    html.is-embedded body:not(.gs-authenticated) .requires-auth{display:none}
+    html.is-embedded body:not(.gs-authenticated) .module-loader{display:flex}
+    body.checking-session #loginCard{opacity:0;pointer-events:none;visibility:hidden}
+    body.checking-session .requires-auth{display:none}
+    body.loading-data .module-loader{display:flex}
+    .wrap{max-width:1100px;margin:auto;display:grid;gap:20px;padding-bottom:48px}
+    .card{background:#fff;border-radius:18px;padding:22px 24px;box-shadow:0 12px 32px rgba(13,43,61,.08);border:1px solid var(--line);display:grid;gap:12px}
+    .card.disabled{opacity:.6;pointer-events:none}
+    .page-head{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;justify-content:space-between}
+    .page-head h1{margin:0;color:var(--ink);font-size:28px;letter-spacing:.01em}
+    .page-head p{margin:0;color:var(--muted);font-size:15px;max-width:640px;line-height:1.5}
+    .status-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:rgba(16,113,150,.08);color:var(--ink);font-weight:600;font-size:13px}
+    .module-status{font-size:14px;color:var(--muted)}
+    .module-status.error{color:#b3261e;font-weight:600}
+    .form-grid{display:grid;gap:12px;align-items:end;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+    .form-grid label{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted)}
+    .form-grid input{padding:10px 12px;border-radius:12px;border:1px solid #d7e3ec;font-size:15px}
+    .form-grid select,.form-grid textarea{padding:10px 12px;border-radius:12px;border:1px solid #d7e3ec;font-size:15px;font-family:inherit;background:#fff}
+    .form-grid textarea{min-height:96px;resize:vertical}
+    .form-grid .full{grid-column:1 / -1}
+    .form-grid input:focus-visible{outline:3px solid rgba(16,113,150,.25);outline-offset:2px;border-color:#5eb2d3}
+    .form-grid .actions{display:flex;justify-content:flex-end;align-items:center;gap:10px}
+    button{background:var(--accent);color:#fff;border:none;border-radius:12px;padding:12px 18px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 10px 20px rgba(29,191,115,.18);transition:transform .18s ease,box-shadow .18s ease}
+    button:hover{background:var(--accent2);transform:translateY(-1px)}
+    button:active{transform:translateY(0)}
+    button:focus-visible{outline:3px solid rgba(16,113,150,.3);outline-offset:2px}
+    button[disabled]{opacity:.6;cursor:not-allowed;transform:none;box-shadow:none}
+    .form-feedback{font-size:14px;min-height:20px;color:var(--muted)}
+    .form-feedback.ok{color:#0b8a50}
+    .form-feedback.err{color:#b3261e}
+    .table-wrap{overflow:auto;border-radius:14px;border:1px solid var(--line)}
+    table{width:100%;border-collapse:collapse;min-width:520px;background:#fff}
+    th,td{padding:10px 12px;border-bottom:1px solid #e8eff6;font-size:13px;text-align:left;color:#0b1f2a}
+    th{font-weight:600;color:#567180}
+    tbody tr:last-child td{border-bottom:none}
+    .table-actions{display:flex;align-items:center;gap:8px}
+    .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--muted);padding:8px 12px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:background .18s ease,color .18s ease,border-color .18s ease;box-shadow:none}
+    .btn-ghost:hover{background:rgba(16,113,150,.08);color:var(--ink);border-color:rgba(16,113,150,.35)}
+    .btn-ghost:focus-visible{outline:3px solid rgba(16,113,150,.3);outline-offset:2px}
+    .btn-ghost.danger{border-color:rgba(176,0,32,.35);color:#8c1c21}
+    .btn-ghost.danger:hover{background:rgba(176,0,32,.1);color:#8c1c21;border-color:rgba(176,0,32,.5)}
+    .btn-ghost[disabled]{opacity:.55;cursor:not-allowed;background:rgba(13,43,61,.05);border-color:rgba(13,43,61,.08);color:rgba(13,43,61,.4)}
+    .status-chip{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600}
+    .status-chip.pendiente{background:rgba(16,113,150,.12);color:#0f3346}
+    .status-chip.completada{background:rgba(29,191,115,.16);color:#136c43}
+    .status-chip.revocada{background:rgba(176,0,32,.12);color:#8c1c21}
+    .status-chip.actual{background:rgba(16,113,150,.16);color:#0d2b3d}
+    .status-chip.enviado{background:rgba(29,191,115,.18);color:#136c43}
+    .status-chip.alerta{background:rgba(255,171,0,.16);color:#8a4f00}
+    .role-chip{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:rgba(16,113,150,.12);color:#0d2b3d;text-transform:capitalize}
+    .role-chip.admin{background:rgba(176,0,32,.12);color:#8c1c21}
+    .role-chip.control{background:rgba(29,191,115,.16);color:#136c43}
+    .role-chip.manager{background:rgba(255,171,0,.18);color:#8a4f00}
+    .role-chip.operator{background:rgba(16,113,150,.14);color:#0f3346}
+    .role-chip.viewer{background:rgba(13,43,61,.08);color:#0b1f2a}
+    .table-muted{display:block;font-size:12px;color:var(--muted)}
+    .muted{color:var(--muted);font-size:13px}
+    .security-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+    .security-card{border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:8px;background:linear-gradient(180deg,#ffffff 0%,#f7fbff 100%)}
+    .mini-title{margin:0;font-size:15px;color:var(--ink);display:flex;justify-content:space-between;align-items:center}
+    .activity-list{margin:0;padding-left:18px;display:grid;gap:6px;color:var(--ink)}
+    .module-loader{display:none;position:fixed;inset:0;background:rgba(255,255,255,.86);backdrop-filter:blur(4px);align-items:center;justify-content:center;text-align:center;color:#0b1f2a;z-index:20;padding:24px}
+    .module-loader .box{display:grid;gap:12px;max-width:320px}
+    .module-loader .spinner{width:36px;height:36px;border-radius:50%;border:3px solid rgba(16,113,150,.18);border-top-color:var(--accent);animation:spin 1s linear infinite;margin:0 auto}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .login-card{max-width:420px;margin:auto;background:#fff;padding:22px 24px;border-radius:18px;box-shadow:0 12px 32px rgba(13,43,61,.12);border:1px solid var(--line);display:grid;gap:12px}
+    .login-card h1{margin:0;font-size:24px;color:var(--ink)}
+    .login-card label{display:grid;gap:6px;font-size:14px;color:var(--muted)}
+    .login-card input{padding:10px 12px;border-radius:12px;border:1px solid #d7e3ec;font-size:15px}
+    .login-card input:focus-visible{outline:3px solid rgba(16,113,150,.25);outline-offset:2px;border-color:#5eb2d3}
+    .login-card button{margin-top:4px}
+    .login-card .msg{min-height:20px;font-size:14px;color:var(--muted)}
+  </style>
+</head>
+<body class="checking-session">
+  <script>
+    document.documentElement.classList.add('theme-applied');
+    document.body.classList.add('theme-applied');
+  </script>
+  <div class="wrap">
+    <section class="card login-card" id="loginCard" aria-labelledby="loginTitle">
+      <h1 id="loginTitle">Ingresar</h1>
+      <p style="margin:0;color:var(--muted);font-size:14px">Usá tu correo registrado para iniciar sesión en el panel administrativo.</p>
+      <form id="loginForm" novalidate>
+        <label for="loginEmail">Correo electrónico
+          <input id="loginEmail" name="email" type="email" autocomplete="username" required />
+        </label>
+        <label for="loginPass">Contraseña
+          <input id="loginPass" name="password" type="password" autocomplete="current-password" required />
+        </label>
+        <button type="submit">Iniciar sesión</button>
+      </form>
+      <div class="msg" id="loginMsg" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="card requires-auth" id="moduleIntro" aria-labelledby="moduleTitle">
+      <div class="page-head">
+        <div>
+          <h1 id="moduleTitle">Gestión centralizada de cuentas</h1>
+          <p>Creá accesos de Control o Administrador, dejá notas internas y seguí el estado de cada invitación sin salir del panel principal. Sólo los Administradores pueden gestionarlas y revocar accesos cuando sea necesario.</p>
+        </div>
+        <div class="status-pill" id="moduleRole">Rol activo: —</div>
+      </div>
+      <div class="module-status" id="moduleStatus">Iniciá sesión con tu cuenta Administrador para gestionar cuentas y roles.</div>
+    </section>
+
+    <section class="card requires-auth" id="formCard" aria-labelledby="formTitle">
+      <h2 id="formTitle" style="margin:0;font-size:20px;color:var(--ink)">Registrar nueva cuenta</h2>
+      <p class="muted" style="margin:0">Definí el tipo de acceso, generá una contraseña inicial y registrá la cuenta. La creación se realiza automáticamente en Firebase Authentication.</p>
+      <form class="form-grid" id="controlInviteForm" novalidate>
+        <label for="controlInviteName">Nombre completo (opcional)
+          <input id="controlInviteName" name="name" type="text" placeholder="Nombre y apellido" autocomplete="name" />
+        </label>
+        <label for="controlInviteEmail">Correo electrónico
+          <input id="controlInviteEmail" name="email" type="email" placeholder="nombre@empresa.com" autocomplete="email" required />
+        </label>
+        <label for="controlInvitePass">Contraseña temporal
+          <input id="controlInvitePass" name="password" type="password" placeholder="Mínimo 8 caracteres" autocomplete="new-password" required />
+        </label>
+        <label for="controlInvitePassConfirm">Confirmá la contraseña
+          <input id="controlInvitePassConfirm" name="passwordConfirm" type="password" placeholder="Repetí la contraseña" autocomplete="new-password" required />
+        </label>
+        <label for="controlInviteRole">Tipo de acceso
+          <select id="controlInviteRole" name="role" required>
+            <option value="admin">Administrador</option>
+            <option value="manager" selected>Manager</option>
+            <option value="operator">Operador</option>
+            <option value="viewer">Viewer</option>
+            <option value="control">Control (legacy)</option>
+          </select>
+        </label>
+        <label for="controlInviteOrg">Organización
+          <select id="controlInviteOrg" name="organization">
+            <option value="">Usar mi organización actual</option>
+          </select>
+        </label>
+        <label class="full hidden" id="controlInviteOrgNameWrap" for="controlInviteOrgName">Nombre de la nueva organización
+          <input id="controlInviteOrgName" name="organizationName" type="text" placeholder="Ej. Reciclaje Centro" autocomplete="organization" />
+        </label>
+        <label class="full" for="controlInviteNotes">Notas internas (opcional)
+          <textarea id="controlInviteNotes" name="notes" placeholder="Contexto de la cuenta, alcance, referencias internas" rows="3"></textarea>
+        </label>
+        <div class="actions">
+          <button type="submit" id="btnInvite" aria-disabled="true">Registrar invitación</button>
+        </div>
+      </form>
+      <div class="form-feedback" id="inviteStatus" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="card requires-auth" aria-labelledby="invitesTitle">
+      <div class="page-head" style="align-items:center">
+        <div>
+          <h2 id="invitesTitle" style="margin:0;font-size:20px;color:var(--ink)">Invitaciones registradas</h2>
+          <p class="muted" style="margin:0">Seguimiento de invitaciones para cuentas de Control o Administrador.</p>
+        </div>
+        <span class="muted" id="invitesUpdated">Actualizado automáticamente.</span>
+      </div>
+      <div class="table-wrap" role="region" aria-live="polite" aria-label="Invitaciones de Control">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Nombre</th>
+              <th scope="col">Correo</th>
+              <th scope="col">Rol</th>
+              <th scope="col">Organización</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Creado</th>
+              <th scope="col">Actualizado</th>
+            </tr>
+          </thead>
+          <tbody id="invitesBody">
+            <tr><td colspan="7">Cargaremos las invitaciones recientes en instantes.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card requires-auth" aria-labelledby="usersTitle">
+      <div class="page-head" style="align-items:center">
+        <div>
+          <h2 id="usersTitle" style="margin:0;font-size:20px;color:var(--ink)">Cuentas activas</h2>
+          <p class="muted" style="margin:0">Listado de cuentas con acceso operativo al sistema en roles de Control o Administrador.</p>
+        </div>
+        <span class="muted" id="usersUpdated">Sincronizando…</span>
+      </div>
+      <div class="table-wrap" role="region" aria-live="polite" aria-label="Usuarios de Control">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Nombre</th>
+              <th scope="col">Correo</th>
+              <th scope="col">Rol</th>
+              <th scope="col">Organización</th>
+              <th scope="col">Último acceso</th>
+              <th scope="col">Actualizado</th>
+              <th scope="col">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="usersBody">
+            <tr><td colspan="7">Sin usuarios registrados aún.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card requires-auth" aria-labelledby="securityTitle">
+      <div class="page-head" style="align-items:center">
+        <div>
+          <h2 id="securityTitle" style="margin:0;font-size:20px;color:var(--ink)">Seguridad de sesión y autenticación</h2>
+          <p class="muted" style="margin:0">Configura timeouts, 2FA y recuperación de contraseñas desde el mismo panel.</p>
+        </div>
+        <span class="muted" id="securityStatus">Timeout activo.</span>
+      </div>
+      <div class="security-grid">
+        <div class="security-card">
+          <h3 class="mini-title">⏱️ Timeout de sesión <span class="status-chip actual" id="timeoutLabel">45 min</span></h3>
+          <label class="muted">Minutos de inactividad
+            <input id="timeoutInput" type="number" min="5" step="5" value="45" />
+          </label>
+          <button id="btnActualizarTimeout" type="button">Actualizar timeout</button>
+          <p class="muted" style="margin:0">Se cerrará sesión automáticamente tras inactividad para evitar secuestro de sesión.</p>
+        </div>
+        <div class="security-card">
+          <h3 class="mini-title">🔒 2FA por SMS</h3>
+          <label class="muted">Teléfono
+            <input id="twofaPhone" type="tel" placeholder="+598 94 000 000" />
+          </label>
+          <label class="muted">Código recibido
+            <input id="twofaCode" type="text" placeholder="123456" />
+          </label>
+          <div class="form-grid actions" style="padding:0;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+            <button id="btnEnviar2fa" type="button">Enviar código</button>
+            <button class="secondary" id="btnConfirmar2fa" type="button">Confirmar 2FA</button>
+            <button class="btn-ghost" id="btnDesactivar2fa" type="button">Desactivar</button>
+          </div>
+          <div class="muted" id="twofaStatus" aria-live="polite"></div>
+        </div>
+        <div class="security-card">
+          <h3 class="mini-title">🧯 Recuperación de contraseña</h3>
+          <label class="muted">Correo del usuario
+            <input id="recoveryEmail" type="email" placeholder="usuario@correo.com" />
+          </label>
+          <button id="btnEnviarRecovery" type="button">Enviar correo de recuperación</button>
+          <p class="muted" id="recoveryStatus">Se envía un enlace seguro usando Firebase Authentication.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card requires-auth" aria-labelledby="permsTitle">
+      <div class="page-head" style="align-items:center">
+        <div>
+          <h2 id="permsTitle" style="margin:0;font-size:20px;color:var(--ink)">Permisos por módulo y auditoría</h2>
+          <p class="muted" style="margin:0">Visualizá qué módulos puede operar cada rol y revisá el log de actividades.</p>
+        </div>
+      </div>
+      <div class="security-grid">
+        <div class="security-card">
+          <h3 class="mini-title">Permisos por rol</h3>
+          <ul class="activity-list" id="permsList"><li>Cargando permisos…</li></ul>
+        </div>
+        <div class="security-card">
+          <h3 class="mini-title">Actividad reciente</h3>
+          <ul class="activity-list" id="activityList"><li>Sin actividad registrada todavía.</li></ul>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="module-loader" aria-live="polite" aria-atomic="true">
+    <div class="box">
+      <div class="spinner" role="presentation"></div>
+      <strong>Sincronizando directorio…</strong>
+      <span class="muted">Traemos invitaciones y usuarios activos. Esto puede demorar unos segundos.</span>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
+  <script src="assets/demo-data.js"></script>
+  <script src="assets/gs-auth.js"></script>
+  <script>
+    const $ = (id)=> document.getElementById(id);
+    const loginForm = $('loginForm');
+    const loginEmail = $('loginEmail');
+    const loginPass = $('loginPass');
+    const loginMsg = $('loginMsg');
+    const formCard = $('formCard');
+    const inviteForm = $('controlInviteForm');
+    const inviteName = $('controlInviteName');
+    const inviteEmail = $('controlInviteEmail');
+    const inviteRole = $('controlInviteRole');
+    const inviteOrg = $('controlInviteOrg');
+    const inviteOrgNameWrap = $('controlInviteOrgNameWrap');
+    const inviteOrgName = $('controlInviteOrgName');
+    const inviteNotes = $('controlInviteNotes');
+    const invitePass = $('controlInvitePass');
+    const invitePassConfirm = $('controlInvitePassConfirm');
+    const inviteButton = $('btnInvite');
+    const inviteStatus = $('inviteStatus');
+    const invitesBody = $('invitesBody');
+    const invitesUpdated = $('invitesUpdated');
+    const usersBody = $('usersBody');
+    const usersUpdated = $('usersUpdated');
+    const moduleRole = $('moduleRole');
+    const moduleStatus = $('moduleStatus');
+    const timeoutInput = $('timeoutInput');
+    const timeoutLabel = $('timeoutLabel');
+    const securityStatus = $('securityStatus');
+    const btnActualizarTimeout = $('btnActualizarTimeout');
+    const twofaPhone = $('twofaPhone');
+    const twofaCode = $('twofaCode');
+    const twofaStatus = $('twofaStatus');
+    const btnEnviar2fa = $('btnEnviar2fa');
+    const btnConfirmar2fa = $('btnConfirmar2fa');
+    const btnDesactivar2fa = $('btnDesactivar2fa');
+    const recoveryEmail = $('recoveryEmail');
+    const btnEnviarRecovery = $('btnEnviarRecovery');
+    const recoveryStatus = $('recoveryStatus');
+    const permsList = $('permsList');
+    const activityList = $('activityList');
+
+    const FieldValue = (firebase.firestore && firebase.firestore.FieldValue)
+      ? firebase.firestore.FieldValue
+      : null;
+
+    const ROLE_LABELS = Object.assign({ guest: 'Invitado' }, (window.gsAuth && gsAuth.roleLabels) ? gsAuth.roleLabels : {});
+
+    function normalizeRole(role){
+      if(window.gsAuth && typeof gsAuth.normalizeRole === 'function'){
+        try{ return gsAuth.normalizeRole(role); }
+        catch(err){ /* sin normalizar */ }
+      }
+      if(typeof role === 'string'){ return role.trim().toLowerCase(); }
+      return 'guest';
+    }
+
+    const localStore = (()=>{
+      try{
+        const probe = '__gs_users_probe__';
+        localStorage.setItem(probe,'1');
+        localStorage.removeItem(probe);
+        return localStorage;
+      }catch(err){
+        return null;
+      }
+    })();
+
+    const CACHE_PREFIX = 'gs:usuarios:';
+    const CACHE_VERSION = 1;
+    const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+    const CACHE_KEYS = {
+      invites: CACHE_PREFIX + 'invites',
+      users: CACHE_PREFIX + 'directory'
+    };
+
+    let currentSession = null;
+    let canManageUsers = false;
+    let invitesUnsub = null;
+    let usersUnsub = null;
+    let invitesReady = false;
+    let usersReady = false;
+    let userInvites = [];
+    let registeredUsers = [];
+    let availableOrganizations = [];
+    let organizationsLoaded = false;
+    let cachedDb = null;
+    let hydratedFromCache = false;
+    let inviteProcessing = false;
+    let activeOrgForSubscriptions = null;
+    const deletingUsers = new Set();
+    let activityLog = [];
+    let pendingVerificationId = null;
+    const isDemoSession = ()=> !!(window.gsAuth && typeof gsAuth.isDemoSession === 'function' && gsAuth.isDemoSession());
+
+    const dateTimeFormatter = new Intl.DateTimeFormat('es-UY',{dateStyle:'short',timeStyle:'short'});
+
+    function formatTs(ts){
+      if(!ts) return '—';
+      try{ return dateTimeFormatter.format(new Date(ts)); }
+      catch(err){ return '—'; }
+    }
+
+    function toMillis(value){
+      if(!value && value !== 0) return null;
+      if(typeof value === 'number') return value;
+      if(value instanceof Date) return value.getTime();
+      if(typeof value.toDate === 'function') return value.toDate().getTime();
+      if(typeof value.seconds === 'number') return (value.seconds * 1000) + Math.floor((value.nanoseconds || 0) / 1e6);
+      return null;
+    }
+
+    function escapeHtml(str=''){
+      return String(str).replace(/[&<>"']/g, (c)=>({
+        '&':'&amp;',
+        '<':'&lt;',
+        '>':'&gt;',
+        '"':'&quot;',
+        "'":'&#39;'
+      })[c]);
+    }
+
+    function getDb(){
+      if(cachedDb){ return cachedDb; }
+      if(typeof firebase === 'undefined' || typeof firebase.firestore !== 'function'){ return null; }
+      cachedDb = firebase.firestore();
+      return cachedDb;
+    }
+
+    function readCache(key){
+      if(!localStore) return null;
+      try{
+        const raw = localStore.getItem(key);
+        if(!raw) return null;
+        const parsed = JSON.parse(raw);
+        if(parsed && parsed.version === CACHE_VERSION){
+          const activeOrg = getActiveOrganizationId();
+          if(parsed.organizationId && parsed.organizationId !== activeOrg){
+            return null;
+          }
+          if(!parsed.savedAt || (Date.now() - parsed.savedAt) <= CACHE_TTL){
+            return parsed;
+          }
+        }
+      }catch(err){
+        /* cache inválido */
+      }
+      return null;
+    }
+
+    function writeCache(key, payload){
+      if(!localStore) return;
+      try{
+        localStore.setItem(key, JSON.stringify(Object.assign({
+          version: CACHE_VERSION,
+          savedAt: Date.now(),
+          organizationId: getActiveOrganizationId()
+        }, payload)));
+      }catch(err){
+        /* almacenamiento no disponible */
+      }
+    }
+
+    function normalizeOrganizationId(value){
+      if(value === null || value === undefined){ return 'default'; }
+      const str = String(value).trim();
+      return str || 'default';
+    }
+
+    function getActiveOrganizationId(){
+      if(window.gsAuth && typeof gsAuth.getOrganizationId === 'function'){
+        try{
+          const id = gsAuth.getOrganizationId();
+          if(id){ return normalizeOrganizationId(id); }
+        }catch(err){ /* sin organización */ }
+      }
+      if(currentSession && currentSession.profile && currentSession.profile.organizationId){
+        return normalizeOrganizationId(currentSession.profile.organizationId);
+      }
+      return 'default';
+    }
+
+    function normalizeInviteCache(item){
+      if(!item) return null;
+      const organizationId = normalizeOrganizationId(item.organizationId);
+      return {
+        id: item.id || null,
+        email: item.email || '',
+        displayName: item.displayName || item.name || '',
+        notes: item.notes || '',
+        role: normalizeRoleValue(item.role),
+        status: (item.status || 'pendiente').toLowerCase(),
+        organizationId,
+        organizationName: item.organizationName || '',
+        createdAt: toMillis(item.createdAt),
+        updatedAt: toMillis(item.updatedAt)
+      };
+    }
+
+    function normalizeUserCache(item){
+      if(!item) return null;
+      const organizationId = normalizeOrganizationId(item.organizationId);
+      return {
+        id: item.id || null,
+        email: item.email || '',
+        displayName: item.displayName || item.name || '',
+        role: normalizeRoleValue(item.role),
+        notes: item.notes || '',
+        organizationId,
+        organizationName: item.organizationName || '',
+        createdAt: toMillis(item.createdAt),
+        lastAccessAt: toMillis(item.lastAccessAt),
+        updatedAt: toMillis(item.updatedAt)
+      };
+    }
+
+    function formatOrganizationLabel(org){
+      if(!org){ return '—'; }
+      if(typeof org === 'string'){ return org === 'default' ? 'General' : (org === 'demo' ? 'Demo' : org); }
+      const name = org.organizationName || org.name || '';
+      const id = normalizeOrganizationId(org.organizationId || org.id || '');
+      if(name){ return name; }
+      if(id === 'default'){ return 'General'; }
+      if(id === 'demo'){ return 'Demo'; }
+      return id || '—';
+    }
+
+    function toggleOrgNameField(){
+      if(!inviteOrg || !inviteOrgNameWrap) return;
+      const show = inviteOrg.value === '__new__';
+      inviteOrgNameWrap.classList.toggle('hidden', !show);
+      if(!show && inviteOrgName){ inviteOrgName.value = ''; }
+    }
+
+    function updateOrganizationSelect(){
+      if(!inviteOrg){ return; }
+      const previous = inviteOrg.value;
+      const sessionOrgId = currentSession && currentSession.profile
+        ? normalizeOrganizationId(currentSession.profile.organizationId)
+        : 'default';
+      const sessionOrgName = currentSession && currentSession.profile ? currentSession.profile.organizationName || '' : '';
+      inviteOrg.innerHTML = '';
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      const defaultLabel = formatOrganizationLabel({ organizationId: sessionOrgId, organizationName: sessionOrgName });
+      defaultOption.textContent = `Usar mi organización actual (${defaultLabel})`;
+      inviteOrg.appendChild(defaultOption);
+      availableOrganizations.forEach((org)=>{
+        if(!org || !org.id){ return; }
+        const option = document.createElement('option');
+        option.value = org.id;
+        option.textContent = formatOrganizationLabel(org);
+        inviteOrg.appendChild(option);
+      });
+      const createOption = document.createElement('option');
+      createOption.value = '__new__';
+      createOption.textContent = 'Crear nueva organización…';
+      inviteOrg.appendChild(createOption);
+      if(previous && Array.from(inviteOrg.options).some((opt)=> opt.value === previous)){
+        inviteOrg.value = previous;
+      }else{
+        inviteOrg.value = '';
+      }
+      toggleOrgNameField();
+    }
+
+    async function loadOrganizations(){
+      if(!window.gsAuth || typeof gsAuth.listOrganizations !== 'function'){ return; }
+      try{
+        const list = await gsAuth.listOrganizations({ includeDefault: true, limit: 200 });
+        if(Array.isArray(list)){
+          const seen = new Set();
+          availableOrganizations = list.map((org)=>{
+            if(!org) return null;
+            const id = normalizeOrganizationId(org.id || org.organizationId);
+            if(seen.has(id)){ return null; }
+            seen.add(id);
+            const name = org.name || org.organizationName || '';
+            return { id, name, organizationId: id, organizationName: name };
+          }).filter(Boolean);
+          updateOrganizationSelect();
+        }
+      }catch(err){
+        console.warn('No se pudieron obtener las organizaciones', err);
+      }
+    }
+
+    function hydrateFromCache(){
+      const invitesCache = readCache(CACHE_KEYS.invites);
+      const usersCache = readCache(CACHE_KEYS.users);
+      let hydrated = false;
+
+      if(invitesCache && Array.isArray(invitesCache.items)){
+        const mappedInvites = invitesCache.items.map(normalizeInviteCache).filter(Boolean);
+        if(mappedInvites.length){
+          userInvites = mappedInvites;
+          renderInvites();
+          hydrated = true;
+        }
+      }
+
+      if(usersCache && Array.isArray(usersCache.items)){
+        const mappedUsers = usersCache.items.map(normalizeUserCache).filter(Boolean);
+        if(mappedUsers.length){
+          registeredUsers = mappedUsers;
+          renderUsers();
+          hydrated = true;
+        }
+      }
+
+      if(hydrated){
+        updateTimestamps();
+        hydratedFromCache = true;
+      }
+    }
+
+    hydrateFromCache();
+
+    function applyDemoUsuarios(){
+      const dataset = (window.gsAuth && typeof gsAuth.getDemoData === 'function') ? gsAuth.getDemoData('usuarios') : null;
+      const demoUsers = dataset && Array.isArray(dataset.cuentas) ? dataset.cuentas : [];
+      const demoInvites = dataset && Array.isArray(dataset.invitaciones) ? dataset.invitaciones : [];
+      registeredUsers = demoUsers.map(normalizeUserCache).filter(Boolean);
+      userInvites = demoInvites.map(normalizeInviteCache).filter(Boolean);
+      availableOrganizations = [{ id: 'demo', name: 'Demo' }];
+      updateOrganizationSelect();
+      hydratedFromCache = true;
+      invitesReady = true;
+      usersReady = true;
+      document.body.classList.add('demo-mode');
+      document.body.classList.remove('loading-data');
+      renderUsers();
+      renderInvites();
+      updateTimestamps();
+      setModuleMessage('Demo de solo lectura. Iniciá sesión como Administrador para gestionar cuentas reales.', true);
+      setFormAvailability();
+    }
+
+    function toggleLoader(){
+      const waiting = canManageUsers && (!invitesReady || !usersReady);
+      const haveCachedData = hydratedFromCache && (userInvites.length || registeredUsers.length);
+      if(waiting && !haveCachedData){
+        document.body.classList.add('loading-data');
+      }else{
+        document.body.classList.remove('loading-data');
+      }
+    }
+
+    function setInviteStatus(text='', state=null){
+      if(!inviteStatus) return;
+      inviteStatus.classList.remove('ok','err');
+      if(state === 'ok'){ inviteStatus.classList.add('ok'); }
+      if(state === 'err'){ inviteStatus.classList.add('err'); }
+      inviteStatus.textContent = text;
+    }
+
+    function setInvitePending(pending){
+      inviteProcessing = !!pending;
+      const elements = inviteForm ? Array.from(inviteForm.querySelectorAll('input,select,textarea,button')) : [];
+      elements.forEach((el)=>{
+        el.disabled = inviteProcessing || !canManageUsers;
+        if(el.tagName === 'BUTTON'){
+          if(inviteProcessing || !canManageUsers){
+            el.setAttribute('aria-disabled', 'true');
+          }else{
+            el.removeAttribute('aria-disabled');
+          }
+        }
+      });
+      if(inviteButton){
+        inviteButton.textContent = inviteProcessing ? 'Registrando…' : 'Registrar invitación';
+      }
+    }
+
+    function setModuleMessage(text='', isError=false){
+      if(!moduleStatus) return;
+      moduleStatus.classList.toggle('error', !!isError);
+      moduleStatus.textContent = text;
+    }
+
+    function formatModulePermissions(perms){
+      if(!perms) return '';
+      const top = Object.entries(perms).filter(([k])=> k!=='home').slice(0,4).map(([key,val])=> `${key}: ${val}`).join(', ');
+      return top || '';
+    }
+
+    function renderPermissionsMatrix(){
+      if(!permsList){ return; }
+      const matrix = (window.gsAuth && gsAuth.ROLE_MATRIX) ? gsAuth.ROLE_MATRIX : {};
+      permsList.innerHTML = '';
+      Object.entries(matrix).forEach(([role, abilities])=>{
+        const label = ROLE_LABELS[role] || role;
+        const perms = abilities && abilities.modulePermissions ? abilities.modulePermissions : {};
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${label}</strong><span class="table-muted">${formatModulePermissions(perms)}</span>`;
+        permsList.appendChild(li);
+      });
+    }
+
+    function renderActivityLog(){
+      if(!activityList){ return; }
+      activityList.innerHTML = '';
+      if(!activityLog.length){
+        activityList.innerHTML = '<li>Sin actividad registrada todavía.</li>';
+        return;
+      }
+      activityLog.slice(0,10).forEach((item)=>{
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${escapeHtml(item.event || '')}</strong> <span class="table-muted">${formatTs(item.occurredAt || item.createdAt)}</span>`;
+        activityList.appendChild(li);
+      });
+    }
+
+    async function loadActivityLog(){
+      if(!window.gsAuth || typeof gsAuth.fetchAuditLog !== 'function'){ return; }
+      try{
+        const res = await gsAuth.fetchAuditLog({ limit: 12 });
+        activityLog = Array.isArray(res && res.items) ? res.items : [];
+        renderActivityLog();
+      }catch(err){
+        activityLog = [];
+        renderActivityLog();
+      }
+    }
+
+    function refreshSecurityUi(){
+      if(!window.gsAuth) return;
+      const idleMs = typeof gsAuth.getIdleTimeout === 'function' ? gsAuth.getIdleTimeout() : 45*60*1000;
+      const minutes = Math.round((idleMs || 0)/60000);
+      if(timeoutInput){ timeoutInput.value = minutes || 45; }
+      if(timeoutLabel){ timeoutLabel.textContent = `${minutes} min`; }
+      if(securityStatus){ securityStatus.textContent = `Timeout activo (${minutes} min)`; }
+    }
+
+    async function handleTimeoutUpdate(){
+      if(!window.gsAuth || typeof gsAuth.setIdleTimeout !== 'function'){ return; }
+      const minutes = Number(timeoutInput?.value || 45);
+      const ms = Math.max(5, minutes) * 60000;
+      gsAuth.setIdleTimeout(ms);
+      refreshSecurityUi();
+      if(securityStatus){ securityStatus.textContent = `Timeout ajustado a ${Math.round(ms/60000)} min`; }
+    }
+
+    async function handleRecoveryRequest(){
+      if(!btnEnviarRecovery || !window.gsAuth || typeof gsAuth.sendPasswordResetEmail !== 'function'){ return; }
+      const email = (recoveryEmail && recoveryEmail.value || '').trim();
+      recoveryStatus.textContent = 'Enviando correo de recuperación…';
+      try{
+        await gsAuth.sendPasswordResetEmail(email);
+        recoveryStatus.textContent = 'Correo enviado si la cuenta existe. Revisá tu bandeja.';
+      }catch(err){
+        recoveryStatus.textContent = err?.message || 'No se pudo enviar el correo.';
+      }
+    }
+
+    async function handleSend2fa(){
+      if(!window.gsAuth || typeof gsAuth.startPhoneVerification !== 'function'){ return; }
+      const phone = (twofaPhone && twofaPhone.value || '').trim();
+      twofaStatus.textContent = 'Enviando código…';
+      try{
+        const res = await gsAuth.startPhoneVerification(phone, { containerId: 'loginForm' });
+        pendingVerificationId = res && res.verificationId ? res.verificationId : res;
+        twofaStatus.textContent = 'Código enviado. Ingresalo para confirmar.';
+      }catch(err){
+        twofaStatus.textContent = err?.message || 'No se pudo enviar el código.';
+      }
+    }
+
+    async function handleConfirm2fa(){
+      if(!window.gsAuth || typeof gsAuth.enableTwoFactor !== 'function'){ return; }
+      twofaStatus.textContent = 'Confirmando 2FA…';
+      try{
+        await gsAuth.enableTwoFactor({ phoneNumber: twofaPhone.value.trim(), verificationId: pendingVerificationId, code: twofaCode.value.trim() });
+        twofaStatus.textContent = '2FA habilitado correctamente.';
+        pendingVerificationId = null;
+      }catch(err){
+        twofaStatus.textContent = err?.message || 'No se pudo habilitar 2FA.';
+      }
+    }
+
+    async function handleDisable2fa(){
+      if(!window.gsAuth || typeof gsAuth.disableTwoFactor !== 'function'){ return; }
+      twofaStatus.textContent = 'Desactivando 2FA…';
+      try{
+        await gsAuth.disableTwoFactor();
+        twofaStatus.textContent = '2FA desactivado para esta cuenta.';
+      }catch(err){
+        twofaStatus.textContent = err?.message || 'No se pudo desactivar 2FA.';
+      }
+    }
+
+    function renderInvites(){
+      if(!invitesBody) return;
+      invitesBody.innerHTML = '';
+      if(!userInvites.length){
+        invitesBody.innerHTML = '<tr><td colspan="7">Sin invitaciones registradas.</td></tr>';
+        return;
+      }
+      const sorted = userInvites.slice().sort((a,b)=> (b.createdAt || 0) - (a.createdAt || 0));
+      sorted.forEach((invite)=>{
+        const status = (invite.status || 'pendiente').toLowerCase();
+        const chipClass = status === 'completada' ? 'completada' : status === 'revocada' ? 'revocada' : 'pendiente';
+        const label = status === 'completada' ? 'Completada' : status === 'revocada' ? 'Revocada' : 'Pendiente';
+        const roleKey = normalizeRoleValue(invite.role);
+        const roleLabel = labelRole(roleKey);
+        const orgLabel = formatOrganizationLabel({ organizationId: invite.organizationId, organizationName: invite.organizationName });
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${invite.displayName ? escapeHtml(invite.displayName) : '—'}${invite.notes ? `<span class="table-muted">${escapeHtml(invite.notes)}</span>` : ''}</td>
+          <td>${escapeHtml(invite.email || '')}</td>
+          <td><span class="role-chip ${roleKey}">${roleLabel}</span></td>
+          <td>${escapeHtml(orgLabel)}</td>
+          <td><span class="status-chip ${chipClass}">${label}</span></td>
+          <td>${formatTs(invite.createdAt)}</td>
+          <td>${formatTs(invite.updatedAt)}</td>
+        `;
+        invitesBody.appendChild(tr);
+      });
+    }
+
+    function renderUsers(){
+      if(!usersBody) return;
+      usersBody.innerHTML = '';
+      const allowActions = !!canManageUsers;
+      if(!registeredUsers.length){
+        const cols = 7;
+        usersBody.innerHTML = `<tr><td colspan="${cols}">Sin usuarios registrados aún.</td></tr>`;
+        return;
+      }
+      const sorted = registeredUsers.slice().sort((a,b)=> (a.email || '').localeCompare(b.email || '', 'es'));
+      sorted.forEach((user)=>{
+        const isCurrent = currentSession && currentSession.user && currentSession.user.uid === user.id;
+        const badge = isCurrent ? ' <span class="status-chip actual">Tu sesión</span>' : '';
+        const emailBadges = [];
+        if(Object.prototype.hasOwnProperty.call(user, 'welcomeEmailSent')){
+          if(user.welcomeEmailSent){
+            emailBadges.push('<span class="status-chip enviado" title="Correo de bienvenida enviado automáticamente.">Correo enviado</span>');
+          }else{
+            const errorMsg = user.welcomeEmailError ? `Error: ${escapeHtml(String(user.welcomeEmailError))}` : 'Correo pendiente de enviar';
+            emailBadges.push(`<span class="status-chip alerta" title="${errorMsg}">Correo pendiente</span>`);
+          }
+        }
+        const roleKey = normalizeRoleValue(user.role);
+        const roleLabel = labelRole(roleKey);
+        const key = user.id || (user.email || '').toLowerCase();
+        const isDeleting = key && deletingUsers.has(key);
+        const orgLabel = formatOrganizationLabel({ organizationId: user.organizationId, organizationName: user.organizationName });
+        const permsLabel = formatModulePermissions(user.modulePermissions);
+        const twofaChip = user.twoFactorEnabled ? '<span class="status-chip alerta">2FA</span>' : '';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${user.displayName ? escapeHtml(user.displayName) : '—'}${user.notes ? `<span class="table-muted">${escapeHtml(user.notes)}</span>` : ''}</td>
+          <td>${escapeHtml(user.email || '')}${badge}${emailBadges.length ? ' ' + emailBadges.join(' ') : ''}</td>
+          <td><span class="role-chip ${roleKey}">${roleLabel}</span> ${twofaChip}</td>
+          <td>${escapeHtml(orgLabel)}${permsLabel ? `<span class="table-muted">${escapeHtml(permsLabel)}</span>` : ''}</td>
+          <td>${formatTs(user.lastAccessAt)}</td>
+          <td>${formatTs(user.updatedAt)}</td>
+        `;
+        const actionsCell = document.createElement('td');
+        actionsCell.className = 'table-actions';
+        if(allowActions){
+          if(isCurrent){
+            const span = document.createElement('span');
+            span.className = 'muted';
+            span.textContent = 'Sesión actual';
+            actionsCell.appendChild(span);
+          }else{
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn-ghost danger';
+            button.dataset.action = 'delete-user';
+            if(user.id){ button.dataset.userId = String(user.id); }
+            if(user.email){ button.dataset.userEmail = String(user.email).toLowerCase(); }
+            if(user.displayName){ button.dataset.userName = String(user.displayName); }
+            button.textContent = isDeleting ? 'Eliminando…' : 'Eliminar';
+            button.disabled = !!isDeleting;
+            actionsCell.appendChild(button);
+          }
+        }else{
+          const span = document.createElement('span');
+          span.className = 'muted';
+          span.textContent = '—';
+          actionsCell.appendChild(span);
+        }
+        tr.appendChild(actionsCell);
+        usersBody.appendChild(tr);
+      });
+    }
+
+    async function handleUserDeletion(button){
+      if(!canManageUsers){
+        setModuleMessage('Sólo los administradores pueden gestionar cuentas.', true);
+        return;
+      }
+      if(!button){ return; }
+      const uid = (button.dataset.userId || '').trim();
+      const emailRaw = (button.dataset.userEmail || '').trim();
+      const email = emailRaw.toLowerCase();
+      const displayName = (button.dataset.userName || '').trim();
+      if(!uid && !email){
+        setModuleMessage('No encontramos datos de la cuenta seleccionada.', true);
+        return;
+      }
+      const label = email || 'la cuenta seleccionada';
+      const confirmed = typeof window.confirm === 'function'
+        ? window.confirm(`¿Eliminar el acceso de ${label}? Se revocará la sesión inmediatamente.`)
+        : true;
+      if(!confirmed){ return; }
+      const key = uid || email;
+      if(key){ deletingUsers.add(key); }
+      renderUsers();
+      setModuleMessage(`Revocando acceso para ${label}…`, false);
+      const timestampLocal = Date.now();
+      try{
+        const db = getDb();
+        const relatedInvites = email
+          ? userInvites.filter((invite)=> (invite.email || '').toLowerCase() === email)
+          : [];
+        if(db){
+          const serverTimestamp = FieldValue ? FieldValue.serverTimestamp() : timestampLocal;
+          const batch = typeof db.batch === 'function' ? db.batch() : null;
+          if(batch){
+            if(uid){ batch.delete(db.collection('usuarios').doc(uid)); }
+            relatedInvites.forEach((invite)=>{
+              if(invite && invite.id){
+                const ref = db.collection('usuarios_invites').doc(invite.id);
+                batch.set(ref, { status: 'revocada', updatedAt: serverTimestamp }, { merge: true });
+              }
+            });
+            await batch.commit();
+          }else{
+            if(uid){
+              await db.collection('usuarios').doc(uid).delete().catch(()=>{/* sin eliminación */});
+            }
+            for(const invite of relatedInvites){
+              if(invite && invite.id){
+                const ref = db.collection('usuarios_invites').doc(invite.id);
+                await ref.set({ status: 'revocada', updatedAt: serverTimestamp }, { merge: true });
+              }
+            }
+          }
+        }
+
+        if(uid){
+          registeredUsers = registeredUsers.filter((user)=> user.id !== uid);
+        }else if(email){
+          registeredUsers = registeredUsers.filter((user)=> (user.email || '').toLowerCase() !== email);
+        }
+
+        if(email){
+          userInvites = userInvites.map((invite)=>{
+            if((invite.email || '').toLowerCase() === email){
+              return Object.assign({}, invite, { status: 'revocada', updatedAt: timestampLocal });
+            }
+            return invite;
+          });
+        }
+
+        renderInvites();
+        renderUsers();
+        updateTimestamps();
+        writeCache(CACHE_KEYS.invites, { items: userInvites });
+        writeCache(CACHE_KEYS.users, { items: registeredUsers });
+
+        let authMessage = '';
+        if(typeof gsAuth.adminDeleteUser === 'function'){
+          try{
+            const result = await gsAuth.adminDeleteUser({ uid, email, displayName });
+            if(result && result.authDeleted){
+              authMessage = ' También se eliminó la cuenta en Firebase Authentication.';
+            }else if(result && result.error){
+              authMessage = ` Revisá Firebase Authentication para completar la baja (${result.error}).`;
+            }
+          }catch(err){
+            authMessage = ` Revisá Firebase Authentication para completar la baja (${err?.message || err}).`;
+          }
+        }else{
+          authMessage = ' Revisá Firebase Authentication para completar la baja si corresponde.';
+        }
+
+        setModuleMessage(`El acceso de ${label} fue eliminado.${authMessage}`, false);
+      }catch(err){
+        console.error('Error eliminando usuario', err);
+        setModuleMessage('No se pudo eliminar la cuenta. Intentá nuevamente en unos segundos.', true);
+      }finally{
+        if(key){ deletingUsers.delete(key); }
+        renderUsers();
+      }
+    }
+
+    function updateTimestamps(){
+      const sources = [];
+      registeredUsers.forEach((user)=>{
+        if(user.updatedAt) sources.push(user.updatedAt);
+        if(user.lastAccessAt) sources.push(user.lastAccessAt);
+        if(user.createdAt) sources.push(user.createdAt);
+      });
+      userInvites.forEach((invite)=>{
+        if(invite.updatedAt){ sources.push(invite.updatedAt); }
+        else if(invite.createdAt){ sources.push(invite.createdAt); }
+      });
+      const last = sources.length ? Math.max(...sources) : null;
+      if(invitesUpdated){
+        invitesUpdated.textContent = last ? `Actualizado ${formatTs(last)}` : 'Sin invitaciones registradas.';
+      }
+      if(usersUpdated){
+        if(registeredUsers.length){
+          usersUpdated.textContent = last ? `Actualizado ${formatTs(last)}` : 'Sincronizado recientemente.';
+        }else{
+          usersUpdated.textContent = 'Sin usuarios registrados aún.';
+        }
+      }
+    }
+
+    function teardownSubscriptions(){
+      if(invitesUnsub){ invitesUnsub(); invitesUnsub = null; }
+      if(usersUnsub){ usersUnsub(); usersUnsub = null; }
+      invitesReady = false;
+      usersReady = false;
+      activeOrgForSubscriptions = null;
+      userInvites = [];
+      registeredUsers = [];
+      hydratedFromCache = false;
+      renderInvites();
+      renderUsers();
+      updateTimestamps();
+    }
+
+    function ensureSubscriptions(){
+      const db = getDb();
+      if(!db || !canManageUsers) return;
+      const orgId = getActiveOrganizationId();
+      if(activeOrgForSubscriptions && activeOrgForSubscriptions !== orgId){
+        teardownSubscriptions();
+      }
+      activeOrgForSubscriptions = orgId;
+
+      if(!usersUnsub){
+        usersReady = false;
+        toggleLoader();
+        let usersQuery = db.collection('usuarios');
+        if(orgId && orgId !== 'default' && typeof usersQuery.where === 'function'){
+          usersQuery = usersQuery.where('organizationId','==', orgId);
+        }
+        usersUnsub = usersQuery.onSnapshot((snap)=>{
+          registeredUsers = snap.docs.map((doc)=>{
+            const data = doc.data() || {};
+            const role = normalizeRoleValue(data.role);
+            if(role !== 'admin' && role !== 'control'){ return null; }
+            const docOrgId = normalizeOrganizationId(data.organizationId);
+            if(docOrgId !== orgId){ return null; }
+            return {
+              id: doc.id,
+              email: data.email || '',
+              displayName: data.displayName || data.name || '',
+              role,
+              notes: data.notes || '',
+              organizationId: docOrgId,
+              organizationName: data.organizationName || '',
+              modulePermissions: data.modulePermissions || ((window.gsAuth && gsAuth.ROLE_MATRIX && gsAuth.ROLE_MATRIX[role]) ? gsAuth.ROLE_MATRIX[role].modulePermissions : {}),
+              twoFactorEnabled: !!data.twoFactorEnabled,
+              createdAt: toMillis(data.createdAt),
+              lastAccessAt: toMillis(data.lastAccessAt),
+              updatedAt: toMillis(data.updatedAt)
+            };
+          }).filter(Boolean);
+          usersReady = true;
+          hydratedFromCache = false;
+          renderUsers();
+          updateTimestamps();
+          writeCache(CACHE_KEYS.users, { items: registeredUsers });
+            if(canManageUsers){
+              setModuleMessage(`Acceso habilitado para ${currentSession && currentSession.user ? (currentSession.user.email || 'tu cuenta') : 'tu cuenta'}. Podés registrar accesos de Control o Administrador y revocarlos cuando sea necesario.`, false);
+            }
+          toggleLoader();
+        }, (error)=>{
+          usersReady = true;
+          toggleLoader();
+          console.error('Error cargando usuarios registrados', error);
+          setModuleMessage('No pudimos sincronizar el directorio de usuarios.', true);
+        });
+      }
+      if(!invitesUnsub){
+        invitesReady = false;
+        toggleLoader();
+        let invitesQuery = db.collection('usuarios_invites');
+        if(orgId && orgId !== 'default' && typeof invitesQuery.where === 'function'){
+          invitesQuery = invitesQuery.where('organizationId','==', orgId);
+        }
+        invitesUnsub = invitesQuery.onSnapshot((snap)=>{
+          userInvites = snap.docs.map((doc)=>{
+            const data = doc.data() || {};
+            const role = normalizeRoleValue(data.role);
+            if(role !== 'admin' && role !== 'control'){ return null; }
+            const docOrgId = normalizeOrganizationId(data.organizationId);
+            if(docOrgId !== orgId){ return null; }
+            return {
+              id: doc.id,
+              email: data.email || '',
+              displayName: data.displayName || data.name || '',
+              notes: data.notes || '',
+              role,
+              status: (data.status || 'pendiente').toLowerCase(),
+              organizationId: docOrgId,
+              organizationName: data.organizationName || '',
+              createdAt: toMillis(data.createdAt),
+              updatedAt: toMillis(data.updatedAt)
+            };
+          }).filter(Boolean);
+          invitesReady = true;
+          hydratedFromCache = false;
+          renderInvites();
+          updateTimestamps();
+          writeCache(CACHE_KEYS.invites, { items: userInvites });
+          toggleLoader();
+        }, (error)=>{
+          invitesReady = true;
+          toggleLoader();
+          console.error('Error cargando invitaciones', error);
+          setModuleMessage('No pudimos sincronizar las invitaciones. Reintentá en unos segundos.', true);
+        });
+      }
+    }
+
+    function setFormAvailability(){
+      const disabled = !canManageUsers;
+      if(inviteForm){
+        setInvitePending(inviteProcessing);
+      }
+      if(formCard){
+        formCard.classList.toggle('disabled', disabled);
+      }
+      if(!disabled && inviteStatus && !inviteStatus.textContent){
+        setInviteStatus('Definí contraseñas robustas y verificá los permisos antes de guardar los cambios.');
+      }
+      if(disabled){
+        setInviteStatus('', null);
+      }
+    }
+
+    function labelRole(role){
+      const key = normalizeRoleValue(role);
+      return ROLE_LABELS[key] || ROLE_LABELS.guest || 'Invitado';
+    }
+
+    function normalizeRoleValue(role){
+      const key = normalizeRole(role);
+      return ['admin','manager','operator','viewer','control','demo'].includes(key) ? key : 'viewer';
+    }
+
+    function sessionCanManageUsers(session){
+      if(isDemoSession()){
+        return false;
+      }
+      if(window.gsAuth && typeof gsAuth.can === 'function'){
+        try{
+          if(gsAuth.can('manageUsers')){ return true; }
+        }catch(err){ /* sin permisos */ }
+      }
+      if(session && session.abilities && session.abilities.manageUsers){
+        return true;
+      }
+      const normalized = normalizeRole(session && session.role);
+      return normalized === 'admin' || normalized === 'manager';
+    }
+
+    function updateAccessUi(session){
+      const role = session && session.role ? session.role : 'guest';
+      const normalizedRole = normalizeRole(role);
+      const user = session && session.user;
+      const status = session ? session.status : 'signed-out';
+      const authenticated = !!user && status === 'authenticated';
+
+      if(moduleRole){
+        moduleRole.textContent = `Rol activo: ${labelRole(normalizedRole)}`;
+      }
+      if(isDemoSession()){
+        setModuleMessage('Demo de solo lectura. Explorá las invitaciones y cuentas sin generar cambios reales.', true);
+        setFormAvailability();
+        teardownSubscriptions();
+        toggleLoader();
+        return;
+      }
+      if(!authenticated){
+        setModuleMessage('Iniciá sesión con tu cuenta Administrador para gestionar cuentas y roles.', false);
+      }else if(canManageUsers){
+        if(!userInvites.length && !registeredUsers.length){
+          hydrateFromCache();
+        }
+        if(hydratedFromCache && (!invitesReady || !usersReady)){
+          setModuleMessage(`Acceso habilitado para ${user.email || 'tu cuenta'}. Cargando la información más reciente…`, false);
+        }else{
+          setModuleMessage(`Acceso habilitado para ${user.email || 'tu cuenta'}. Podés registrar accesos de Control o Administrador y revocarlos cuando sea necesario.`, false);
+        }
+      }else{
+        setModuleMessage('Tu rol actual no puede gestionar cuentas. Pedí acceso a un Administrador.', true);
+      }
+      setFormAvailability();
+      if(canManageUsers){
+        ensureSubscriptions();
+      }else{
+        teardownSubscriptions();
+        toggleLoader();
+      }
+    }
+
+    if(loginForm){
+      loginForm.addEventListener('submit', async (event)=>{
+        event.preventDefault();
+        const email = (loginEmail?.value || '').trim();
+        const pass = (loginPass?.value || '').trim();
+        if(!email || !pass){
+          if(loginMsg){ loginMsg.textContent = 'Ingresá correo y contraseña.'; }
+          return;
+        }
+        if(loginMsg){ loginMsg.textContent = 'Verificando credenciales…'; }
+        try{
+          await gsAuth.signInWithEmailAndPassword(email, pass);
+          if(loginMsg){ loginMsg.textContent = '✅ Sesión iniciada'; }
+        }catch(err){
+          const friendly = (gsAuth && typeof gsAuth.describeError === 'function') ? gsAuth.describeError(err) : null;
+          if(loginMsg){
+            loginMsg.innerHTML = '❌ ' + (friendly || err?.message || 'No se pudo iniciar sesión');
+            if(err && err.code === 'auth/operation-not-allowed'){
+              loginMsg.innerHTML += '<br><small>Agregá este dominio en Firebase Auth → Settings → Authorized domains.</small>';
+            }
+          }
+        }
+      });
+    }
+
+    if(btnActualizarTimeout){ btnActualizarTimeout.addEventListener('click', handleTimeoutUpdate); }
+    if(btnEnviarRecovery){ btnEnviarRecovery.addEventListener('click', handleRecoveryRequest); }
+    if(btnEnviar2fa){ btnEnviar2fa.addEventListener('click', handleSend2fa); }
+    if(btnConfirmar2fa){ btnConfirmar2fa.addEventListener('click', handleConfirm2fa); }
+    if(btnDesactivar2fa){ btnDesactivar2fa.addEventListener('click', handleDisable2fa); }
+
+    if(inviteOrg){
+      inviteOrg.addEventListener('change', toggleOrgNameField);
+    }
+
+    if(inviteForm){
+      inviteForm.addEventListener('submit', async (event)=>{
+        event.preventDefault();
+        if(!canManageUsers){
+          setInviteStatus('Sólo los administradores pueden gestionar cuentas.', 'err');
+          return;
+        }
+        const name = (inviteName?.value || '').trim();
+        const email = (inviteEmail?.value || '').trim().toLowerCase();
+        const password = (invitePass?.value || '').trim();
+        const confirmPassword = (invitePassConfirm?.value || '').trim();
+        let role = normalizeRoleValue(inviteRole?.value || 'control');
+        if(role !== 'admin' && role !== 'control'){ role = 'control'; }
+        const notes = (inviteNotes?.value || '').trim();
+        const orgSelection = inviteOrg ? inviteOrg.value : '';
+        const orgNameInput = (inviteOrgName?.value || '').trim();
+        let organizationId = orgSelection;
+        let organizationName = '';
+        if(orgSelection === '__new__'){
+          if(!orgNameInput){
+            setInviteStatus('Ingresá el nombre de la nueva organización.', 'err');
+            return;
+          }
+          organizationId = '';
+          organizationName = orgNameInput;
+        }else if(!orgSelection){
+          if(currentSession && currentSession.profile){
+            organizationId = currentSession.profile.organizationId || '';
+            organizationName = currentSession.profile.organizationName || '';
+          }else{
+            organizationId = '';
+          }
+        }else{
+          const matched = availableOrganizations.find((item)=> item && item.id === orgSelection);
+          organizationName = matched && matched.name ? matched.name : '';
+        }
+        if(!email){
+          setInviteStatus('Ingresá un correo electrónico válido.', 'err');
+          return;
+        }
+        if(registeredUsers.some((user)=> (user.email || '').toLowerCase() === email)){
+          setInviteStatus('Ya existe un usuario registrado con ese correo.', 'err');
+          return;
+        }
+        const pending = userInvites.find((invite)=> (invite.email || '').toLowerCase() === email && invite.status === 'pendiente');
+        if(pending){
+          setInviteStatus('Ya hay una invitación pendiente para este correo.', 'err');
+          return;
+        }
+        if(!password || password.length < 8){
+          setInviteStatus('Definí una contraseña de al menos 8 caracteres.', 'err');
+          return;
+        }
+        if(password !== confirmPassword){
+          setInviteStatus('Las contraseñas no coinciden.', 'err');
+          return;
+        }
+        if(typeof gsAuth.adminCreateUser !== 'function'){
+          setInviteStatus('La plataforma no admite registro automático de usuarios en este entorno.', 'err');
+          return;
+        }
+        const db = getDb();
+        if(!db){
+          setInviteStatus('Firestore no está disponible en este momento.', 'err');
+          return;
+        }
+        setInvitePending(true);
+        setInviteStatus('Creando el usuario en Firebase Authentication…');
+        try{
+          const created = await gsAuth.adminCreateUser({ email, password, displayName: name, role, organizationId, organizationName });
+          const serverTimestamp = FieldValue ? FieldValue.serverTimestamp() : Date.now();
+          const batch = typeof db.batch === 'function' ? db.batch() : null;
+          const inviteRef = db.collection('usuarios_invites').doc();
+          const userRef = created && created.uid ? db.collection('usuarios').doc(created.uid) : null;
+          const invitePayload = {
+            email,
+            role,
+            status: 'completada',
+            createdBy: currentSession && currentSession.user ? currentSession.user.uid : null,
+            createdAt: serverTimestamp,
+            updatedAt: serverTimestamp
+          };
+          if(name){ invitePayload.displayName = name; }
+          if(notes){ invitePayload.notes = notes; }
+          const userPayload = {
+            email,
+            role,
+            displayName: name || created.displayName || '',
+            notes,
+            createdBy: currentSession && currentSession.user ? currentSession.user.uid : null,
+            createdAt: serverTimestamp,
+            updatedAt: serverTimestamp,
+            status: 'activo'
+          };
+          if(created && created.organizationId){
+            invitePayload.organizationId = created.organizationId;
+            userPayload.organizationId = created.organizationId;
+          }else if(organizationId){
+            invitePayload.organizationId = organizationId;
+            userPayload.organizationId = organizationId;
+          }
+          if(created && created.organizationName){
+            invitePayload.organizationName = created.organizationName;
+            userPayload.organizationName = created.organizationName;
+          }else if(organizationName){
+            invitePayload.organizationName = organizationName;
+            userPayload.organizationName = organizationName;
+          }
+          if(created && created.welcomeEmailSent){
+            userPayload.welcomeEmailSent = true;
+            userPayload.welcomeEmailSentAt = serverTimestamp;
+          }else if(created && created.welcomeEmailError){
+            userPayload.welcomeEmailSent = false;
+            userPayload.welcomeEmailError = created.welcomeEmailError;
+            userPayload.welcomeEmailCheckedAt = serverTimestamp;
+          }
+          if(batch && inviteRef && userRef){
+            batch.set(inviteRef, invitePayload);
+            batch.set(userRef, userPayload);
+            await batch.commit();
+          }else{
+            await inviteRef.set(invitePayload);
+            if(userRef){ await userRef.set(userPayload, { merge: true }); }
+          }
+          const now = Date.now();
+          const roleLabel = labelRole(role);
+          let successMessage = `Cuenta registrada para ${email} · ${roleLabel}.`;
+          if(created && created.welcomeEmailSent){
+            successMessage += ' Enviamos un correo de bienvenida con los pasos para acceder.';
+          }else if(created && created.welcomeEmailError){
+            successMessage += ' No se pudo enviar el correo automático, revisá la configuración de Firebase.';
+          }
+          setInviteStatus(successMessage, 'ok');
+          const newInvite = Object.assign({}, invitePayload, { id: inviteRef.id, createdAt: now, updatedAt: now });
+          const newUser = Object.assign({}, userPayload, { id: created && created.uid ? created.uid : email, createdAt: now, updatedAt: now });
+          userInvites = [newInvite].concat(userInvites.filter((item)=> (item.email || '').toLowerCase() !== email));
+          registeredUsers = registeredUsers.filter((item)=> (item.email || '').toLowerCase() !== email && item.id !== newUser.id).concat([newUser]);
+          renderInvites();
+          renderUsers();
+          updateTimestamps();
+          writeCache(CACHE_KEYS.invites, { items: userInvites });
+          writeCache(CACHE_KEYS.users, { items: registeredUsers });
+          inviteForm.reset();
+          if(inviteRole){ inviteRole.value = 'control'; }
+          const resolvedOrgId = normalizeOrganizationId(userPayload.organizationId);
+          const resolvedOrgName = userPayload.organizationName || '';
+          if(resolvedOrgId && !availableOrganizations.some((item)=> item && item.id === resolvedOrgId)){
+            const nameForOrg = resolvedOrgName || (resolvedOrgId === 'default' ? 'General' : '');
+            availableOrganizations.push({
+              id: resolvedOrgId,
+              name: nameForOrg,
+              organizationId: resolvedOrgId,
+              organizationName: nameForOrg
+            });
+          }
+          updateOrganizationSelect();
+          inviteEmail?.focus();
+        }catch(err){
+          console.error('No se pudo crear la cuenta', err);
+          const message = err && err.message ? err.message : err;
+          setInviteStatus('No se pudo registrar la cuenta: ' + message + '. Revisá Firebase Authentication para confirmar si la cuenta se creó parcialmente.', 'err');
+        }finally{
+          setInvitePending(false);
+          setFormAvailability();
+        }
+      });
+    }
+
+    if(usersBody){
+      usersBody.addEventListener('click', (event)=>{
+        const target = event.target instanceof Element
+          ? event.target.closest('[data-action="delete-user"]')
+          : null;
+        if(!target){ return; }
+        event.preventDefault();
+        handleUserDeletion(target);
+      });
+    }
+
+    gsAuth.onAuthStateChanged((user)=>{
+      document.body.classList.remove('checking-session');
+      if(isDemoSession()){
+        document.body.classList.add('gs-authenticated');
+        if(loginMsg){ loginMsg.textContent = 'Demo de solo lectura'; }
+        applyDemoUsuarios();
+        return;
+      }
+      if(user){
+        document.body.classList.add('gs-authenticated');
+        if(loginMsg){ loginMsg.textContent = '✅ Sesión activa'; }
+        hydratedFromCache = !!(userInvites.length || registeredUsers.length);
+      }else{
+        document.body.classList.remove('gs-authenticated');
+        if(loginMsg){ loginMsg.textContent = ''; }
+        hydratedFromCache = false;
+      }
+    });
+
+    requireLogin({
+      // Mantener la vista embebida sin redirecciones mientras sincroniza la sesión compartida.
+      message: 'Iniciá sesión desde el tablero principal para gestionar cuentas y roles.',
+      deniedMessage: 'Necesitás rol Administrador para crear o actualizar cuentas.',
+      redirectTo: 'index.html#/usuarios',
+      allowedRoles: ['admin','manager']
+    });
+
+    gsAuth.onSession((session)=>{
+      currentSession = session;
+      canManageUsers = sessionCanManageUsers(session);
+      if(canManageUsers){
+        if(!organizationsLoaded){
+          organizationsLoaded = true;
+          loadOrganizations();
+        }else{
+          updateOrganizationSelect();
+        }
+      }else{
+        availableOrganizations = [];
+        organizationsLoaded = false;
+        updateOrganizationSelect();
+      }
+      updateAccessUi(session);
+      toggleLoader();
+      renderPermissionsMatrix();
+      refreshSecurityUi();
+      loadActivityLog();
+    });
+  </script>
+</body>
+</html>

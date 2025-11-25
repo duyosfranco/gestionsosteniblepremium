@@ -1,0 +1,873 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Temas – Gestión Sostenible</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://www.gstatic.com https://www.googleapis.com https://firestore.googleapis.com https://www.google.com https://maps.googleapis.com data: blob:; frame-ancestors 'self'; script-src 'self' https://www.gstatic.com https://www.googleapis.com https://maps.googleapis.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://maps.googleapis.com https://maps.gstatic.com; connect-src 'self' https://www.googleapis.com https://firestore.googleapis.com https://maps.googleapis.com https://identitytoolkit.googleapis.com;" />
+  <script>
+    if(window.self !== window.top){
+      document.documentElement.classList.add('is-embedded');
+    }
+    if(window.self === window.top){
+      window.location.replace('index.html#/temas');
+    }
+  </script>
+  <style>
+    :root{
+      --ink:#0D2B3D; --ink2:#0b1f2a;
+      --muted:#5e6f7c; --line:#dfe8f1;
+      --bg:#f2f6fb; --bg2:#ffffff;
+      --accent:#1DBF73; --accent2:#16a062; --accent3:#13a660; --accent-soft:#E8FFF5;
+      --nav:#0f3346; --nav-contrast:#ffffff; --nav-contrast-soft:rgba(255,255,255,.85); --nav-contrast-muted:rgba(255,255,255,.65);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;background:linear-gradient(180deg,var(--bg) 0%,#ffffff 70%);color:var(--ink2);min-height:100vh;padding:28px}
+    body.gs-authenticated #loginCard{display:none}
+    body:not(.gs-authenticated) .requires-auth{display:none}
+    html.is-embedded body #loginCard{display:none}
+    html.is-embedded body:not(.gs-authenticated) .module-loader{display:flex}
+    .wrap{max-width:1080px;margin:0 auto;display:grid;gap:24px;padding-bottom:48px}
+    .page-head{display:grid;gap:8px}
+    .page-head h1{margin:0;font-size:30px;color:var(--ink)}
+    .page-head p{margin:0;font-size:16px;color:var(--muted);line-height:1.5}
+    .card{background:linear-gradient(180deg,#ffffff 0%,#f9fcff 100%);border-radius:18px;border:1px solid var(--line);box-shadow:0 12px 28px rgba(13,43,61,.1);padding:24px;display:grid;gap:22px}
+    .theme-card{gap:24px}
+    .theme-top{display:grid;gap:6px}
+    .theme-top h2{margin:0;font-size:22px;color:var(--ink)}
+    .theme-top p{margin:0;font-size:15px;color:var(--muted)}
+    .theme-grid{display:grid;gap:24px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+    .theme-column{display:grid;gap:16px;align-content:start}
+    label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+    input[type="text"]{font-size:15px;padding:10px 12px;border-radius:12px;border:1px solid #d7e3ec;transition:border .2s ease,box-shadow .2s ease}
+    input[type="text"]:focus-visible{outline:3px solid rgba(16,113,150,.25);outline-offset:2px;border-color:#5eb2d3;box-shadow:0 0 0 3px rgba(16,113,150,.16)}
+    input[type="color"]{width:100%;height:44px;border-radius:12px;border:1px solid #d7e3ec;padding:0;background:transparent;cursor:pointer}
+    .file-field{position:relative;display:grid;gap:8px}
+    .file-field input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer}
+    .file-trigger{display:flex;align-items:center;justify-content:space-between;border:1px dashed var(--line);border-radius:14px;padding:14px 16px;font-size:14px;color:var(--muted);background:rgba(15,51,70,.02);transition:background .2s ease,border-color .2s ease}
+    .file-field:hover .file-trigger{background:rgba(15,51,70,.05);border-color:rgba(15,51,70,.2)}
+    .logo-preview{border:1px dashed var(--line);border-radius:16px;min-height:140px;display:grid;place-items:center;background:var(--accent-soft);padding:18px;text-align:center;color:var(--muted);transition:opacity .2s ease,filter .2s ease}
+    .logo-preview.disabled{opacity:.55;filter:grayscale(.2)}
+    .logo-preview img{max-width:100%;max-height:100%;display:none}
+    .logo-preview.has-image img{display:block}
+    .logo-preview.has-image span{display:none}
+    .palette-grid{display:grid;gap:14px}
+    .hint{font-size:12px;color:var(--muted)}
+    .preview-card{border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 12px 24px rgba(13,43,61,.12);background:linear-gradient(180deg,var(--bg2,#ffffff) 0%,rgba(255,255,255,.92) 100%);position:relative}
+    .preview-card::after{content:"";position:absolute;inset:0;border-radius:18px;pointer-events:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+    .preview-nav{background:var(--nav);color:var(--nav-contrast);padding:18px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+    .preview-brand{display:flex;align-items:center;gap:12px;font-weight:700;font-size:16px;--preview-logo-aspect:1}
+    .preview-brand .preview-logo{
+      min-width:38px;
+      width:var(--preview-logo-width,42px);
+      height:var(--preview-logo-height,42px);
+      border-radius:12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:rgba(255,255,255,.12);
+      color:rgba(12,42,60,.8);
+      overflow:hidden;
+      padding:4px;
+      transition:width .2s ease, height .2s ease, background .2s ease;
+    }
+    .preview-brand .preview-logo span{font-weight:800}
+    .preview-brand img{width:100%;height:100%;object-fit:contain;display:none}
+    .preview-brand[data-has-logo="true"] .preview-logo{background:transparent;padding:0}
+    .preview-brand[data-has-logo="true"] img{display:block;filter:drop-shadow(0 2px 4px rgba(0,0,0,.18))}
+    .preview-brand[data-has-logo="true"] span{display:none}
+    .preview-brand[data-logo-shape="wide"] .preview-logo{--preview-logo-width:clamp(56px, calc(42px * var(--preview-logo-aspect,1.4)), 160px)}
+    .preview-brand[data-logo-shape="tall"] .preview-logo{--preview-logo-height:clamp(42px, calc(42px / clamp(.45, var(--preview-logo-aspect,1), 5)), 78px)}
+    .preview-session{font-size:13px;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.12);color:var(--nav-contrast-soft)}
+    .preview-body{padding:22px;display:grid;gap:18px}
+    .preview-hero{display:grid;gap:8px}
+    .preview-hero h3{margin:0;font-size:20px;color:var(--ink)}
+    .preview-hero p{margin:0;font-size:14px;color:var(--muted);max-width:520px}
+    .preview-actions{display:flex;gap:12px;flex-wrap:wrap}
+    .preview-actions .btn{height:40px;padding:0 16px;border-radius:12px;font-weight:600;border:none;cursor:pointer}
+    .preview-actions .btn.primary{background:var(--accent);color:#fff;box-shadow:0 10px 20px rgba(29,191,115,.18)}
+    .preview-actions .btn.secondary{background:rgba(15,51,70,.05);color:var(--ink)}
+    .preview-metrics{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+    .preview-metric{background:linear-gradient(180deg,#ffffff 0%,#f4f9fd 100%);border-radius:16px;border:1px solid var(--line);padding:16px;display:grid;gap:6px}
+    .preview-metric .label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+    .preview-metric .value{font-size:24px;font-weight:700;color:var(--ink)}
+    .preview-metric .meta{font-size:12px;color:var(--muted)}
+    .form-actions{display:flex;justify-content:flex-end;gap:12px;flex-wrap:wrap}
+    .btn{display:inline-flex;align-items:center;justify-content:center;border-radius:12px;border:none;cursor:pointer;font-weight:600;height:44px;padding:0 18px;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
+    .btn.primary{background:var(--accent);color:#fff;box-shadow:0 10px 22px rgba(29,191,115,.24)}
+    .btn.primary:hover{background:var(--accent2);transform:translateY(-1px);box-shadow:0 12px 26px rgba(22,160,98,.28)}
+    .btn.primary:active{background:var(--accent3);transform:translateY(0)}
+    .btn.subtle{background:rgba(15,51,70,.05);color:var(--ink)}
+    .btn.subtle:hover{background:rgba(15,51,70,.08)}
+    .btn[disabled]{opacity:.65;cursor:not-allowed;transform:none;box-shadow:none}
+    .status-msg{min-height:18px;font-size:13px;color:var(--muted)}
+    .status-msg.ok{color:#0d8a52}
+    .status-msg.err{color:#b00020}
+    .status-msg.warn{color:#c07602}
+    .note{font-size:13px;color:var(--muted)}
+    .module-loader{position:fixed;inset:0;background:rgba(248,252,255,.92);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;font-size:15px;color:var(--muted);backdrop-filter:blur(6px);transition:opacity .25s ease,visibility .25s ease;z-index:10}
+    .module-loader.hidden{opacity:0;visibility:hidden;pointer-events:none}
+    .spinner{width:36px;height:36px;border-radius:50%;border:3px solid rgba(16,113,150,.18);border-top-color:var(--accent);animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .login-card{max-width:420px;margin:60px auto 0;padding:26px;background:rgba(15,51,70,.9);color:#f0fbff;border-radius:20px;box-shadow:0 18px 40px rgba(0,0,0,.3);text-align:center}
+    .login-card h1{margin:0 0 12px;font-size:22px}
+    .login-card p{margin:0;font-size:15px;line-height:1.5;color:#e2f4ff}
+    @media(max-width:720px){
+      body{padding:22px}
+      .card{padding:22px}
+      .theme-grid{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <script>
+    document.documentElement.classList.add('theme-applied');
+    document.body.classList.add('theme-applied');
+  </script>
+  <main class="wrap requires-auth" id="themeWrap">
+    <header class="page-head">
+      <h1>Temas y branding</h1>
+      <p>Personalizá la experiencia cambiando el logotipo y la paleta de colores para alinear la plataforma con tu identidad corporativa.</p>
+    </header>
+    <form class="card theme-card" id="themeForm" novalidate>
+      <div class="theme-top">
+        <h2>Ajustes principales</h2>
+        <p>Definí un nombre comercial, elegí tu logotipo y ajustá los colores clave. Previsualizá el resultado antes de aplicar los cambios.</p>
+      </div>
+      <div class="theme-grid">
+        <section class="theme-column">
+          <label for="brandName">Nombre comercial
+            <input type="text" id="brandName" name="brandName" placeholder="Ej: Gestión Circular" maxlength="80" />
+            <span class="hint">Se mostrará en el menú lateral y en la pantalla de acceso.</span>
+          </label>
+          <div class="file-field">
+            <div class="file-trigger">Subí tu logotipo <span aria-hidden="true">📁</span></div>
+            <input type="file" id="logoInput" accept="image/png,image/jpeg,image/svg+xml" />
+          </div>
+          <div class="logo-preview" id="logoPreview">
+            <span>Arrastrá una imagen o seleccioná un archivo</span>
+            <img id="logoPreviewImg" alt="Vista previa del logotipo" />
+          </div>
+          <button class="btn subtle" type="button" id="logoRemove">Quitar logotipo</button>
+        </section>
+        <section class="theme-column palette-grid">
+          <label for="accentColor">Color destacado
+            <input type="color" id="accentColor" name="accentColor" value="#1DBF73" />
+            <span class="hint">Botones y elementos interactivos.</span>
+          </label>
+          <label for="navColor">Color del menú lateral
+            <input type="color" id="navColor" name="navColor" value="#0f3346" />
+            <span class="hint">Fondo del panel de navegación.</span>
+          </label>
+          <label for="bgColor">Fondo principal
+            <input type="color" id="bgColor" name="bgColor" value="#f2f6fb" />
+            <span class="hint">Degradado del escritorio y tarjetas.</span>
+          </label>
+          <label for="inkColor">Texto principal
+            <input type="color" id="inkColor" name="inkColor" value="#0D2B3D" />
+            <span class="hint">Titulares y valores de métricas.</span>
+          </label>
+        </section>
+      </div>
+      <section class="preview-card" id="previewCard">
+        <div class="preview-nav">
+          <div class="preview-brand" id="previewBrand" data-has-logo="false">
+            <div class="preview-logo" id="previewLogoWrap"><span aria-hidden="true">GS</span><img id="previewLogo" alt="Previsualización de logotipo" /></div>
+            <span id="previewBrandName">Gestión Sostenible</span>
+          </div>
+          <div class="preview-session">Administrador</div>
+        </div>
+        <div class="preview-body">
+          <div class="preview-hero">
+            <h3>Así se verá tu inicio</h3>
+            <p>Los KPIs, la navegación y el ingreso heredarán estos colores para mantener una identidad coherente.</p>
+          </div>
+          <div class="preview-actions">
+            <button class="btn primary" type="button" disabled>Acción principal</button>
+            <button class="btn secondary" type="button" disabled>Acción secundaria</button>
+          </div>
+          <div class="preview-metrics">
+            <div class="preview-metric">
+              <span class="label">Clientes activos</span>
+              <span class="value">128</span>
+              <span class="meta">Sincronizados</span>
+            </div>
+            <div class="preview-metric">
+              <span class="label">Retiros de hoy</span>
+              <span class="value">32</span>
+              <span class="meta">Planificados</span>
+            </div>
+            <div class="preview-metric">
+              <span class="label">Cobros del mes</span>
+              <span class="value">U$S 54K</span>
+              <span class="meta">Actualizado</span>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div class="form-actions">
+        <button class="btn primary" type="submit" id="themeSave">Guardar tema</button>
+        <button class="btn subtle" type="button" id="themeReset">Restablecer</button>
+      </div>
+      <p class="status-msg" id="themeStatus" role="status" aria-live="polite"></p>
+    </form>
+    <p class="note">Los cambios se aplican inmediatamente a la navegación principal una vez guardados.</p>
+  </main>
+
+  <div class="module-loader" id="moduleLoader" role="status" aria-live="polite" aria-busy="true">
+    <div class="spinner" aria-hidden="true"></div>
+    <p id="loaderText">Sincronizando permisos…</p>
+  </div>
+
+  <section class="login-card" id="loginCard" aria-labelledby="loginTitle">
+    <h1 id="loginTitle">Iniciá sesión</h1>
+    <p>Accedé desde la pantalla principal para personalizar los colores y logotipos compartidos.</p>
+  </section>
+
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
+  <script src="assets/demo-data.js"></script>
+  <script src="assets/gs-auth.js"></script>
+  <script>
+    const $ = (id)=> document.getElementById(id);
+    const moduleLoader = $('moduleLoader');
+    const loaderText = $('loaderText');
+    const themeForm = $('themeForm');
+    const brandNameInput = $('brandName');
+    const logoInput = $('logoInput');
+    const logoPreview = $('logoPreview');
+    const logoPreviewImg = $('logoPreviewImg');
+    const logoRemove = $('logoRemove');
+    const accentColor = $('accentColor');
+    const navColor = $('navColor');
+    const bgColor = $('bgColor');
+    const inkColor = $('inkColor');
+    const previewCard = $('previewCard');
+    const previewBrand = $('previewBrand');
+    const previewBrandName = $('previewBrandName');
+    const previewLogoWrap = $('previewLogoWrap');
+    const previewLogo = $('previewLogo');
+    const themeSave = $('themeSave');
+    const themeReset = $('themeReset');
+    const themeStatus = $('themeStatus');
+
+    const DEFAULT_BRAND = 'Gestión Sostenible';
+    let previewLogoMetrics = null;
+    const isDemoSession = ()=> !!(window.gsAuth && typeof gsAuth.isDemoSession === 'function' && gsAuth.isDemoSession());
+
+    function computePreviewMetrics(logo, image){
+      const baseWidth = 42;
+      const baseHeight = 42;
+      const metrics = { width: `${baseWidth}px`, height: `${baseHeight}px`, shape: 'square', aspect: 1 };
+      if(!logo){ return metrics; }
+      let aspect = null;
+      if(typeof logo.aspect === 'number' && Number.isFinite(logo.aspect) && logo.aspect > 0){
+        aspect = logo.aspect;
+      }
+      if(!aspect && image && image.naturalWidth && image.naturalHeight){
+        aspect = image.naturalWidth / image.naturalHeight;
+      }
+      if(!aspect || !Number.isFinite(aspect) || aspect <= 0.05){
+        return metrics;
+      }
+      aspect = Math.min(Math.max(aspect, 0.1), 8);
+      metrics.aspect = aspect;
+      if(aspect >= 1.35){
+        metrics.shape = 'wide';
+        metrics.width = `${Math.min(Math.max(baseWidth * aspect, 52), 168).toFixed(2)}px`;
+        metrics.height = `${baseHeight}px`;
+      }else if(aspect <= 0.75){
+        metrics.shape = 'tall';
+        metrics.width = `${baseWidth}px`;
+        metrics.height = `${Math.min(Math.max(baseHeight / Math.max(aspect, 0.2), baseHeight), 78).toFixed(2)}px`;
+      }else{
+        metrics.shape = 'square';
+        metrics.width = `${Math.min(Math.max(baseWidth * Math.max(aspect, 0.9), 40), 60).toFixed(2)}px`;
+        metrics.height = `${baseHeight}px`;
+      }
+      return metrics;
+    }
+
+    function applyPreviewMetrics(metrics){
+      if(!metrics){ return; }
+      if(previewLogoWrap){
+        previewLogoWrap.style.setProperty('--preview-logo-width', metrics.width);
+        previewLogoWrap.style.setProperty('--preview-logo-height', metrics.height);
+        previewLogoWrap.style.width = metrics.width;
+        previewLogoWrap.style.height = metrics.height;
+      }
+      if(previewBrand){
+        if(metrics.shape){
+          previewBrand.dataset.logoShape = metrics.shape;
+        }else{
+          delete previewBrand.dataset.logoShape;
+        }
+        previewBrand.style.setProperty('--preview-logo-aspect', metrics.aspect ? metrics.aspect.toFixed(3) : '1');
+      }
+      previewLogoMetrics = metrics;
+    }
+
+    function resetPreviewMetrics(){
+      previewLogoMetrics = null;
+      if(previewLogoWrap){
+        previewLogoWrap.style.removeProperty('--preview-logo-width');
+        previewLogoWrap.style.removeProperty('--preview-logo-height');
+        previewLogoWrap.style.removeProperty('width');
+        previewLogoWrap.style.removeProperty('height');
+      }
+      if(previewBrand){
+        previewBrand.style.removeProperty('--preview-logo-aspect');
+        delete previewBrand.dataset.logoShape;
+      }
+    }
+
+    function ensurePreviewMetrics(logo){
+      if(!logo){
+        resetPreviewMetrics();
+        return;
+      }
+      const metrics = computePreviewMetrics(logo, previewLogo);
+      if(!previewLogoMetrics
+        || previewLogoMetrics.width !== metrics.width
+        || previewLogoMetrics.height !== metrics.height
+        || previewLogoMetrics.shape !== metrics.shape){
+        applyPreviewMetrics(metrics);
+      }
+    }
+
+    const DEFAULT_PALETTE = {
+      accent: '#1DBF73',
+      accent2: '#16a062',
+      accent3: '#13a660',
+      accentSoft: '#E8FFF5',
+      nav: '#0f3346',
+      nav2: '#0b2a3b',
+      navContrast: '#ffffff',
+      navContrastSoft: 'rgba(255,255,255,.85)',
+      navContrastMuted: 'rgba(255,255,255,.65)',
+      ink: '#0D2B3D',
+      ink2: '#0b1f2a',
+      muted: '#6b7c8a',
+      line: '#dfe8f1',
+      bg: '#f2f6fb',
+      bg2: '#ffffff',
+      card: '#ffffff',
+      overlay: 'rgba(15,51,70,.55)'
+    };
+
+    const themeState = {
+      palette: Object.assign({}, DEFAULT_PALETTE),
+      logo: null,
+      brandName: DEFAULT_BRAND,
+      saving: false,
+      canManage: false
+    };
+    let previewTimer = null;
+
+    function normalizeHex(value, fallback){
+      if(typeof value !== 'string'){ return fallback; }
+      const trimmed = value.trim();
+      if(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(trimmed)){
+        let hex = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed;
+        if(hex.length === 3){ hex = hex.split('').map((c)=> c + c).join(''); }
+        return '#' + hex.toUpperCase();
+      }
+      return fallback;
+    }
+
+    function hexToRgb(hex){
+      const normalized = normalizeHex(hex);
+      if(!normalized) return null;
+      const int = parseInt(normalized.slice(1), 16);
+      return {
+        r: (int >> 16) & 255,
+        g: (int >> 8) & 255,
+        b: int & 255
+      };
+    }
+
+    function rgbToHex(r, g, b){
+      const clamp = (v)=> Math.max(0, Math.min(255, Math.round(v)));
+      return '#' + [clamp(r), clamp(g), clamp(b)].map((v)=> v.toString(16).padStart(2, '0')).join('').toUpperCase();
+    }
+
+    function mixColors(hexA, hexB, ratio){
+      const a = hexToRgb(hexA) || { r: 0, g: 0, b: 0 };
+      const b = hexToRgb(hexB) || { r: 255, g: 255, b: 255 };
+      const t = Math.max(0, Math.min(1, ratio));
+      return rgbToHex(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t);
+    }
+
+    function adjustColor(hex, amount){
+      const rgb = hexToRgb(hex);
+      if(!rgb) return hex;
+      const target = amount >= 0 ? { r: 255, g: 255, b: 255 } : { r: 0, g: 0, b: 0 };
+      const t = Math.min(1, Math.max(0, Math.abs(amount)));
+      return rgbToHex(
+        rgb.r + (target.r - rgb.r) * t,
+        rgb.g + (target.g - rgb.g) * t,
+        rgb.b + (target.b - rgb.b) * t
+      );
+    }
+
+    function luminance(hex){
+      const rgb = hexToRgb(hex);
+      if(!rgb) return 0;
+      const toLinear = (v)=>{
+        const s = v / 255;
+        return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+      };
+      return 0.2126 * toLinear(rgb.r) + 0.7152 * toLinear(rgb.g) + 0.0722 * toLinear(rgb.b);
+    }
+
+    function rgbaString(hex, alpha){
+      const rgb = hexToRgb(hex) || { r: 255, g: 255, b: 255 };
+      const a = Math.max(0, Math.min(1, alpha));
+      return `rgba(${rgb.r},${rgb.g},${rgb.b},${a})`;
+    }
+
+    function derivePalette(base){
+      const palette = Object.assign({}, DEFAULT_PALETTE, base || {});
+      palette.accent = normalizeHex(palette.accent, DEFAULT_PALETTE.accent);
+      palette.nav = normalizeHex(palette.nav, palette.accent ? adjustColor(palette.accent, -0.45) : DEFAULT_PALETTE.nav);
+      palette.bg = normalizeHex(palette.bg, DEFAULT_PALETTE.bg);
+      palette.bg2 = normalizeHex(palette.bg2, DEFAULT_PALETTE.bg2);
+      palette.ink = normalizeHex(palette.ink, DEFAULT_PALETTE.ink);
+      palette.ink2 = normalizeHex(palette.ink2, adjustColor(palette.ink || DEFAULT_PALETTE.ink, -0.15));
+      palette.accent2 = normalizeHex(palette.accent2, adjustColor(palette.accent, -0.18));
+      palette.accent3 = normalizeHex(palette.accent3, adjustColor(palette.accent, -0.32));
+      palette.accentSoft = normalizeHex(palette.accentSoft, mixColors(palette.accent, '#ffffff', 0.75));
+      palette.nav2 = normalizeHex(palette.nav2, adjustColor(palette.nav, -0.12));
+      const navContrast = palette.navContrast || (luminance(palette.nav) > 0.55 ? '#142A39' : '#FFFFFF');
+      palette.navContrast = normalizeHex(navContrast, navContrast);
+      palette.navContrastSoft = palette.navContrastSoft || rgbaString(palette.navContrast, 0.85);
+      palette.navContrastMuted = palette.navContrastMuted || rgbaString(palette.navContrast, 0.65);
+      palette.muted = normalizeHex(palette.muted, mixColors(palette.ink, '#7a8d9a', 0.55));
+      palette.line = normalizeHex(palette.line, mixColors(palette.navContrast, palette.nav, 0.85));
+      palette.card = normalizeHex(palette.card, DEFAULT_PALETTE.card);
+      palette.overlay = palette.overlay || 'rgba(15,51,70,.55)';
+      return palette;
+    }
+
+    function setThemeStatus(text='', state){
+      if(!themeStatus) return;
+      themeStatus.textContent = text;
+      themeStatus.classList.remove('ok','err','warn');
+      if(state){ themeStatus.classList.add(state); }
+    }
+
+    function setSaving(pending){
+      themeState.saving = !!pending;
+      if(themeSave){
+        themeSave.disabled = pending || !themeState.canManage;
+        themeSave.textContent = pending ? 'Guardando…' : 'Guardar tema';
+      }
+      if(themeReset){
+        themeReset.disabled = pending || !themeState.canManage;
+      }
+      syncControlsFromState();
+    }
+
+    function queueThemePreview(){
+      if(!themeState.canManage || themeState.saving){ return; }
+      if(!window.gsAuth || typeof gsAuth.previewTheme !== 'function'){ return; }
+      if(previewTimer){ window.clearTimeout(previewTimer); }
+      previewTimer = window.setTimeout(()=>{
+        previewTimer = null;
+        try{
+          const payload = {
+            palette: Object.assign({}, themeState.palette),
+            logo: themeState.logo
+              ? Object.assign({}, themeState.logo, { name: themeState.brandName || themeState.logo.name || DEFAULT_BRAND })
+              : null,
+            brandName: themeState.brandName || (themeState.logo && themeState.logo.name) || DEFAULT_BRAND,
+            updatedAt: Date.now()
+          };
+          gsAuth.previewTheme(payload);
+        }catch(err){
+          console.warn('No se pudo previsualizar el tema', err);
+        }
+      }, 160);
+    }
+
+    function applyPaletteToPreview(){
+      if(!previewCard) return;
+      const palette = themeState.palette;
+      Object.keys(palette).forEach((key)=>{
+        const value = palette[key];
+        if(typeof value === 'string'){ previewCard.style.setProperty(`--${key.replace(/([A-Z])/g,'-$1').toLowerCase()}`, value); }
+      });
+      const hasLogo = !!(themeState.logo && themeState.logo.dataUrl);
+      if(previewBrand){ previewBrand.dataset.hasLogo = hasLogo ? 'true' : 'false'; }
+      if(hasLogo){
+        if(previewLogo && previewLogo.src !== themeState.logo.dataUrl){ previewLogo.src = themeState.logo.dataUrl; }
+        ensurePreviewMetrics(themeState.logo);
+      }else{
+        if(previewLogo){ previewLogo.removeAttribute('src'); }
+        resetPreviewMetrics();
+      }
+      if(previewBrandName){ previewBrandName.textContent = themeState.brandName || DEFAULT_BRAND; }
+      if(logoPreview){
+        if(hasLogo){
+          logoPreview.classList.add('has-image');
+          if(logoPreviewImg.src !== themeState.logo.dataUrl){ logoPreviewImg.src = themeState.logo.dataUrl; }
+        }else{
+          logoPreview.classList.remove('has-image');
+          logoPreviewImg.removeAttribute('src');
+        }
+      }
+    }
+
+    function syncControlsFromState(){
+      if(brandNameInput){ brandNameInput.value = themeState.brandName || ''; }
+      if(accentColor){ accentColor.value = normalizeHex(themeState.palette.accent, DEFAULT_PALETTE.accent); }
+      if(navColor){ navColor.value = normalizeHex(themeState.palette.nav, DEFAULT_PALETTE.nav); }
+      if(bgColor){ bgColor.value = normalizeHex(themeState.palette.bg, DEFAULT_PALETTE.bg); }
+      if(inkColor){ inkColor.value = normalizeHex(themeState.palette.ink, DEFAULT_PALETTE.ink); }
+      const disabled = !themeState.canManage || themeState.saving;
+      const hasLogo = !!(themeState.logo && themeState.logo.dataUrl);
+      if(logoPreview){
+        logoPreview.classList.toggle('has-image', hasLogo);
+        logoPreview.classList.toggle('disabled', disabled);
+      }
+      if(logoPreviewImg){
+        if(hasLogo){
+          if(logoPreviewImg.src !== themeState.logo.dataUrl){ logoPreviewImg.src = themeState.logo.dataUrl; }
+        }else{
+          logoPreviewImg.removeAttribute('src');
+        }
+      }
+      if(logoRemove){ logoRemove.disabled = !hasLogo || disabled; }
+      if(logoInput){ logoInput.disabled = disabled; }
+      if(brandNameInput){ brandNameInput.disabled = disabled; }
+      if(accentColor){ accentColor.disabled = disabled; }
+      if(navColor){ navColor.disabled = disabled; }
+      if(bgColor){ bgColor.disabled = disabled; }
+      if(inkColor){ inkColor.disabled = disabled; }
+      applyPaletteToPreview();
+    }
+
+    if(previewLogo){
+      previewLogo.addEventListener('load', ()=>{
+        if(themeState.logo && themeState.logo.dataUrl){ ensurePreviewMetrics(themeState.logo); }
+      });
+      previewLogo.addEventListener('error', ()=>{
+        resetPreviewMetrics();
+        if(previewBrand){ previewBrand.dataset.hasLogo = 'false'; }
+      });
+    }
+
+    function updatePalette(partial){
+      themeState.palette = derivePalette(Object.assign({}, themeState.palette, partial));
+      applyPaletteToPreview();
+      queueThemePreview();
+    }
+
+    function handleLogoFile(file){
+      if(!file || !themeState.canManage || themeState.saving) return;
+      const reader = new FileReader();
+      const fileName = file && file.name ? file.name : '';
+      reader.onload = (event)=>{
+        const dataUrl = event.target.result;
+        if(typeof dataUrl !== 'string'){ return; }
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = ()=>{
+          const baseName = fileName ? fileName.replace(/\.[^.]+$/, '').trim() : '';
+          if(baseName && (!themeState.brandName || themeState.brandName === DEFAULT_BRAND)){
+            themeState.brandName = baseName;
+            if(brandNameInput && !brandNameInput.value.trim()){ brandNameInput.value = baseName; }
+          }
+          const aspect = img.naturalWidth && img.naturalHeight
+            ? Number((img.naturalWidth / img.naturalHeight).toFixed(3))
+            : undefined;
+          themeState.logo = Object.assign({}, themeState.logo || {}, {
+            dataUrl,
+            name: themeState.brandName || baseName || DEFAULT_BRAND,
+            aspect
+          });
+          const palette = extractPaletteFromImage(img);
+          if(palette){
+            themeState.palette = derivePalette(Object.assign({}, themeState.palette, palette));
+          }
+          syncControlsFromState();
+          queueThemePreview();
+        };
+        img.src = dataUrl;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function extractPaletteFromImage(image){
+      try{
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if(!ctx){ return null; }
+        const maxSize = 240;
+        const ratio = Math.max(image.naturalWidth, image.naturalHeight) / maxSize;
+        const width = ratio > 1 ? Math.round(image.naturalWidth / ratio) : image.naturalWidth;
+        const height = ratio > 1 ? Math.round(image.naturalHeight / ratio) : image.naturalHeight;
+        canvas.width = Math.max(1, width);
+        canvas.height = Math.max(1, height);
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const buckets = new Map();
+        const step = Math.max(1, Math.floor(Math.max(canvas.width, canvas.height) / 140));
+        for(let y = 0; y < canvas.height; y += step){
+          for(let x = 0; x < canvas.width; x += step){
+            const idx = (y * canvas.width + x) * 4;
+            const alpha = data[idx + 3];
+            if(alpha < 128) continue;
+            const red = data[idx];
+            const green = data[idx + 1];
+            const blue = data[idx + 2];
+            if(red > 245 && green > 245 && blue > 245) continue;
+            if(red < 12 && green < 12 && blue < 12) continue;
+            const bucketKey = [
+              Math.round(red / 16),
+              Math.round(green / 16),
+              Math.round(blue / 16)
+            ].join(',');
+            const bucket = buckets.get(bucketKey) || { r: 0, g: 0, b: 0, count: 0 };
+            bucket.r += red;
+            bucket.g += green;
+            bucket.b += blue;
+            bucket.count += 1;
+            buckets.set(bucketKey, bucket);
+          }
+        }
+        if(!buckets.size){ return null; }
+        const palette = Array.from(buckets.values()).map((bucket)=>{
+          const count = bucket.count || 1;
+          const avgR = bucket.r / count;
+          const avgG = bucket.g / count;
+          const avgB = bucket.b / count;
+          const hex = rgbToHex(avgR, avgG, avgB);
+          return { count, hex, luminance: luminance(hex) };
+        }).sort((a, b)=> b.count - a.count);
+        const primary = palette[0];
+        let accent = primary.hex;
+        const accentLum = primary.luminance;
+        if(accentLum > 0.78){ accent = adjustColor(accent, -0.35); }
+        if(accentLum < 0.08){ accent = adjustColor(accent, 0.4); }
+        const secondary = palette.find((color)=> Math.abs(color.luminance - accentLum) > 0.18) || primary;
+        let nav = adjustColor(secondary.hex, -0.55);
+        if(luminance(nav) > 0.45){ nav = adjustColor(nav, -0.35); }
+        const bg = mixColors(accent, '#ffffff', 0.92);
+        const ink = luminance(bg) > 0.7 ? adjustColor(nav, 0.65) : adjustColor(nav, 0.45);
+        return { accent, nav, bg, ink };
+      }catch(err){
+        console.warn('No se pudo derivar paleta del logotipo', err);
+        return null;
+      }
+    }
+
+    if(brandNameInput){
+      brandNameInput.addEventListener('input', ()=>{
+        themeState.brandName = brandNameInput.value.trim() || DEFAULT_BRAND;
+        if(themeState.logo){ themeState.logo.name = themeState.brandName; }
+        applyPaletteToPreview();
+        queueThemePreview();
+      });
+    }
+
+    if(logoInput){
+      logoInput.addEventListener('change', (event)=>{
+        const file = event.target.files && event.target.files[0];
+        if(file){ handleLogoFile(file); }
+      });
+    }
+
+    if(logoPreview){
+      ['dragover','drop'].forEach((eventName)=>{
+        logoPreview.addEventListener(eventName, (event)=>{
+          event.preventDefault();
+          if(eventName === 'drop' && themeState.canManage && !themeState.saving){
+            const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+            if(file){ handleLogoFile(file); }
+          }
+        });
+      });
+    }
+
+    if(logoRemove){
+      logoRemove.addEventListener('click', ()=>{
+        themeState.logo = null;
+        if(logoInput){ logoInput.value = ''; }
+        syncControlsFromState();
+        queueThemePreview();
+      });
+    }
+
+    if(accentColor){
+      accentColor.addEventListener('input', ()=>{
+        const value = normalizeHex(accentColor.value, themeState.palette.accent);
+        updatePalette({ accent: value });
+      });
+    }
+
+    if(navColor){
+      navColor.addEventListener('input', ()=>{
+        const value = normalizeHex(navColor.value, themeState.palette.nav);
+        updatePalette({ nav: value });
+      });
+    }
+
+    if(bgColor){
+      bgColor.addEventListener('input', ()=>{
+        const value = normalizeHex(bgColor.value, themeState.palette.bg);
+        updatePalette({ bg: value });
+      });
+    }
+
+    if(inkColor){
+      inkColor.addEventListener('input', ()=>{
+        const value = normalizeHex(inkColor.value, themeState.palette.ink);
+        updatePalette({ ink: value });
+      });
+    }
+
+    if(themeForm){
+      themeForm.addEventListener('submit', async (event)=>{
+        event.preventDefault();
+        if(isDemoSession()){
+          setThemeStatus('La demo es de solo lectura. Iniciá sesión como Administrador para guardar cambios.', 'warn');
+          return;
+        }
+        if(!themeState.canManage){
+          setThemeStatus('Tu sesión no tiene permisos para guardar el tema.', 'warn');
+          return;
+        }
+        if(!window.gsAuth || typeof gsAuth.saveTheme !== 'function'){
+          setThemeStatus('La personalización no está disponible en este entorno.', 'err');
+          return;
+        }
+        setSaving(true);
+        setThemeStatus('Guardando cambios…');
+        try{
+          const payload = {
+            palette: themeState.palette,
+            logo: {
+              dataUrl: themeState.logo && themeState.logo.dataUrl ? themeState.logo.dataUrl : undefined,
+              name: themeState.brandName,
+              updatedAt: Date.now()
+            },
+            brandName: themeState.brandName
+          };
+          if(!payload.logo.dataUrl){ delete payload.logo.dataUrl; }
+          await gsAuth.saveTheme(payload);
+          setThemeStatus('Tema actualizado correctamente.', 'ok');
+          if(window.gsAuth && typeof gsAuth.previewTheme === 'function'){
+            gsAuth.previewTheme(null);
+          }
+        }catch(err){
+          console.error('No se pudo guardar el tema', err);
+          setThemeStatus('No se pudo guardar el tema: ' + (err?.message || err), 'err');
+        }finally{
+          setSaving(false);
+        }
+      });
+    }
+
+    if(themeReset){
+      themeReset.addEventListener('click', async ()=>{
+        if(isDemoSession()){
+          setThemeStatus('La demo es de solo lectura. Iniciá sesión como Administrador para restablecer el tema.', 'warn');
+          return;
+        }
+        if(!themeState.canManage){ return; }
+        if(!window.gsAuth || typeof gsAuth.resetTheme !== 'function'){
+          setThemeStatus('La personalización no está disponible en este entorno.', 'err');
+          return;
+        }
+        const confirmed = window.confirm('¿Restablecer el tema al estilo predeterminado?');
+        if(!confirmed){ return; }
+        setSaving(true);
+        setThemeStatus('Restableciendo tema…');
+        try{
+          await gsAuth.resetTheme();
+          themeState.logo = null;
+          themeState.brandName = DEFAULT_BRAND;
+          themeState.palette = derivePalette(DEFAULT_PALETTE);
+          syncControlsFromState();
+          setThemeStatus('Tema restablecido correctamente.', 'ok');
+          if(window.gsAuth && typeof gsAuth.previewTheme === 'function'){
+            gsAuth.previewTheme(null);
+          }
+        }catch(err){
+          console.error('No se pudo restablecer el tema', err);
+          setThemeStatus('No se pudo restablecer el tema: ' + (err?.message || err), 'err');
+        }finally{
+          setSaving(false);
+        }
+      });
+    }
+
+    function applyThemeSnapshot(theme){
+      const palette = theme && theme.palette ? theme.palette : null;
+      const logo = theme && theme.logo ? theme.logo : null;
+      const brandName = theme && theme.brandName
+        ? theme.brandName
+        : (logo && logo.name) ? logo.name : DEFAULT_BRAND;
+      themeState.palette = derivePalette(palette || DEFAULT_PALETTE);
+      themeState.logo = logo ? Object.assign({}, logo) : null;
+      themeState.brandName = brandName || DEFAULT_BRAND;
+      syncControlsFromState();
+    }
+
+    if(window.gsAuth && typeof gsAuth.onTheme === 'function'){
+      gsAuth.onTheme((theme)=>{
+        applyThemeSnapshot(theme);
+      });
+    }else{
+      syncControlsFromState();
+    }
+
+    if(window.gsAuth && typeof gsAuth.onSession === 'function'){
+      gsAuth.onSession((session)=>{
+        const status = session ? session.status : 'signed-out';
+        const user = session && session.user ? session.user : null;
+        const isDemo = status === 'demo';
+        const authenticated = !!user && (status === 'authenticated' || isDemo);
+        let canManage = !!(session && session.abilities && session.abilities.manageTheme);
+        if(isDemoSession()){ canManage = false; }
+        themeState.canManage = canManage;
+        if(moduleLoader){ moduleLoader.classList.toggle('hidden', authenticated); }
+        if(loaderText){ loaderText.textContent = authenticated ? 'Listo.' : 'Sincronizando permisos…'; }
+        document.body.classList.toggle('gs-authenticated', authenticated);
+        document.body.classList.toggle('demo-mode', isDemo);
+        if(themeSave){ themeSave.disabled = !canManage || themeState.saving; themeSave.setAttribute('aria-disabled', (!canManage || themeState.saving) ? 'true' : 'false'); }
+        if(themeReset){ themeReset.disabled = !canManage || themeState.saving; themeReset.setAttribute('aria-disabled', (!canManage || themeState.saving) ? 'true' : 'false'); }
+        if(isDemo){
+          setThemeStatus('Demo de solo lectura. Iniciá sesión como Administrador para guardar tus colores y logotipo.', 'warn');
+        }else if(!canManage){
+          setThemeStatus('Necesitás permisos de Administrador para editar el tema.', 'warn');
+          if(window.gsAuth && typeof gsAuth.previewTheme === 'function'){
+            gsAuth.previewTheme(null);
+          }
+        }else{
+          setThemeStatus('');
+        }
+        syncControlsFromState();
+      });
+    }
+
+    window.addEventListener('beforeunload', ()=>{
+      if(window.gsAuth && typeof gsAuth.previewTheme === 'function'){
+        gsAuth.previewTheme(null);
+      }
+    });
+
+    if(typeof requireLogin === 'function'){
+      // Mantener la vista embebida sin redirecciones mientras sincroniza la sesión compartida.
+      requireLogin({
+        message: 'Iniciá sesión desde la pantalla principal para personalizar el tema.',
+        deniedMessage: 'Necesitás permisos de Administrador para acceder a Temas.',
+        allowedRoles: ['admin','demo'],
+        redirectTo: 'index.html#/temas'
+      });
+    }
+  </script>
+</body>
+</html>

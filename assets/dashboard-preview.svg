@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="750" viewBox="0 0 1200 750" role="img" aria-labelledby="title desc">
+  <title id="title">Vista previa del panel Gestión Sostenible</title>
+  <desc id="desc">Captura ilustrativa del dashboard con barra lateral, métricas clave y agenda de retiros.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0c3c4f" />
+      <stop offset="60%" stop-color="#0b2f40" />
+      <stop offset="100%" stop-color="#082736" />
+    </linearGradient>
+    <linearGradient id="card" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.98" />
+      <stop offset="100%" stop-color="#f3f8fb" />
+    </linearGradient>
+    <linearGradient id="chip" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#12c078" />
+      <stop offset="100%" stop-color="#0fa068" />
+    </linearGradient>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#071c28" flood-opacity="0.32" />
+    </filter>
+    <filter id="shadowSoft" x="-6%" y="-6%" width="112%" height="112%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#0b2a3a" flood-opacity="0.16" />
+    </filter>
+  </defs>
+  <rect width="1200" height="750" rx="32" fill="url(#bg)" />
+  <!-- Sidebar -->
+  <g transform="translate(44 34)">
+    <rect width="212" height="682" rx="22" fill="#0e2d3f" opacity="0.94" filter="url(#shadow)" />
+    <g transform="translate(24 28)">
+      <rect width="168" height="56" rx="14" fill="#0fb16d" />
+      <text x="84" y="34" font-family="'Poppins',sans-serif" font-size="20" fill="#f0fff5" font-weight="700" text-anchor="middle">GS</text>
+    </g>
+    <g transform="translate(24 110)" font-family="'Inter',sans-serif" font-size="16" fill="#cfe7f4" opacity="0.9">
+      <text x="20" y="28">Inicio</text>
+      <text x="20" y="76">Clientes</text>
+      <text x="20" y="124">Calendario / Rutas</text>
+      <text x="20" y="172">Finanzas y DGI</text>
+      <text x="20" y="220">Temas</text>
+      <text x="20" y="268">Gestión de Cuentas</text>
+      <text x="20" y="316">Configuración</text>
+    </g>
+    <rect x="16" y="118" width="180" height="36" rx="12" fill="#0f475f" opacity="0.85" />
+    <rect x="16" y="118" width="180" height="36" rx="12" fill="#12c078" opacity="0.22" />
+    <text x="106" y="142" font-family="'Inter',sans-serif" font-size="14" fill="#e6f8f0" text-anchor="middle">Inicio activo</text>
+  </g>
+  <!-- Main area -->
+  <g transform="translate(282 34)">
+    <rect width="874" height="682" rx="30" fill="#0d2a3c" opacity="0.38" filter="url(#shadow)" />
+    <!-- Top bar -->
+    <rect x="20" y="18" width="834" height="80" rx="18" fill="#123447" filter="url(#shadowSoft)" />
+    <text x="64" y="62" font-family="'Poppins',sans-serif" font-size="24" fill="#f3fbff" font-weight="700">Bienvenida, Equipo GS</text>
+    <g transform="translate(716 34)">
+      <rect width="116" height="36" rx="18" fill="#134d66" />
+      <text x="58" y="23" font-family="'Inter',sans-serif" font-size="13" fill="#a8d7ec" text-anchor="middle">Administrador</text>
+    </g>
+    <!-- KPI row -->
+    <g transform="translate(20 118)">
+      <rect width="834" height="168" rx="20" fill="url(#card)" filter="url(#shadowSoft)" />
+      <g font-family="'Inter',sans-serif" fill="#0f2d3f">
+        <g transform="translate(30 24)">
+          <text y="18" font-size="15" fill="#118054">Agenda hoy</text>
+          <text y="70" font-size="40" font-weight="700">12</text>
+          <text y="98" font-size="15" fill="#6b7d8a">Pendientes confirmados</text>
+        </g>
+        <g transform="translate(230 24)">
+          <text y="18" font-size="15" fill="#118054">Clientes activos</text>
+          <text y="70" font-size="40" font-weight="700">87</text>
+          <text y="98" font-size="15" fill="#6b7d8a">con contrato vigente</text>
+        </g>
+        <g transform="translate(462 24)">
+          <text y="18" font-size="15" fill="#118054">Cobros del mes</text>
+          <text y="70" font-size="40" font-weight="700">$ 245k</text>
+          <text y="98" font-size="15" fill="#6b7d8a">+18% vs. anterior</text>
+        </g>
+        <g transform="translate(658 24)">
+          <text y="18" font-size="15" fill="#118054">Último acceso</text>
+          <text y="64" font-size="24" font-weight="700">12/02 08:40</text>
+          <text y="94" font-size="15" fill="#6b7d8a">Actualizado hace 3 min</text>
+        </g>
+      </g>
+    </g>
+    <!-- Agenda card -->
+    <g transform="translate(20 318)">
+      <rect width="834" height="350" rx="24" fill="url(#card)" filter="url(#shadowSoft)" />
+      <text x="42" y="70" font-family="'Poppins',sans-serif" font-size="22" fill="#0f2d3f" font-weight="700">Agenda de retiros</text>
+      <g transform="translate(42 98)" font-family="'Inter',sans-serif" font-size="14" fill="#6b7d8a">
+        <text y="0">Cliente</text>
+        <text x="220" y="0">Dirección</text>
+        <text x="440" y="0">Franja</text>
+        <text x="560" y="0">Estado</text>
+        <text x="670" y="0">Monto</text>
+      </g>
+      <g transform="translate(42 128)" font-family="'Inter',sans-serif" font-size="15">
+        <rect width="750" height="50" rx="14" fill="#f4f9fb" />
+        <text x="18" y="30" fill="#143243">ReciPlas SA</text>
+        <text x="238" y="30" fill="#38586b">Cno. Canelones 4552</text>
+        <text x="458" y="30" fill="#0f8a52">08:00 - 10:00</text>
+        <rect x="562" y="14" width="98" height="24" rx="12" fill="#e2f5ec" />
+        <text x="611" y="31" fill="#0f8a52" font-size="13" text-anchor="middle">Pendiente</text>
+        <text x="706" y="30" fill="#143243">$ 18.500</text>
+      </g>
+      <g transform="translate(42 190)" font-family="'Inter',sans-serif" font-size="15" opacity="0.9">
+        <rect width="750" height="50" rx="14" fill="#ffffff" />
+        <text x="18" y="30" fill="#143243">EcoMetales</text>
+        <text x="238" y="30" fill="#38586b">Av. Italia 1230</text>
+        <text x="458" y="30" fill="#0f8a52">10:00 - 12:00</text>
+        <rect x="562" y="14" width="98" height="24" rx="12" fill="#fdf2e5" />
+        <text x="611" y="31" fill="#ca7d25" font-size="13" text-anchor="middle">En ruta</text>
+        <text x="706" y="30" fill="#143243">$ 9.200</text>
+      </g>
+      <g transform="translate(42 252)" font-family="'Inter',sans-serif" font-size="15" opacity="0.85">
+        <rect width="750" height="50" rx="14" fill="#ffffff" />
+        <text x="18" y="30" fill="#143243">ReciclaUy</text>
+        <text x="238" y="30" fill="#38586b">Gral. Paz 889</text>
+        <text x="458" y="30" fill="#0f8a52">14:00 - 16:00</text>
+        <rect x="562" y="14" width="98" height="24" rx="12" fill="#e9f0f4" />
+        <text x="611" y="31" fill="#2a4c60" font-size="13" text-anchor="middle">Planificado</text>
+        <text x="706" y="30" fill="#143243">$ 7.350</text>
+      </g>
+    </g>
+  </g>
+</svg>

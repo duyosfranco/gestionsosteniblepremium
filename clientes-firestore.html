@@ -1,0 +1,955 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Clientes – Gestión Sostenible (piloto)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://www.gstatic.com https://www.googleapis.com https://firestore.googleapis.com https://www.google.com https://maps.googleapis.com data: blob:; frame-ancestors 'self'; script-src 'self' https://www.gstatic.com https://www.googleapis.com https://maps.googleapis.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://maps.googleapis.com https://maps.gstatic.com; connect-src 'self' https://www.googleapis.com https://firestore.googleapis.com https://maps.googleapis.com https://identitytoolkit.googleapis.com;" />
+  <script>
+    if(window.self !== window.top){
+      document.documentElement.classList.add('is-embedded');
+    }
+    if(window.self === window.top){
+      window.location.replace('index.html#/clientes');
+    }
+  </script>
+  <style>
+    :root{--ink:#0D2B3D;--accent:#1DBF73;--accent2:#16a062;--bg:#f4f7fb;--muted:#5e6f7c;--line:#e6edf4}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;background:linear-gradient(180deg,#f1f6fb 0%,#ffffff 60%);margin:0;padding:28px;color:#0b1f2a;min-height:100vh}
+    body.gs-authenticated #loginCard{display:none}
+    body:not(.gs-authenticated) .requires-auth{display:none}
+    html.is-embedded body #loginCard{display:none}
+    html.is-embedded body:not(.gs-authenticated) .requires-auth{display:none}
+    html.is-embedded body:not(.gs-authenticated) .module-loader{display:flex}
+    body.checking-session #loginCard{opacity:0;pointer-events:none;visibility:hidden}
+    body.checking-session .requires-auth{display:none}
+    body.loading-data .module-loader{display:flex}
+    .wrap{max-width:1080px;margin:auto;display:grid;gap:20px;padding-bottom:48px}
+    .page-head{display:grid;gap:8px}
+    .page-head h1{margin:0;color:var(--ink);font-size:30px;letter-spacing:.01em}
+    .page-head p{margin:0;color:var(--muted);font-size:15px;line-height:1.5}
+    .card{background:#fff;padding:20px 20px;border-radius:18px;box-shadow:0 12px 32px rgba(13,43,61,.08);border:1px solid var(--line)}
+    h1{margin:0 0 14px;font-size:22px;color:var(--ink)}
+    input,button,select{font-size:15px;padding:10px 12px;border-radius:12px;border:1px solid #d7e3ec;transition:border .2s ease,box-shadow .2s ease,transform .2s ease}
+    button{background:var(--accent);color:#fff;border:none;cursor:pointer;box-shadow:0 10px 20px rgba(29,191,115,.18)}
+    button:hover{background:var(--accent2);transform:translateY(-1px)}
+    button:active{transform:translateY(0)}
+    button.secondary{background:#eef4fa;color:#0b1f2a;border:1px solid #d7e3ec;box-shadow:none}
+    button.secondary:hover{background:#e0ebf5}
+    button.danger{background:#e53935;box-shadow:none}
+    input:focus-visible,button:focus-visible,select:focus-visible{outline:3px solid rgba(16,113,150,.25);outline-offset:2px}
+    input:focus-visible,select:focus-visible{border-color:#5eb2d3;box-shadow:0 0 0 3px rgba(16,113,150,.16)}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+    .table-wrap{overflow:auto;border-radius:14px;border:1px solid var(--line)}
+    table{width:100%;border-collapse:collapse;min-width:720px;background:#fff}
+    th,td{padding:12px;border-bottom:1px solid #eef3f7;font-size:14px}
+    th{color:#587082;text-align:left;font-weight:600}
+    .right{display:flex;gap:10px;margin-left:auto;align-items:center}
+    .import-copy{margin:-8px 0 12px;font-size:14px;color:var(--muted)}
+    .import-actions{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+    .import-preview{display:grid;gap:12px}
+    .import-preview.hidden{display:none}
+    .preview-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .preview-head h2{margin:0;font-size:16px;color:var(--ink)}
+    .preview-head span{font-size:13px;color:var(--muted)}
+    .ok{color:#0d8a52}.err{color:#b00020}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+    .insights{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+    .insight{background:linear-gradient(180deg,#ffffff 0%,#f6fbff 100%);border:1px solid var(--line);box-shadow:0 10px 24px rgba(13,43,61,.08);border-radius:16px;padding:18px 16px;display:grid;gap:6px}
+    .insight .label{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+    .insight .value{font-size:24px;font-weight:700;color:var(--ink)}
+    .insight .meta{font-size:13px;color:var(--muted)}
+    .module-loader{display:none;align-items:center;gap:16px;font-size:14px;color:var(--muted)}
+    .module-loader strong{display:block;color:var(--ink);font-size:16px}
+    .module-loader .loader{width:28px;height:28px;border-radius:50%;border:3px solid rgba(13,43,61,.12);border-top-color:var(--accent);animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    body.gs-authenticated .module-loader{display:none}
+    .perm-notice{margin:6px 0 0;color:var(--muted);font-size:13px}
+    .read-only-label{color:#8A5A00;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+    button[disabled]{cursor:not-allowed;opacity:.6}
+    .edit-banner{display:none;margin-top:8px;padding:10px 12px;border-radius:12px;background:rgba(16,113,150,.08);color:var(--ink);font-size:14px}
+    .edit-banner strong{display:block;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent2);margin-bottom:4px}
+    .edit-banner.active{display:block}
+    @media (max-width:720px){
+      body{padding:22px 18px}
+      .card{padding:18px 16px}
+      table{min-width:640px}
+    }
+    @media print{
+      body{padding:0;background:#fff}
+      .card{box-shadow:none;border-radius:0;margin:0;border:0}
+      table{min-width:0}
+    }
+  </style>
+</head>
+<body class="checking-session">
+  <script>
+    document.documentElement.classList.add('theme-applied');
+    document.body.classList.add('theme-applied');
+  </script>
+  <div class="wrap">
+    <header class="page-head">
+      <h1>Directorio de clientes</h1>
+      <p>Encontrá rápidamente datos de contacto, contratos vigentes y montos asociados. Todo permanece sincronizado con tu sesión principal.</p>
+    </header>
+    <div class="card module-loader" role="status" aria-live="polite">
+      <div class="loader" aria-hidden="true"></div>
+      <div>
+        <strong id="moduleLoaderTitle">Gestión Sostenible</strong>
+        <span id="moduleLoaderCaption">Cargando…</span>
+      </div>
+    </div>
+    <div class="card" id="loginCard" aria-labelledby="loginTitle">
+      <h1 id="loginTitle">Login</h1>
+      <form class="row" id="loginForm" novalidate>
+        <label class="sr-only" for="email">Correo electrónico</label>
+        <input id="email" name="email" type="email" placeholder="Correo (ej. prueba@gestionsostenible.com)" autocomplete="username" required />
+        <label class="sr-only" for="pass">Contraseña</label>
+        <input id="pass" name="password" type="password" placeholder="Contraseña" autocomplete="current-password" required />
+        <button id="btnLogin" type="submit">Iniciar sesión</button>
+        <div id="loginMsg" role="status" aria-live="polite"></div>
+      </form>
+    </div>
+
+    <section class="insights requires-auth" aria-label="Resumen de clientes">
+      <article class="insight">
+        <span class="label">Clientes activos</span>
+        <span class="value" id="kpiClientes">0</span>
+        <span class="meta">Registros totales en Firestore</span>
+      </article>
+      <article class="insight">
+        <span class="label">Con contrato mensual</span>
+        <span class="value" id="kpiContratos">0</span>
+        <span class="meta">Clientes con cuota recurrente</span>
+      </article>
+      <article class="insight">
+        <span class="label">Facturación mensual estimada</span>
+        <span class="value" id="kpiFacturacion">$ 0</span>
+        <span class="meta">Suma de montos asociados</span>
+      </article>
+    </section>
+
+    <main aria-live="polite">
+      <div class="card requires-auth" aria-labelledby="clientesTitle">
+        <h1 id="clientesTitle">Clientes (tiempo real)</h1>
+        <div class="row" role="search">
+          <label class="sr-only" for="buscar">Buscar clientes</label>
+          <input id="buscar" placeholder="Buscar por nombre, RUT o dirección…" style="min-width:260px" type="search" />
+          <div class="right">
+            <button class="secondary" id="btnExport" type="button">Exportar CSV</button>
+            <button class="secondary" id="btnRefresh" type="button">Refrescar</button>
+          </div>
+        </div>
+        <div id="permNotice" class="perm-notice" role="status" aria-live="polite"></div>
+        <div class="table-wrap">
+          <table aria-describedby="info" role="grid">
+            <caption class="sr-only">Listado de clientes</caption>
+            <thead>
+              <tr>
+                <th scope="col">Nombre</th>
+                <th scope="col">RUT</th>
+                <th scope="col">Dirección</th>
+                <th scope="col">Teléfono</th>
+                <th scope="col">Contrato</th>
+                <th scope="col">Monto</th>
+                <th scope="col" style="text-align:right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="7">Conectando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="info" style="margin-top:8px;color:#5a6b79;font-size:13px" role="status" aria-live="polite">—</div>
+      </div>
+
+      <div class="card requires-auth" aria-labelledby="altaRapidaTitle">
+        <h1 id="altaRapidaTitle">Alta rápida (opcional)</h1>
+        <form class="row" id="altaRapidaForm" novalidate>
+          <input type="hidden" id="clienteId" />
+          <label class="sr-only" for="nombre">Nombre del cliente</label>
+          <input id="nombre" name="nombre" placeholder="Nombre (ej.: Ferretería López)" style="flex:1" required />
+          <label class="sr-only" for="rut">RUT</label>
+          <input id="rut" name="rut" placeholder="RUT (opcional)" style="width:180px" />
+          <label class="sr-only" for="direccion">Dirección</label>
+          <input id="direccion" name="direccion" placeholder="Dirección" style="flex:1" />
+          <label class="sr-only" for="telefono">Teléfono</label>
+          <input id="telefono" name="telefono" placeholder="Teléfono / contacto" style="width:180px" inputmode="tel" />
+        </form>
+        <div class="row">
+          <label><input type="checkbox" id="contrato" /> Cliente con contrato mensual</label>
+          <label class="sr-only" for="monto">Monto mensual</label>
+          <input id="monto" name="monto" placeholder="Monto mensual (ej. 1800)" style="width:180px" inputmode="decimal" />
+          <button id="btnAdd" type="button">Guardar cliente</button>
+          <button class="secondary" id="btnCancelEdit" type="button" hidden>Cancelar</button>
+          <div id="addMsg" role="status" aria-live="polite"></div>
+        </div>
+        <div id="editBanner" class="edit-banner" aria-live="polite"></div>
+      </div>
+      <div class="card requires-auth" aria-labelledby="importTitle">
+        <h1 id="importTitle">Importar desde Excel</h1>
+        <p class="import-copy">Cargá un archivo <strong>.xlsx</strong> o <strong>.csv</strong> con tus clientes y revisá la vista previa antes de confirmar la importación.</p>
+        <div class="import-actions">
+          <input type="file" id="importInput" accept=".xlsx,.xls,.csv" hidden />
+          <button class="secondary" type="button" id="btnImport">Seleccionar archivo…</button>
+          <button class="secondary" type="button" id="btnImportTemplate">Descargar plantilla</button>
+          <button class="primary" type="button" id="btnImportConfirm" disabled>Importar registros</button>
+        </div>
+        <p class="status-msg" id="importStatus" role="status" aria-live="polite"></p>
+        <div class="import-preview hidden" id="importPreview">
+          <div class="preview-head">
+            <h2>Vista previa</h2>
+            <span id="importSummary">Cargá un archivo para ver los clientes detectados.</span>
+          </div>
+          <div class="table-wrap">
+            <table role="grid">
+              <thead>
+                <tr>
+                  <th scope="col">Nombre</th>
+                  <th scope="col">RUT</th>
+                  <th scope="col">Dirección</th>
+                  <th scope="col">Contrato</th>
+                  <th scope="col">Monto</th>
+                  <th scope="col">Teléfono</th>
+                </tr>
+              </thead>
+              <tbody id="importPreviewBody">
+                <tr><td colspan="6">Seleccioná un archivo para comenzar.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- SDK compat para evitar problemas de 'auth is not a function' -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
+  <script src="assets/demo-data.js"></script>
+  <script src="assets/gs-auth.js"></script>
+  <script>
+    // Mantener la vista embebida sin redirecciones mientras sincroniza la sesión compartida.
+    requireLogin({
+      message: 'Iniciá sesión desde la pantalla principal para ver Clientes.',
+      redirectTo: 'index.html#/clientes',
+      allowedRoles: ['admin','control','demo']
+    });
+
+    const db = firebase.firestore();
+    let unsub = null;
+    let data = [];
+    let lastUpdated = null;
+    let currentUserId = null;
+    let currentOrganizationId = 'default';
+    let cacheApplied = false;
+    let canManageClients = false;
+    let canExportData = true;
+    let importRows = [];
+    let importFileName = '';
+    let importLoading = false;
+    let editingClientId = null;
+    const isDemoSession = ()=> !!(window.gsAuth && typeof gsAuth.isDemoSession === 'function' && gsAuth.isDemoSession());
+
+    // Helpers
+    const $ = (id)=>document.getElementById(id);
+    const permNotice = $('permNotice');
+    const btnAdd = $('btnAdd');
+    const btnCancelEdit = $('btnCancelEdit');
+    const editBanner = $('editBanner');
+    const btnExport = $('btnExport');
+    const btnRefresh = $('btnRefresh');
+    const importInput = $('importInput');
+    const btnImport = $('btnImport');
+    const btnImportTemplate = $('btnImportTemplate');
+    const btnImportConfirm = $('btnImportConfirm');
+    const importStatus = $('importStatus');
+    const importPreview = $('importPreview');
+    const importPreviewBody = $('importPreviewBody');
+    const importSummary = $('importSummary');
+    const moduleLoaderTitle = document.getElementById('moduleLoaderTitle');
+    const moduleLoaderCaption = document.getElementById('moduleLoaderCaption');
+    const getBrandName = ()=>{
+      try{
+        const snap = typeof getThemeSnapshot === 'function' ? getThemeSnapshot() : null;
+        return (snap && snap.brandName) ? snap.brandName : 'Gestión Sostenible';
+      }catch(err){
+        return 'Gestión Sostenible';
+      }
+    };
+    if(moduleLoaderTitle){ moduleLoaderTitle.textContent = getBrandName(); }
+    if(moduleLoaderCaption){ moduleLoaderCaption.textContent = 'Cargando…'; }
+    const csv = (rows)=>rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+    const escapeHtml = (str='')=> String(str).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+    const toNumber = (v)=> Number(String(v||'').replace(/[^\d.,-]/g,'').replace('.','').replace(',','.')) || 0;
+    const fmtMoney = (n)=> new Intl.NumberFormat('es-UY',{style:'currency',currency:'UYU',maximumFractionDigits:0}).format(n);
+    const storage = (()=>{
+      try{
+        const key = 'gs:test';
+        localStorage.setItem(key, '1');
+        localStorage.removeItem(key);
+        return localStorage;
+      }catch(err){
+        return null;
+      }
+    })();
+    const CACHE_PREFIX = 'gs:clientes:';
+
+    const cacheKeyFor = (uid, org)=> `${CACHE_PREFIX}${uid || 'anon'}:${org || 'default'}`;
+
+    const fmtDateTime = (ts)=> ts ? new Intl.DateTimeFormat('es-UY',{dateStyle:'short',timeStyle:'short'}).format(new Date(ts)) : '';
+
+    const normalizeRut = (value='')=> String(value).replace(/[^0-9kK]/g,'').toUpperCase();
+    const isValidRut = (value='')=>{
+      const rut = normalizeRut(value);
+      if(!rut){ return false; }
+      return rut.length >= 8 && rut.length <= 12;
+    };
+
+    const loadCacheFor = (uid)=>{
+      if(!storage || !uid) return null;
+      try{
+        const raw = storage.getItem(cacheKeyFor(uid, currentOrganizationId));
+        return raw ? JSON.parse(raw) : null;
+      }catch(err){
+        return null;
+      }
+    };
+
+    const saveCache = ()=>{
+      if(!storage || !currentUserId) return;
+      try{
+        storage.setItem(cacheKeyFor(currentUserId, currentOrganizationId), JSON.stringify({
+          updatedAt: lastUpdated,
+          data
+        }));
+      }catch(err){ /* sin almacenamiento */ }
+    };
+
+    // Gestión de edición y validaciones básicas de RUT
+    const getClientById = (id)=> data.find((row)=> row.id === id);
+    const rutAlreadyExists = (normalized)=>{
+      const target = normalizeRut(normalized);
+      if(!target){ return false; }
+      return data.some((row)=>{
+        const rowRut = normalizeRut(row.rutNormalized || row.rut || '');
+        if(!rowRut){ return false; }
+        if(editingClientId && row.id === editingClientId){ return false; }
+        return rowRut === target;
+      });
+    };
+
+    function resetClientForm(){
+      editingClientId = null;
+      const form = $('altaRapidaForm');
+      if(form){ form.reset(); }
+      $('clienteId').value = '';
+      $('nombre').value = '';
+      $('rut').value = '';
+      $('direccion').value = '';
+      $('telefono').value = '';
+      $('contrato').checked = false;
+      $('monto').value = '';
+      btnAdd.textContent = 'Guardar cliente';
+      btnAdd.dataset.mode = 'create';
+      if(btnCancelEdit){ btnCancelEdit.hidden = true; }
+      if(editBanner){ editBanner.textContent = ''; editBanner.classList.remove('active'); }
+      $('addMsg').textContent = '';
+    }
+
+    function startEditClient(id){
+      const row = getClientById(id);
+      if(!row){ return; }
+      editingClientId = row.id;
+      $('clienteId').value = row.id;
+      $('nombre').value = row.nombre || '';
+      $('rut').value = row.rut || row.rutNormalized || '';
+      $('direccion').value = row.direccion || '';
+      $('telefono').value = row.telefono || row.phone || '';
+      $('contrato').checked = !!row.contrato;
+      $('monto').value = row.monto ? String(toNumber(row.monto) || row.monto) : '';
+      btnAdd.textContent = 'Actualizar cliente';
+      btnAdd.dataset.mode = 'update';
+      if(btnCancelEdit){ btnCancelEdit.hidden = false; }
+      if(editBanner){
+        const nombre = escapeHtml(row.nombre || 'Cliente sin nombre');
+        editBanner.innerHTML = `<strong>Editando cliente</strong>${nombre}`;
+        editBanner.classList.add('active');
+      }
+      $('nombre').focus();
+    }
+
+    resetClientForm();
+
+    updateImportControls();
+
+    function setImportStatus(text='', state){
+      if(!importStatus) return;
+      importStatus.textContent = text;
+      importStatus.classList.remove('ok','err','warn');
+      if(state){ importStatus.classList.add(state); }
+    }
+
+    function updateImportControls(){
+      const hasRows = importRows.length > 0;
+      if(btnImport){ btnImport.disabled = !canManageClients || importLoading; }
+      if(btnImportConfirm){ btnImportConfirm.disabled = !canManageClients || importLoading || !hasRows; }
+    }
+
+    function applyDemoDataset(){
+      const dataset = (window.gsAuth && typeof gsAuth.getDemoData === 'function')
+        ? gsAuth.getDemoData('clientes')
+        : [];
+      const rows = Array.isArray(dataset) ? dataset : [];
+      data = rows.map((item, index)=> Object.assign({
+        id: item && item.id ? item.id : `demo-${index + 1}`
+      }, item));
+      lastUpdated = Date.now();
+      currentUserId = 'demo';
+      currentOrganizationId = 'demo';
+      cacheApplied = true;
+      document.body.classList.remove('loading-data');
+      document.body.classList.remove('checking-session');
+      document.body.classList.add('demo-mode');
+      const loginMsg = $('loginMsg');
+      if(loginMsg){
+        loginMsg.innerHTML = '<span class="info">🔒 Demo de solo lectura. Iniciá sesión para gestionar clientes.</span>';
+      }
+      render();
+      const info = $('info');
+      if(info){
+        info.textContent = `Mostrando ${data.length} clientes · Demo sin conexión a Firebase`;
+      }
+    }
+
+    const loadScript = (src)=> new Promise((resolve, reject)=>{
+      if(document.querySelector(`script[src="${src}"]`)){ resolve(); return; }
+      const script = document.createElement('script');
+      script.src = src;
+      script.onload = ()=> resolve();
+      script.onerror = ()=> reject(new Error('No se pudo cargar ' + src));
+      document.head.appendChild(script);
+    });
+
+    let xlsxReady = null;
+    function ensureXLSX(){
+      if(window.XLSX){ return Promise.resolve(window.XLSX); }
+      if(!xlsxReady){
+        xlsxReady = loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js')
+          .then(()=> window.XLSX);
+      }
+      return xlsxReady;
+    }
+
+    function readFile(file, asText=false){
+      return new Promise((resolve, reject)=>{
+        const reader = new FileReader();
+        reader.onerror = ()=> reject(new Error('No se pudo leer el archivo seleccionado.'));
+        reader.onload = ()=> resolve(reader.result);
+        if(asText){ reader.readAsText(file); }
+        else{ reader.readAsArrayBuffer(file); }
+      });
+    }
+
+    const normalizeHeader = (value='')=> String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+
+    const HEADER_ALIASES = {
+      nombre: ['nombre','cliente','razon social','razon','razón','razon social','name'],
+      rut: ['rut','ruc','documento','doc','tax id','identificacion','identificación'],
+      direccion: ['direccion','dirección','domicilio','address','ubicacion','ubicación'],
+      contrato: ['contrato','abonado','suscripcion','suscripción','mensual','plan'],
+      monto: ['monto','importe','cuota','valor','amount','precio'],
+      telefono: ['telefono','teléfono','celular','phone','movil','móvil'],
+      notas: ['notas','nota','comentario','comentarios','observaciones']
+    };
+
+    function mapHeaders(headers){
+      const map = {};
+      headers.forEach((header, index)=>{
+        const normalized = normalizeHeader(header);
+        Object.keys(HEADER_ALIASES).forEach((key)=>{
+          if(map[key] !== undefined){ return; }
+          if(normalized === key || HEADER_ALIASES[key].includes(normalized)){
+            map[key] = index;
+          }
+        });
+      });
+      return map;
+    }
+
+    const parseBool = (value)=>{
+      if(typeof value === 'boolean'){ return value; }
+      if(typeof value === 'number'){ return value > 0; }
+      const normalized = normalizeHeader(value);
+      if(!normalized){ return false; }
+      return ['si','sí','true','1','mensual','contrato','abonado','suscripcion','suscripción','yes'].includes(normalized);
+    };
+
+    function renderImportPreview(rows, total){
+      if(!importPreview || !importPreviewBody){ return; }
+      importPreview.classList.toggle('hidden', !rows.length);
+      importPreviewBody.innerHTML = '';
+      if(!rows.length){
+        importPreviewBody.innerHTML = '<tr><td colspan="6">Seleccioná un archivo compatible para revisar los datos.</td></tr>';
+        if(importSummary){ importSummary.textContent = 'Cargá un archivo para ver los clientes detectados.'; }
+        return;
+      }
+      rows.forEach((row)=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(row.nombre||'')}</td>
+          <td>${escapeHtml(row.rut||'')}</td>
+          <td>${escapeHtml(row.direccion||'')}</td>
+          <td>${row.contrato ? 'Sí' : 'No'}</td>
+          <td>${escapeHtml(row.monto||'')}</td>
+          <td>${escapeHtml(row.telefono||'')}</td>`;
+        importPreviewBody.appendChild(tr);
+      });
+      if(importSummary){
+        const extra = total > rows.length ? ` (mostrando ${rows.length} de ${total})` : '';
+        importSummary.textContent = `Detectamos ${total} cliente${total===1?'':'s'} listos para importar${extra}.`;
+      }
+    }
+
+    async function handleImportFile(file){
+      if(!file){ return; }
+      importFileName = file.name || '';
+      importRows = [];
+      updateImportControls();
+      setImportStatus('Analizando archivo…');
+      try{
+        await ensureXLSX();
+        const isCsv = /\.csv$/i.test(file.name || '');
+        const raw = await readFile(file, isCsv);
+        const workbook = isCsv
+          ? window.XLSX.read(raw, { type: 'string' })
+          : window.XLSX.read(raw, { type: 'array' });
+        const sheetName = workbook.SheetNames && workbook.SheetNames[0];
+        if(!sheetName){
+          throw new Error('El archivo no contiene hojas reconocibles.');
+        }
+        const rows = window.XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '' });
+        if(!rows || rows.length < 2){
+          throw new Error('No encontramos filas de datos en el archivo.');
+        }
+        const headers = rows[0];
+        const headerMap = mapHeaders(headers);
+        if(headerMap.nombre === undefined){
+          throw new Error('Necesitamos al menos una columna llamada Nombre.');
+        }
+        const maxRows = 600;
+        const sanitized = [];
+        for(let i = 1; i < rows.length; i += 1){
+          if(sanitized.length >= maxRows){ break; }
+          const row = rows[i];
+          const nombre = String(row[headerMap.nombre] || '').trim();
+          if(!nombre){ continue; }
+          sanitized.push({
+            nombre,
+            rut: headerMap.rut !== undefined ? String(row[headerMap.rut] || '').trim() : '',
+            direccion: headerMap.direccion !== undefined ? String(row[headerMap.direccion] || '').trim() : '',
+            contrato: headerMap.contrato !== undefined ? parseBool(row[headerMap.contrato]) : false,
+            monto: headerMap.monto !== undefined ? String(row[headerMap.monto] || '').trim() : '',
+            telefono: headerMap.telefono !== undefined ? String(row[headerMap.telefono] || '').trim() : '',
+            notas: headerMap.notas !== undefined ? String(row[headerMap.notas] || '').trim() : ''
+          });
+        }
+        if(!sanitized.length){
+          throw new Error('No pudimos extraer clientes válidos del archivo.');
+        }
+        importRows = sanitized;
+        renderImportPreview(importRows.slice(0, 20), sanitized.length);
+        setImportStatus(`Archivo listo. Encontramos ${sanitized.length} cliente${sanitized.length===1?'':'s'}.`, 'ok');
+      }catch(err){
+        console.error('No se pudo procesar la importación', err);
+        importRows = [];
+        renderImportPreview([], 0);
+        setImportStatus(err && err.message ? err.message : 'El archivo no pudo analizarse. Verificá el formato.', 'err');
+      }finally{
+        updateImportControls();
+      }
+    }
+    function applyPermissionState(){
+      document.body.classList.toggle('role-control', !canManageClients);
+      if(btnAdd){
+        btnAdd.disabled = !canManageClients;
+        btnAdd.setAttribute('aria-disabled', String(!canManageClients));
+        btnAdd.title = canManageClients ? '' : 'Necesitás permisos de administración para usar esta acción';
+      }
+      if(btnCancelEdit){
+        btnCancelEdit.disabled = !canManageClients;
+        btnCancelEdit.setAttribute('aria-disabled', String(!canManageClients));
+        if(!canManageClients){ btnCancelEdit.hidden = true; }
+      }
+      if(!canManageClients){
+        resetClientForm();
+      }
+      updateImportControls();
+      if(!canManageClients){
+        setImportStatus('Necesitás permisos de Administrador para importar clientes.', 'warn');
+      }else if(importRows.length === 0){
+        setImportStatus('');
+      }
+      if(permNotice){
+        const inSession = document.body.classList.contains('gs-authenticated');
+        if(!inSession){
+          permNotice.textContent = 'Iniciá sesión desde el panel principal para administrar la cartera.';
+        }else{
+          permNotice.textContent = canManageClients
+            ? 'Tenés permisos operativos: podés crear, actualizar y eliminar clientes.'
+            : 'Esta sesión no puede modificar la cartera. Podés consultar y exportar información; solicitá los cambios a un administrador.';
+        }
+      }
+    }
+
+    const render = (fromCache=false)=>{
+      const q = $('buscar').value.trim().toLowerCase();
+      const rows = !q ? data : data.filter(x => `${x.nombre} ${x.rut||''} ${x.direccion||''} ${x.telefono||x.phone||''}`.toLowerCase().includes(q));
+      const tbody = $('tbody'); tbody.innerHTML = '';
+      if(rows.length===0){ tbody.innerHTML = '<tr><td colspan="7">Sin resultados.</td></tr>'; }
+      rows.forEach(c=>{
+        const tr = document.createElement('tr');
+        const actions = canManageClients
+          ? `<button class="secondary" data-edit="${c.id}">Editar</button> <button class="danger" data-id="${c.id}">Eliminar</button>`
+          : '<span class="read-only-label">Solo lectura</span>';
+        const montoNumber = toNumber(c.monto);
+        const montoDisplay = montoNumber ? fmtMoney(montoNumber) : '—';
+        tr.innerHTML = `
+          <td>${escapeHtml(c.nombre||'')}</td>
+          <td>${escapeHtml(c.rut||'')}</td>
+          <td>${escapeHtml(c.direccion||'')}</td>
+          <td>${escapeHtml(c.telefono || c.phone || '')}</td>
+          <td>${c.contrato?'Sí':'No'}</td>
+          <td>${montoDisplay}</td>
+          <td style="text-align:right">${actions}</td>`;
+        tbody.appendChild(tr);
+      });
+      const updatedText = lastUpdated ? ` · Actualizado ${fmtDateTime(lastUpdated)}${fromCache?' (memoria)':''}` : '';
+      $('info').textContent = `Mostrando ${rows.length} de ${data.length} clientes${updatedText}`;
+      const total = data.length;
+      const conContrato = data.filter(c=>c.contrato).length;
+      const totalMonto = data.reduce((acc,c)=> acc + toNumber(c.monto), 0);
+      $('kpiClientes').textContent = total;
+      $('kpiContratos').textContent = conContrato;
+      $('kpiFacturacion').textContent = fmtMoney(totalMonto);
+      document.body.classList.remove('loading-data');
+    };
+
+    // Login
+    $('loginForm').addEventListener('submit', async (event)=>{
+      event.preventDefault();
+      try{
+        await gsAuth.signInWithEmailAndPassword($('email').value.trim(), $('pass').value.trim());
+        $('loginMsg').innerHTML = '<span class="ok">✅ Sesión iniciada</span>';
+      }catch(e){
+        const friendly = (gsAuth && typeof gsAuth.describeError === 'function') ? gsAuth.describeError(e) : null;
+        const text = friendly || e?.message || 'Error de login';
+        $('loginMsg').innerHTML = '<span class="err">❌ ' + text + '</span>';
+        if(e && e.code === 'auth/operation-not-allowed'){
+          $('loginMsg').innerHTML += '<br><small>Agregá este dominio en Firebase Auth → Settings → Authorized domains.</small>';
+        }
+      }
+    });
+
+    gsAuth.onAuthStateChanged((user)=>{
+      document.body.classList.remove('checking-session');
+      if(isDemoSession()){
+        applyDemoDataset();
+        return;
+      }
+      if(user){
+        currentUserId = user.uid || 'default';
+        currentOrganizationId = (window.gsAuth && typeof gsAuth.getOrganizationId === 'function')
+          ? gsAuth.getOrganizationId()
+          : currentOrganizationId;
+        $('loginMsg').innerHTML = '<span class="ok">✅ Sesión activa</span>';
+        $('email').value = user.email || '';
+        if(!cacheApplied){
+          const cached = loadCacheFor(currentUserId);
+          if(cached && Array.isArray(cached.data)){
+            data = cached.data;
+            lastUpdated = cached.updatedAt || null;
+            cacheApplied = true;
+            render(true);
+          }
+        }
+        document.body.classList.add('loading-data');
+        suscribir();
+      }else{
+        currentUserId = null;
+        cacheApplied = false;
+        lastUpdated = null;
+        if(unsub){
+          unsub();
+          unsub = null;
+        }
+        data = [];
+        render();
+        $('loginMsg').textContent = '';
+        $('email').value = '';
+        $('pass').value = '';
+        document.body.classList.remove('loading-data');
+        currentOrganizationId = 'default';
+      }
+    });
+
+    gsAuth.onSession((session)=>{
+      canManageClients = !!(session && session.abilities && session.abilities.manageClients);
+      canExportData = !!(session && session.abilities && session.abilities.exportData);
+      const sessionOrgId = session && session.profile && session.profile.organizationId
+        ? session.profile.organizationId
+        : ((window.gsAuth && typeof gsAuth.getOrganizationId === 'function') ? gsAuth.getOrganizationId() : currentOrganizationId);
+      const normalizedOrg = sessionOrgId || 'default';
+      if(normalizedOrg !== currentOrganizationId){
+        currentOrganizationId = normalizedOrg;
+        cacheApplied = false;
+        if(currentUserId && !isDemoSession()){
+          const cached = loadCacheFor(currentUserId);
+          if(cached && Array.isArray(cached.data)){
+            data = cached.data;
+            lastUpdated = cached.updatedAt || null;
+            cacheApplied = true;
+            render(true);
+          }
+          suscribir(true);
+        }
+      }
+      applyPermissionState();
+      render();
+    });
+
+    // Suscripción en tiempo real
+    function suscribir(force=false){
+      if(unsub){
+        if(!force) return;
+        unsub();
+        unsub = null;
+      }
+      document.body.classList.add('loading-data');
+      const orgId = currentOrganizationId || 'default';
+      let query = db.collection('clientes');
+      if(orgId && orgId !== 'default'){
+        query = query.where('organizationId','==',orgId);
+      }
+      if(typeof query.orderBy === 'function'){
+        query = query.orderBy('nombre');
+      }
+      unsub = query.onSnapshot((snap)=>{
+        const rows = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+        data = rows.filter((row)=>{
+          const rowOrg = row.organizationId || row.organization || null;
+          if(orgId === 'default'){
+            return !rowOrg || rowOrg === 'default';
+          }
+          return rowOrg === orgId;
+        });
+        lastUpdated = Date.now();
+        render();
+        saveCache();
+      },(err)=>{
+        $('info').innerHTML = '<span class="err">❌ ' + err.message + '</span>';
+        document.body.classList.remove('loading-data');
+      });
+    }
+
+    // Buscar: re-render al tipear
+    $('buscar').addEventListener('input', ()=>render());
+
+    if(btnCancelEdit){
+      btnCancelEdit.addEventListener('click', ()=>{
+        resetClientForm();
+        $('nombre').focus();
+      });
+    }
+
+    if(btnImport){
+      btnImport.addEventListener('click', ()=>{
+        if(btnImport.disabled){ return; }
+        importInput?.click();
+      });
+    }
+
+    if(btnImportTemplate){
+      btnImportTemplate.addEventListener('click', ()=>{
+        const sample = 'Nombre,RUT,Direccion,Contrato,Monto,Telefono\nCooperativa Demo,123456789012,Av. Uruguay 123,Sí,1800,+59891234567';
+        const blob = new Blob([sample], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'plantilla_clientes.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+    }
+
+    if(importInput){
+      importInput.addEventListener('change', (event)=>{
+        const file = event.target.files && event.target.files[0];
+        if(file){ handleImportFile(file); }
+        event.target.value = '';
+      });
+    }
+
+    if(btnImportConfirm){
+      btnImportConfirm.addEventListener('click', async ()=>{
+        if(btnImportConfirm.disabled || !importRows.length){ return; }
+        if(!window.gsAuth || typeof gsAuth.importClients !== 'function'){
+          setImportStatus('La importación no está disponible en este entorno.', 'err');
+          return;
+        }
+        importLoading = true;
+        updateImportControls();
+        setImportStatus('Importando clientes…');
+        try{
+          const result = await gsAuth.importClients(importRows, { source: importFileName || 'archivo' });
+          const imported = result && typeof result.imported === 'number' ? result.imported : importRows.length;
+          const skipped = result && typeof result.skipped === 'number' ? result.skipped : 0;
+          const errors = Array.isArray(result && result.errors) ? result.errors.length : 0;
+          let message = `Importación completada. Se cargaron ${imported} cliente${imported===1?'':'s'}`;
+          if(skipped){ message += ` y se omitieron ${skipped}.`; }
+          else{ message += '.'; }
+          if(errors){ message += ` Revisá ${errors} fila${errors===1?'':'s'} con datos incompletos.`; }
+          setImportStatus(message, 'ok');
+          importRows = [];
+          importFileName = '';
+          renderImportPreview([], 0);
+          suscribir(true);
+        }catch(err){
+          console.error('Error importando clientes', err);
+          setImportStatus(err && err.message ? err.message : 'No pudimos completar la importación.', 'err');
+        }finally{
+          importLoading = false;
+          updateImportControls();
+        }
+      });
+    }
+
+    // Eliminar (delegado)
+    $('tbody').addEventListener('click', async (e)=>{
+      const editId = e.target.getAttribute('data-edit');
+      if(editId){
+        if(!canManageClients){
+          alert('Solo los administradores pueden editar clientes.');
+          return;
+        }
+        startEditClient(editId);
+        return;
+      }
+      if(e.target.matches('button[data-id]')){
+        if(!canManageClients){
+          alert('Solo los administradores pueden eliminar clientes.');
+          return;
+        }
+        const id = e.target.getAttribute('data-id');
+        if(confirm('¿Eliminar este cliente?')){
+          try{ await db.collection('clientes').doc(id).delete(); }
+          catch(err){ alert('Error: ' + err.message); }
+        }
+      }
+    });
+
+    // Alta rápida
+    // Alta y edición con validaciones de RUT, duplicados y campos obligatorios
+    $('btnAdd').addEventListener('click', async ()=>{
+      if(!canManageClients){
+        $('addMsg').innerHTML = '<span class="err">Solo administradores pueden registrar clientes.</span>';
+        return;
+      }
+      const nombre = $('nombre').value.trim();
+      const rutInput = $('rut').value.trim();
+      const direccion = $('direccion').value.trim();
+      const telefono = $('telefono').value.trim();
+      const contrato = $('contrato').checked;
+      const montoRaw = $('monto').value.trim();
+      const rutNormalized = normalizeRut(rutInput);
+      const montoNumber = montoRaw ? toNumber(montoRaw) : 0;
+
+      if(!nombre){
+        $('addMsg').innerHTML = '<span class="err">Completá el nombre del cliente.</span>';
+        return;
+      }
+      if(!rutNormalized){
+        $('addMsg').innerHTML = '<span class="err">Indicá un RUT válido.</span>';
+        return;
+      }
+      if(!isValidRut(rutNormalized)){
+        $('addMsg').innerHTML = '<span class="err">El RUT debe tener entre 8 y 12 caracteres numéricos.</span>';
+        return;
+      }
+      if(rutAlreadyExists(rutNormalized)){
+        $('addMsg').innerHTML = '<span class="err">Ya existe un cliente con ese RUT.</span>';
+        return;
+      }
+      if(!direccion){
+        $('addMsg').innerHTML = '<span class="err">Completá la dirección.</span>';
+        return;
+      }
+      if(contrato && (!montoRaw || montoNumber <= 0)){
+        $('addMsg').innerHTML = '<span class="err">Indicá el monto mensual del contrato.</span>';
+        return;
+      }
+
+      const payload = {
+        nombre,
+        rut: rutInput || rutNormalized,
+        rutNormalized,
+        direccion,
+        telefono,
+        contrato,
+        monto: contrato ? Math.round(montoNumber) : 0,
+        organizationId: currentOrganizationId || 'default',
+        updatedAt: new Date().toISOString()
+      };
+
+      const mode = editingClientId ? 'update' : 'create';
+      try{
+        btnAdd.disabled = true;
+        btnAdd.textContent = mode === 'create' ? 'Guardando…' : 'Actualizando…';
+        if(mode === 'create'){
+          payload.createdAt = new Date().toISOString();
+          const ref = await db.collection('clientes').add(payload);
+          $('addMsg').innerHTML = '<span class="ok">✅ Cliente creado (' + ref.id + ')</span>';
+        }else{
+          await db.collection('clientes').doc(editingClientId).update(payload);
+          $('addMsg').innerHTML = '<span class="ok">✅ Cliente actualizado</span>';
+        }
+        resetClientForm();
+        suscribir(true);
+      }catch(err){
+        console.error('Error guardando cliente', err);
+        $('addMsg').innerHTML = '<span class="err">❌ ' + (err.message || 'No pudimos guardar el cliente.') + '</span>';
+      }finally{
+        btnAdd.disabled = false;
+        btnAdd.textContent = editingClientId ? 'Actualizar cliente' : 'Guardar cliente';
+      }
+    });
+
+    // Exportar CSV
+    $('btnExport').addEventListener('click', ()=>{
+      if(!canExportData){
+        alert('Tu rol actual no permite exportar datos.');
+        return;
+      }
+      const rows = [["Nombre","RUT","Dirección","Teléfono","Contrato","Monto"],
+        ...data.map(c=>[
+          c.nombre,
+          c.rut||'',
+          c.direccion||'',
+          c.telefono || c.phone || '',
+          c.contrato?'Sí':'No',
+          c.monto||''
+        ])];
+      const blob = new Blob([csv(rows)], {type:'text/csv;charset=utf-8;'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'clientes.csv'; a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    // Refrescar manual (vuelve a suscribirse)
+    $('btnRefresh').addEventListener('click', ()=>suscribir(true));
+  </script>
+</body>
+</html>

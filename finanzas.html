@@ -1,0 +1,1327 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Finanzas y DGI – Gestión Sostenible</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://www.gstatic.com https://www.googleapis.com https://firestore.googleapis.com https://www.google.com https://maps.googleapis.com data: blob:; frame-ancestors 'self'; script-src 'self' https://www.gstatic.com https://www.googleapis.com https://maps.googleapis.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://maps.googleapis.com https://maps.gstatic.com; connect-src 'self' https://www.googleapis.com https://firestore.googleapis.com https://maps.googleapis.com https://identitytoolkit.googleapis.com;" />
+<script>
+  if(window.self !== window.top){
+    document.documentElement.classList.add('is-embedded');
+  }
+  if(window.self === window.top){
+    window.location.replace('index.html#/finanzas');
+  }
+</script>
+  <style>
+    :root{--ink:#0D2B3D;--accent:#1DBF73;--accent2:#16a062;--bg:#f1f6fb;--muted:#5e6f7c;--line:#e6edf4}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;background:linear-gradient(180deg,#f1f6fb 0%,#ffffff 60%);margin:0;padding:28px;color:#0b1f2a;min-height:100vh}
+    body.gs-authenticated #loginCard{display:none}
+    body:not(.gs-authenticated) .requires-auth{display:none}
+    html.is-embedded body #loginCard{display:none}
+    html.is-embedded body:not(.gs-authenticated) .requires-auth{display:none}
+    html.is-embedded body:not(.gs-authenticated) .module-loader{display:flex}
+    body.checking-session #loginCard{opacity:0;pointer-events:none;visibility:hidden}
+    body.checking-session .requires-auth{display:none}
+    body.loading-data .module-loader{display:flex}
+    .wrap{max-width:1160px;margin:auto;display:grid;gap:20px;padding-bottom:52px}
+    .page-head{display:grid;gap:8px}
+    .page-head h1{margin:0;color:var(--ink);font-size:30px;letter-spacing:.01em}
+    .page-head p{margin:0;color:var(--muted);font-size:15px;line-height:1.5}
+    .card{background:#fff;padding:20px 20px;border-radius:18px;box-shadow:0 12px 32px rgba(13,43,61,.08);border:1px solid var(--line)}
+    h1{margin:0 0 14px;font-size:22px;color:var(--ink)}
+    h2{margin:0 0 12px;font-size:19px;color:var(--ink)}
+    input,button,select,textarea{font-size:15px;padding:10px 12px;border-radius:12px;border:1px solid #d7e3ec;transition:border .2s ease,box-shadow .2s ease,transform .2s ease}
+    textarea{min-height:44px;resize:vertical}
+    button{background:var(--accent);color:#fff;border:none;cursor:pointer;box-shadow:0 10px 20px rgba(29,191,115,.18)}
+    button:hover{background:var(--accent2);transform:translateY(-1px)}
+    button:active{transform:translateY(0)}
+    button.secondary{background:#eef4fa;color:#0b1f2a;border:1px solid #d7e3ec;box-shadow:none}
+    button.secondary:hover{background:#e0ebf5}
+    button.danger{background:#e53935;box-shadow:none}
+    button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(16,113,150,.25);outline-offset:2px}
+    input:focus-visible,select:focus-visible,textarea:focus-visible{border-color:#5eb2d3;box-shadow:0 0 0 3px rgba(16,113,150,.16)}
+    .row{display:flex;gap:12px;flex-wrap:wrap;margin:10px 0;align-items:center}
+    .row:first-of-type{margin-top:0}
+    .table-wrap{overflow:auto;border-radius:14px;border:1px solid var(--line)}
+    table{width:100%;border-collapse:collapse;min-width:780px;background:#fff}
+    th,td{padding:12px;border-bottom:1px solid #eef3f7;font-size:14px;vertical-align:top}
+    th{color:#587082;text-align:left;font-weight:600}
+    .grid{display:grid;gap:14px}
+    .kpis{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+    .kpi{background:linear-gradient(180deg,#ffffff 0%,#f6fbff 100%);border-radius:16px;padding:18px 16px;box-shadow:0 10px 24px rgba(13,43,61,.08);border:1px solid var(--line);display:grid;gap:6px}
+    .kpi .label{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.08em}
+    .kpi .value{font-weight:800;font-size:24px;color:var(--ink)}
+    .kpi .meta{font-size:13px;color:var(--muted)}
+    .muted{color:var(--muted);font-size:13px}
+    .pill{padding:2px 10px;border-radius:999px;font-size:12px;display:inline-flex;align-items:center;gap:6px}
+    .pill.pending{background:#FFF5D1;color:#8A5A00;border:1px solid #F7E3A1}
+    .pill.done{background:#DDF5E7;color:#0C6B45;border:1px solid #BFE9D2}
+    .ok{color:#0d8a52}.err{color:#b00020}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+    .module-loader{display:none;align-items:center;gap:16px;font-size:14px;color:var(--muted)}
+    .module-loader strong{display:block;color:var(--ink);font-size:16px}
+    .module-loader .loader{width:28px;height:28px;border-radius:50%;border:3px solid rgba(13,43,61,.12);border-top-color:var(--accent);animation:spin 1s linear infinite}
+    .guide-bubble{display:flex;gap:16px;padding:18px;border-radius:16px;background:linear-gradient(180deg,#f9fcff 0%,#ffffff 100%);border:1px solid var(--line);box-shadow:0 10px 24px rgba(13,43,61,.06)}
+    .guide-avatar{width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#1DBF73,#128656);display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;box-shadow:0 10px 18px rgba(29,191,115,.25)}
+    .guide-content{flex:1;display:grid;gap:10px}
+    .guide-content h3{margin:0;font-size:18px;color:var(--ink)}
+    .guide-content h4{margin:0;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+    .guide-link{display:none;align-items:center;gap:6px;font-weight:600;color:var(--accent2);text-decoration:none}
+    .guide-link::after{content:'↗';font-size:16px}
+    .guide-link:hover{text-decoration:underline}
+    .guide-steps ol,.guide-steps ul{margin:6px 0 0 18px;padding:0}
+    .guide-steps ol li{margin-bottom:6px}
+    .guide-tips{display:none}
+    .guide-tips ul{margin:6px 0 0 18px;padding:0}
+    .guide-chip{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+    .guide-chip.dgi{background:#E3F6EE;color:#0C6B45;border:1px solid #BFE9D2}
+    .guide-chip.bps{background:#E8F0FF;color:#1b4fa3;border:1px solid #c6d8ff}
+    .guide-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+    button.secondary.small{padding:6px 10px;font-size:13px}
+    tr.guide-focus td{background:rgba(29,191,115,.08)}
+    #guideSteps{margin:6px 0 0 18px;padding:0}
+    #guideTips{margin:6px 0 0 18px;padding:0}
+    #guideTips li,#guideSteps li{margin-bottom:6px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    body.gs-authenticated .module-loader{display:none}
+    .perm-notice{margin:8px 0 0;color:var(--muted);font-size:13px}
+    .read-only-label{color:#8A5A00;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+    button[disabled]{cursor:not-allowed;opacity:.6}
+    @media (max-width:720px){
+      .guide-bubble{flex-direction:column;}
+      .guide-avatar{margin-bottom:6px}
+    }
+    @media (max-width:780px){body{padding:22px 18px}}
+    @media print{ .no-print{display:none!important} body{padding:0;background:#fff} .card{box-shadow:none;border-radius:0;margin:0;border:0} th,td{font-size:12px;padding:6px}}
+  </style>
+</head>
+<body class="checking-session">
+  <script>
+    document.documentElement.classList.add('theme-applied');
+    document.body.classList.add('theme-applied');
+  </script>
+<script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-storage-compat.js"></script>
+<script src="assets/demo-data.js"></script>
+<script src="assets/gs-auth.js"></script>
+
+<script>
+// Mantener la vista embebida sin redirecciones mientras sincroniza la sesión compartida.
+requireLogin({
+  message: 'Iniciá sesión desde la pantalla principal para acceder a Finanzas y DGI.',
+  redirectTo: 'index.html#/finanzas',
+  allowedRoles: ['admin','control','demo']
+});
+</script>
+  <div class="wrap">
+    <header class="page-head">
+      <h1>Finanzas y obligaciones fiscales</h1>
+      <p>Unificá tus cobros, pendientes y checklist de DGI en una sola vista. Todo permanece vinculado a la sesión principal sin pedir credenciales nuevamente.</p>
+    </header>
+    <div class="card module-loader" role="status" aria-live="polite">
+      <div class="loader" aria-hidden="true"></div>
+      <div>
+        <strong id="moduleLoaderTitle">Gestión Sostenible</strong>
+        <span id="moduleLoaderCaption">Cargando…</span>
+      </div>
+    </div>
+
+    <!-- LOGIN breve (solo mensaje) -->
+    <div class="card" id="loginCard" aria-labelledby="loginTitle">
+      <h1 id="loginTitle">Login</h1>
+      <form class="row" id="loginForm" novalidate>
+        <label class="sr-only" for="email">Correo electrónico</label>
+        <input id="email" name="email" type="email" placeholder="Correo (ej. prueba@gestionsostenible.com)" autocomplete="username" required />
+        <label class="sr-only" for="pass">Contraseña</label>
+        <input id="pass" name="password" type="password" placeholder="Contraseña" autocomplete="current-password" required />
+        <button id="btnLogin" type="submit">Iniciar sesión</button>
+        <div id="loginMsg" role="status" aria-live="polite"></div>
+      </form>
+    </div>
+
+    <!-- KPIs + FILTRO MES -->
+    <div class="card requires-auth" aria-labelledby="finanzasTitle">
+      <div class="row">
+        <h1 id="finanzasTitle" style="margin-right:auto">Finanzas y DGI</h1>
+        <label>Mes <input id="filtroMes" type="month" /></label>
+        <button class="secondary" id="btnMesActual" type="button">Mes actual</button>
+        <button class="secondary" id="btnExportCsv" type="button">Exportar CSV</button>
+        <button class="secondary" id="btnExportXlsx" type="button">Exportar XLSX</button>
+      </div>
+      <div class="grid kpis">
+        <div class="kpi"><span class="label">Ingresos del mes (recibido)</span><span class="value" id="kpiIngresos">$ 0</span><span class="meta">Pagos confirmados dentro del mes filtrado</span></div>
+        <div class="kpi"><span class="label">Deuda del mes (pendiente)</span><span class="value" id="kpiDeuda">$ 0</span><span class="meta">Pendientes de cobro registrados</span></div>
+        <div class="kpi"><span class="label">Último pago recibido</span><span class="value" id="kpiUltimo">$ 0</span><span class="meta">Valor y fecha más recientes</span></div>
+      </div>
+    </div>
+
+    <!-- NUEVO MOVIMIENTO -->
+    <div class="card requires-auth" aria-labelledby="movimientoTitle">
+      <h2 id="movimientoTitle">Registrar movimiento</h2>
+      <form class="row" id="formMovimiento" novalidate>
+        <label>Cliente<br><select id="selCliente" name="cliente" style="min-width:240px"></select></label>
+        <label>Fecha<br><input id="fecha" name="fecha" type="date" required /></label>
+        <label>Monto<br><input id="monto" name="monto" placeholder="1800" inputmode="decimal" /></label>
+        <label>Estado<br>
+          <select id="estado" name="estado">
+            <option value="pendiente">pendiente</option>
+            <option value="recibido">recibido</option>
+          </select>
+        </label>
+        <label style="flex:1 1 100%">Concepto<br><input id="concepto" name="concepto" placeholder="Cobro mensual / retiro puntual / nota" style="width:100%" /></label>
+      </form>
+      <div class="row">
+        <button id="btnGuardar" type="button">Guardar</button>
+        <button class="secondary" id="btnGenerarPendientes" type="button">Generar pendientes del mes (contratos)</button>
+        <div id="saveMsg" role="status" aria-live="polite"></div>
+      </div>
+      <div id="permNotice" class="perm-notice" role="status" aria-live="polite"></div>
+      <div class="muted">Se guarda en <b>pagos</b> con: clienteId, fecha (YYYY-MM-DD), mes (YYYY-MM), monto, estado, concepto, createdAt.</div>
+    </div>
+
+    <!-- LISTADOS -->
+    <div class="card requires-auth" aria-labelledby="pendientesTitle">
+      <div class="row"><h2 id="pendientesTitle" style="margin-right:auto">Pagos pendientes</h2><div id="pendInfo" class="muted" role="status" aria-live="polite"></div></div>
+      <div class="table-wrap">
+        <table aria-describedby="pendInfo" role="grid">
+          <caption class="sr-only">Pagos pendientes</caption>
+          <thead><tr><th scope="col">Fecha</th><th scope="col">Cliente</th><th scope="col">Concepto</th><th scope="col">Monto</th><th scope="col">Estado</th><th scope="col" style="text-align:right">Acciones</th></tr></thead>
+          <tbody id="tbodyPend"><tr><td colspan="6">—</td></tr></tbody>
+        </table>
+      </div>
+      <hr style="border:none;border-top:1px solid #eef2f6;margin:16px 0" />
+      <div class="row"><h2 id="recibidosTitle" style="margin-right:auto">Pagos recibidos</h2><div id="recibInfo" class="muted" role="status" aria-live="polite"></div></div>
+      <div class="table-wrap">
+        <table aria-describedby="recibInfo" role="grid">
+          <caption class="sr-only">Pagos recibidos</caption>
+          <thead><tr><th scope="col">Fecha</th><th scope="col">Cliente</th><th scope="col">Concepto</th><th scope="col">Monto</th><th scope="col">Estado</th><th scope="col" style="text-align:right">Acciones</th></tr></thead>
+          <tbody id="tbodyRecib"><tr><td colspan="6">—</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ASISTENCIA DGI -->
+    <div class="card" id="cardDGI" aria-labelledby="dgiTitle">
+      <div class="row">
+        <h2 id="dgiTitle" style="margin-right:auto">Asistencia DGI</h2>
+        <label>Mes <input id="dgiMes" type="month" /></label>
+        <button class="secondary" id="btnDGIMesActual" type="button">Mes actual</button>
+        <button class="secondary" id="btnDGIExportCsv" type="button">Exportar CSV</button>
+        <button class="secondary" id="btnDGIExportXlsx" type="button">Exportar XLSX</button>
+      </div>
+
+      <div class="muted">Generá el checklist mensual y adjuntá comprobantes.</div>
+
+      <div class="row">
+        <label>Plantilla
+          <select id="plantillaDGI" style="min-width:260px">
+            <option value="monotributo">Monotributo – mensual</option>
+            <option value="general">General – mensual (editable)</option>
+          </select>
+        </label>
+        <button id="btnCrearChecklist" type="button">Generar checklist del mes</button>
+      </div>
+
+      <div class="table-wrap">
+        <table aria-describedby="dgiInfo" role="grid">
+          <caption class="sr-only">Checklist DGI</caption>
+          <thead>
+            <tr>
+              <th scope="col">Form / Tarea</th>
+              <th scope="col">Enlace</th>
+              <th scope="col">Notas</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Comprobante (URL)</th>
+              <th scope="col" style="text-align:right" class="no-print">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyDGI"><tr><td colspan="6">—</td></tr></tbody>
+        </table>
+      </div>
+      <div class="row"><div id="dgiInfo" class="muted" role="status" aria-live="polite">—</div></div>
+    </div>
+
+    <div class="card requires-auth" id="cardGuia" aria-labelledby="asistenteTitle">
+      <div class="row">
+        <h2 id="asistenteTitle" style="margin-right:auto">Asistente fiscal</h2>
+        <label for="guideSelect" style="min-width:260px">Formulario
+          <select id="guideSelect"></select>
+        </label>
+      </div>
+      <div class="guide-bubble" role="status" aria-live="polite">
+        <div class="guide-avatar" aria-hidden="true">🤖</div>
+        <div class="guide-content">
+          <h3 id="guideTitle">Seleccioná un formulario para ver la guía paso a paso</h3>
+          <p id="guideSummary" class="muted">El asistente te muestra enlaces oficiales y el orden sugerido para completar los datos sin salir de este módulo.</p>
+          <a id="guideLink" class="guide-link" target="_blank" rel="noopener">Abrir formulario oficial</a>
+          <div class="guide-steps">
+            <h4>Pasos sugeridos</h4>
+            <ol id="guideSteps"></ol>
+          </div>
+          <div id="guideTipsWrap" class="guide-tips">
+            <h4>Prepará antes de empezar</h4>
+            <ul id="guideTips"></ul>
+          </div>
+          <p id="guideStatus" class="muted">Seleccioná un formulario para resaltar la fila correspondiente del checklist.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SheetJS para XLSX -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script>
+    /* ============== Helpers generales ============== */
+    const $ = (id)=> document.getElementById(id);
+    const permNotice = $('permNotice');
+    const btnGuardar = $('btnGuardar');
+    const btnGenerarPendientes = $('btnGenerarPendientes');
+    const btnCrearChecklist = $('btnCrearChecklist');
+    const btnExportCsv = $('btnExportCsv');
+    const btnExportXlsx = $('btnExportXlsx');
+    const btnDGIExportCsv = $('btnDGIExportCsv');
+    const btnDGIExportXlsx = $('btnDGIExportXlsx');
+    const formMovimiento = $('formMovimiento');
+    const moduleLoaderTitle = document.getElementById('moduleLoaderTitle');
+    const moduleLoaderCaption = document.getElementById('moduleLoaderCaption');
+    let canManagePagos = false;
+    let canManageChecklist = false;
+    let canExportData = true;
+    const pad = (n)=> String(n).padStart(2,'0');
+    const hoy = ()=>{ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+    const mesActual = ()=>{ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}`; };
+    const toNumber = v => Number(String(v||'').replace(/[^\d.,-]/g,'').replace('.','').replace(',','.')) || 0;
+    const fmtMoney = n => new Intl.NumberFormat('es-UY',{style:'currency',currency:'UYU',maximumFractionDigits:0}).format(n);
+    const csv = rows => rows.map(r => r.map(v => `"${String(v??'').replace(/"/g,'""')}"`).join(';')).join('\n');
+    const by = (arr,fn) => arr.slice().sort((a,b)=> fn(a).localeCompare(fn(b),'es'));
+    const escapeHtml = (str='')=> String(str).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+    const getBrandName = ()=>{
+      try{
+        const snap = typeof getThemeSnapshot === 'function' ? getThemeSnapshot() : null;
+        return (snap && snap.brandName) ? snap.brandName : 'Gestión Sostenible';
+      }catch(err){
+        return 'Gestión Sostenible';
+      }
+    };
+    if(moduleLoaderTitle){ moduleLoaderTitle.textContent = getBrandName(); }
+    if(moduleLoaderCaption){ moduleLoaderCaption.textContent = 'Cargando…'; }
+
+    const localStore = (()=>{
+      try{
+        const key='gs:fin';
+        localStorage.setItem(key,'1');
+        localStorage.removeItem(key);
+        return localStorage;
+      }catch(err){
+        return null;
+      }
+    })();
+    const CACHE_CLIENTES_PREFIX = 'gs:finanzas:clientes:';
+    const CACHE_PAGOS_PREFIX    = 'gs:finanzas:pagos:';
+    const CACHE_DGI_PREFIX      = 'gs:finanzas:dgi:';
+    const fmtDateTime = (ts)=> ts ? new Intl.DateTimeFormat('es-UY',{dateStyle:'short',timeStyle:'short'}).format(new Date(ts)) : '';
+    const buildUpdated = (ts, fromCache=false)=> ts ? ` · Actualizado ${fmtDateTime(ts)}${fromCache?' (memoria)':''}` : '';
+    const FORM_LIBRARY = {
+      'dgi-130': {
+        id:'dgi-130',
+        titulo:'Formulario 130 · IVA mínimo',
+        organismo:'DGI',
+        url:'https://www.gub.uy/direccion-general-impositiva/comunicacion/guia-tramites/formulario-130-iva-minimo',
+        ayuda:'Declaración mensual del IVA mínimo y generación del ticket de pago.',
+        pasos:[
+          'Ingresá a Servicios en Línea de DGI y accedé con usuario o certificado digital.',
+          'Elegí "Empresas" y luego "IVA mínimo (Formulario 130)".',
+          'Seleccioná el período a declarar y cargá ventas, créditos y percepciones.',
+          'Revisá el detalle de la liquidación y confirmá para generar el comprobante.',
+          'Descargá el PDF del ticket de pago para adjuntarlo en el checklist.'
+        ],
+        requisitos:[
+          'Usuario DGI activo o ID Uruguay con representación vigente.',
+          'Ventas del mes y comprobantes de compras deducibles.'
+        ]
+      },
+      'dgi-2141': {
+        id:'dgi-2141',
+        titulo:'Formulario 2141 · Pago contado / Anticipos',
+        organismo:'DGI',
+        url:'https://www.gub.uy/direccion-general-impositiva/comunicacion/guia-tramites/formulario-2141-pago-contado',
+        ayuda:'Generá el pago contado o anticipo correspondiente al mes corriente.',
+        pasos:[
+          'Entrá a Servicios en Línea y elegí "Pagos" > "Crear pago contado (2141)".',
+          'Indicá el impuesto y período, verificá los importes pre cargados o editá manualmente.',
+          'Confirmá la liquidación y elegí medio de pago (débitos o redes).',
+          'Descargá el comprobante electrónico emitido por DGI.'
+        ],
+        requisitos:[
+          'Montos a pagar calculados o importados desde tus registros.',
+          'Medio de pago habilitado (cuenta bancaria o convenio con redes).'
+        ]
+      },
+      'dgi-1102': {
+        id:'dgi-1102',
+        titulo:'Formulario 1102 · Retenciones/Percepciones',
+        organismo:'DGI',
+        url:'https://www.gub.uy/direccion-general-impositiva/comunicacion/guia-tramites/formulario-1102-retenciones-percepciones',
+        ayuda:'Presentación mensual de retenciones o percepciones practicadas.',
+        pasos:[
+          'Accedé a Servicios en Línea y abrí "Retenciones y percepciones (1102)".',
+          'Cargá los RUT retenidos con sus importes y códigos de impuesto.',
+          'Validá el resumen y confirmá el envío de la declaración.',
+          'Descargá la constancia de presentación para adjuntarla a la tarea.'
+        ],
+        requisitos:[
+          'Detalle de retenciones realizadas en el mes.',
+          'RUT de los clientes/proveedores involucrados.'
+        ]
+      },
+      'bps-601': {
+        id:'bps-601',
+        titulo:'Declaración mensual de nómina',
+        organismo:'BPS',
+        url:'https://www.gub.uy/banco-prevision-social/tramites/declaracion-nomina',
+        ayuda:'Enviar nómina y generar el cargo de aportes en BPS.',
+        pasos:[
+          'Ingresá a Servicios en línea de BPS con usuario empresa o certificado.',
+          'Entrá a "Declaraciones" y elegí la nómina correspondiente al mes.',
+          'Importá el archivo generado por tu sistema o cargá los datos manualmente.',
+          'Validá las novedades, confirmá la declaración y generá el cargo.',
+          'Descargá la constancia y comprobante de cargo.'
+        ],
+        requisitos:[
+          'Usuarios con rol autorizado en BPS.',
+          'Archivo de nómina (formato BPS) o datos actualizados del personal.'
+        ]
+      },
+      'bps-ldp': {
+        id:'bps-ldp',
+        titulo:'Pago de aportes patronales',
+        organismo:'BPS',
+        url:'https://www.gub.uy/banco-prevision-social/tramites/pago-aportes-patronales',
+        ayuda:'Confirmá y aboná los aportes generados para el período.',
+        pasos:[
+          'Desde Servicios en línea BPS ingresá a "Pagos" > "Consulta de obligaciones".',
+          'Seleccioná el período y descargá el detalle de aportes generados.',
+          'Elige el medio de pago (débito, redes o transferencia) y confirmá.',
+          'Guardá el comprobante de pago emitido por BPS.'
+        ],
+        requisitos:[
+          'Declaración de nómina confirmada previamente.',
+          'Cuenta bancaria o convenio habilitado para el pago.'
+        ]
+      }
+    };
+
+    function applyPermissionState(){
+      const inSession = document.body.classList.contains('gs-authenticated');
+      if(formMovimiento){
+        formMovimiento.querySelectorAll('input, select').forEach(field=>{
+          if(field){
+            field.disabled = !canManagePagos;
+            if(!canManagePagos){ field.setAttribute('aria-disabled','true'); }
+            else{ field.removeAttribute('aria-disabled'); }
+          }
+        });
+      }
+      if(btnGuardar){
+        btnGuardar.disabled = !canManagePagos;
+        btnGuardar.setAttribute('aria-disabled', String(!canManagePagos));
+        btnGuardar.title = canManagePagos ? '' : 'Necesitás permisos de administración para registrar movimientos';
+      }
+      if(btnGenerarPendientes){
+        btnGenerarPendientes.disabled = !canManagePagos;
+        btnGenerarPendientes.setAttribute('aria-disabled', String(!canManagePagos));
+        btnGenerarPendientes.title = canManagePagos ? '' : 'Necesitás permisos de administración para generar pendientes';
+      }
+      if(btnCrearChecklist){
+        btnCrearChecklist.disabled = !canManageChecklist;
+        btnCrearChecklist.setAttribute('aria-disabled', String(!canManageChecklist));
+        btnCrearChecklist.title = canManageChecklist ? '' : 'Necesitás permisos de administración para generar checklist fiscales';
+      }
+      if(permNotice){
+        if(!inSession){
+          permNotice.textContent = 'Iniciá sesión desde el panel principal para registrar movimientos y revisar obligaciones.';
+        }else if(canManagePagos && canManageChecklist){
+          permNotice.textContent = 'Tenés permisos operativos: podés registrar movimientos, generar pendientes y mantener actualizado el checklist fiscal.';
+        }else if(canManagePagos){
+          permNotice.textContent = 'Podés registrar y actualizar movimientos. El checklist fiscal está en modo lectura.';
+        }else{
+          permNotice.textContent = 'Esta sesión no puede modificar finanzas ni checklist. Podés revisar indicadores, exportar reportes y seguir las guías disponibles.';
+        }
+      }
+    }
+
+    applyPermissionState();
+    const DGI_TEMPLATES = {
+      monotributo: ['dgi-130','dgi-2141','bps-601','bps-ldp'],
+      general: ['dgi-130','dgi-1102','dgi-2141','bps-601','bps-ldp']
+    };
+    const GUIDE_LIST = Object.values(FORM_LIBRARY).sort((a,b)=> (a.organismo||'').localeCompare(b.organismo||'', 'es') || a.titulo.localeCompare(b.titulo,'es'));
+    const GUIDE_MAP = new Map(GUIDE_LIST.map(g=>[g.id,g]));
+    const DEFAULT_GUIDE_ID = GUIDE_LIST[0]?.id || '';
+
+    let clientes = [];
+    let pagosMes = [];
+    let dgiMesActual = "";
+    let dgiItemsMes = [];
+    let storage = null; // se obtiene tras init
+    let currentUserId = null;
+    let currentOrganizationId = 'default';
+    let clientesLastUpdated = null;
+    let pagosLastUpdated = null;
+    let dgiLastUpdated = null;
+    let currentGuideId = DEFAULT_GUIDE_ID;
+    const isDemoSession = ()=> !!(window.gsAuth && typeof gsAuth.isDemoSession === 'function' && gsAuth.isDemoSession());
+
+    const cacheKey = (prefix, uid, org)=> `${prefix}${uid || 'anon'}:${org || 'default'}`;
+
+    const loadClientesCache = (uid)=>{
+      if(!localStore || !uid) return null;
+      try{
+        const raw = localStore.getItem(cacheKey(CACHE_CLIENTES_PREFIX, uid, currentOrganizationId));
+        return raw ? JSON.parse(raw) : null;
+      }catch(err){ return null; }
+    };
+    const saveClientesCache = ()=>{
+      if(!localStore || !currentUserId) return;
+      try{
+        localStore.setItem(cacheKey(CACHE_CLIENTES_PREFIX, currentUserId, currentOrganizationId), JSON.stringify({
+          updatedAt: clientesLastUpdated,
+          list: clientes
+        }));
+      }catch(err){ /* sin almacenamiento */ }
+    };
+    const loadPagosCache = (uid)=>{
+      if(!localStore || !uid) return null;
+      try{
+        const raw = localStore.getItem(cacheKey(CACHE_PAGOS_PREFIX, uid, currentOrganizationId));
+        return raw ? JSON.parse(raw) : null;
+      }catch(err){ return null; }
+    };
+    const savePagosCache = (mes)=>{
+      if(!localStore || !currentUserId) return;
+      try{
+        localStore.setItem(cacheKey(CACHE_PAGOS_PREFIX, currentUserId, currentOrganizationId), JSON.stringify({
+          updatedAt: pagosLastUpdated,
+          mes,
+          items: pagosMes
+        }));
+      }catch(err){ /* sin almacenamiento */ }
+    };
+    const loadDgiCache = (uid)=>{
+      if(!localStore || !uid) return null;
+      try{
+        const raw = localStore.getItem(cacheKey(CACHE_DGI_PREFIX, uid, currentOrganizationId));
+        return raw ? JSON.parse(raw) : null;
+      }catch(err){ return null; }
+    };
+    const saveDgiCache = ()=>{
+      if(!localStore || !currentUserId) return;
+      try{
+        localStore.setItem(cacheKey(CACHE_DGI_PREFIX, currentUserId, currentOrganizationId), JSON.stringify({
+          updatedAt: dgiLastUpdated,
+          mes: dgiMesActual,
+          items: dgiItemsMes
+        }));
+      }catch(err){ /* sin almacenamiento */ }
+    };
+
+    function getFormsForTemplate(template){
+      return (DGI_TEMPLATES[template] || []).map(id => GUIDE_MAP.get(id)).filter(Boolean);
+    }
+
+    function initGuideSelect(){
+      const sel = $('guideSelect');
+      if(!sel) return;
+      sel.innerHTML = '';
+      GUIDE_LIST.forEach(guide =>{
+        const opt = document.createElement('option');
+        opt.value = guide.id;
+        opt.textContent = `${guide.organismo || 'Trámite'} · ${guide.titulo}`;
+        sel.appendChild(opt);
+      });
+      sel.addEventListener('change', ()=> updateGuideCard(sel.value));
+      if(DEFAULT_GUIDE_ID && GUIDE_MAP.has(DEFAULT_GUIDE_ID)){
+        sel.value = DEFAULT_GUIDE_ID;
+        updateGuideCard(DEFAULT_GUIDE_ID);
+      }else{
+        updateGuideCard(sel.value || '');
+      }
+    }
+
+    function applyDemoFinanzas(){
+      const dataset = (window.gsAuth && typeof gsAuth.getDemoData === 'function') ? gsAuth.getDemoData() : {};
+      const demoClientes = Array.isArray(dataset && dataset.clientes) ? dataset.clientes : [];
+      clientes = demoClientes.map((c, index)=> Object.assign({ id: c && c.id ? c.id : `demo-cli-${index+1}` }, c));
+      clientes = clientes.sort((a,b)=> (a.nombre||'').localeCompare(b.nombre||'', 'es'));
+      currentOrganizationId = 'demo';
+      clientesLastUpdated = Date.now();
+      clientesCacheApplied = true;
+      renderClientesSelect();
+
+      const pagos = dataset && dataset.pagos ? dataset.pagos : {};
+      const mesDemo = pagos.mes || mesActual();
+      const filtroMes = $('filtroMes');
+      if(filtroMes){ filtroMes.value = mesDemo; }
+      pagosMes = Array.isArray(pagos.items) ? pagos.items.map((item, index)=> Object.assign({
+        id: item && item.id ? item.id : `demo-pay-${index+1}`,
+        mes: item && item.mes ? item.mes : mesDemo
+      }, item)) : [];
+      pagosLastUpdated = Date.now();
+
+      const dgi = dataset && dataset.dgi ? dataset.dgi : {};
+      dgiMesActual = dgi.mes || mesDemo;
+      const dgiMesSelect = $('dgiMes');
+      if(dgiMesSelect){ dgiMesSelect.value = dgiMesActual; }
+      dgiItemsMes = Array.isArray(dgi.items) ? dgi.items.map((item, index)=> Object.assign({
+        id: item && item.id ? item.id : `demo-dgi-${index+1}`
+      }, item)) : [];
+      dgiLastUpdated = Date.now();
+
+      document.body.classList.add('demo-mode');
+      document.body.classList.remove('loading-data');
+      document.body.classList.remove('checking-session');
+      const loginMsg = $('loginMsg');
+      if(loginMsg){ loginMsg.innerHTML = '<span class="info">🔒 Demo de solo lectura. Iniciá sesión para registrar operaciones.</span>'; }
+      canManagePagos = false;
+      canManageChecklist = false;
+      applyPermissionState();
+      renderMes(true);
+      renderDGITable(true);
+      updateGuideCard(currentGuideId || DEFAULT_GUIDE_ID);
+    }
+
+    function selectGuide(id){
+      const sel = $('guideSelect');
+      if(sel && GUIDE_MAP.has(id)){
+        sel.value = id;
+        updateGuideCard(id);
+        const row = document.querySelector(`#tbodyDGI tr[data-form-id="${id}"]`);
+        if(row){ row.scrollIntoView({behavior:'smooth', block:'center'}); }
+      }else{
+        updateGuideCard('');
+      }
+    }
+
+    function updateGuideCard(id){
+      const guide = GUIDE_MAP.get(id);
+      const titleEl = $('guideTitle');
+      const summaryEl = $('guideSummary');
+      const linkEl = $('guideLink');
+      const stepsEl = $('guideSteps');
+      const tipsWrap = $('guideTipsWrap');
+      const tipsEl = $('guideTips');
+      currentGuideId = guide ? guide.id : '';
+      if(!titleEl || !summaryEl || !stepsEl) return;
+
+      if(!guide){
+        titleEl.textContent = 'Seleccioná un formulario para ver la guía paso a paso';
+        summaryEl.textContent = 'El asistente fiscal te muestra enlaces oficiales y el orden recomendado para completar los datos sin salir del módulo.';
+        if(linkEl){ linkEl.style.display = 'none'; linkEl.removeAttribute('href'); }
+        stepsEl.innerHTML = '';
+        const li = document.createElement('li');
+        li.textContent = 'Elegí un trámite en el selector para mostrar los pasos sugeridos.';
+        stepsEl.appendChild(li);
+        if(tipsWrap){ tipsWrap.style.display = 'none'; }
+        syncGuideHighlight();
+        return;
+      }
+
+      titleEl.textContent = `${guide.organismo || 'Trámite'} · ${guide.titulo}`;
+      summaryEl.textContent = guide.ayuda || '';
+      if(linkEl){
+        if(guide.url){
+          linkEl.style.display = 'inline-flex';
+          linkEl.href = guide.url;
+          linkEl.textContent = 'Abrir formulario oficial';
+        }else{
+          linkEl.style.display = 'none';
+          linkEl.removeAttribute('href');
+        }
+      }
+
+      stepsEl.innerHTML = '';
+      if(Array.isArray(guide.pasos) && guide.pasos.length){
+        guide.pasos.forEach(step =>{
+          const li = document.createElement('li');
+          li.textContent = step;
+          stepsEl.appendChild(li);
+        });
+      }else{
+        const li = document.createElement('li');
+        li.textContent = 'Revisá el checklist y seguí tus pasos habituales.';
+        stepsEl.appendChild(li);
+      }
+
+      if(tipsEl && tipsWrap){
+        if(Array.isArray(guide.requisitos) && guide.requisitos.length){
+          tipsEl.innerHTML = '';
+          guide.requisitos.forEach(tip =>{
+            const li = document.createElement('li');
+            li.textContent = tip;
+            tipsEl.appendChild(li);
+          });
+          tipsWrap.style.display = 'block';
+        }else{
+          tipsWrap.style.display = 'none';
+        }
+      }
+
+      syncGuideHighlight();
+    }
+
+    function syncGuideHighlight(){
+      const rows = document.querySelectorAll('#tbodyDGI tr');
+      rows.forEach(row =>{
+        const id = row.getAttribute('data-form-id');
+        if(!id){
+          row.classList.remove('guide-focus');
+          return;
+        }
+        row.classList.toggle('guide-focus', Boolean(currentGuideId && id === currentGuideId));
+      });
+      const statusEl = $('guideStatus');
+      if(!statusEl) return;
+      if(!currentGuideId){
+        statusEl.textContent = 'Seleccioná un formulario para resaltar la fila correspondiente del checklist.';
+        return;
+      }
+      const guide = GUIDE_MAP.get(currentGuideId);
+      if(!guide){
+        statusEl.textContent = 'Seleccioná un formulario disponible en el asistente para obtener orientación.';
+        return;
+      }
+      const hasTask = dgiItemsMes.some(item => (item.formId || item.id) === currentGuideId);
+      if(guide && hasTask){
+        statusEl.textContent = 'Resalté la fila correspondiente en el checklist de este mes. Marcala como presentada cuando termines.';
+      }else{
+        statusEl.textContent = 'Generá el checklist del mes o agregá la tarea manualmente para seguir el avance de este formulario.';
+      }
+    }
+
+    function formatGuideNotes(t){
+      const id = t.formId || t.id;
+      const guide = id ? GUIDE_MAP.get(id) : null;
+      const pieces = [];
+      const orgLabel = guide?.organismo || t.organismo || '';
+      if(orgLabel){
+        const orgClass = orgLabel.toUpperCase()==='BPS' ? 'bps' : 'dgi';
+        pieces.push(`<span class="guide-chip ${orgClass}">${escapeHtml(orgLabel)}</span>`);
+      }
+      const noteText = t.notas || (guide && guide.ayuda) || '';
+      if(noteText){
+        pieces.push(`<span>${escapeHtml(noteText)}</span>`);
+      }
+      if(guide){
+        pieces.push(`<div class="guide-actions"><button class="secondary small" type="button" data-open-guide="${guide.id}">Seguir guía</button></div>`);
+      }
+      return pieces.length ? pieces.join('<br>') : '—';
+    }
+
+    // ====== Login rápido local (útil para debug) ======
+    $('loginForm').addEventListener('submit', async (event)=>{
+      event.preventDefault();
+      try{
+        await gsAuth.signInWithEmailAndPassword($('email').value.trim(), $('pass').value.trim());
+        $('loginMsg').innerHTML = '<span class="ok">✅ Login OK</span>';
+      }catch(e){
+        const friendly = (gsAuth && typeof gsAuth.describeError === 'function') ? gsAuth.describeError(e) : null;
+        $('loginMsg').innerHTML = '<span class="err">❌ '+(friendly || e?.message||'Error')+'</span>';
+      }
+    });
+
+    // ====== Cuando HAY sesión, inicializamos Firestore/Storage y la UI ======
+    let currentDb = null;
+    let listenersBound = false;
+    let unsubPagos = null;
+    let unsubDgi = null;
+
+    initGuideSelect();
+
+    gsAuth.onAuthStateChanged(async (u)=>{
+      document.body.classList.remove('checking-session');
+      if(isDemoSession()){
+        applyDemoFinanzas();
+        return;
+      }
+      if(!u){
+        $('loginMsg').textContent = '';
+        $('email').value = '';
+        $('pass').value = '';
+        currentUserId = null;
+        currentOrganizationId = 'default';
+        clientes = [];
+        pagosMes = [];
+        dgiItemsMes = [];
+        clientesLastUpdated = pagosLastUpdated = dgiLastUpdated = null;
+        if(unsubPagos){ unsubPagos(); unsubPagos = null; }
+        if(unsubDgi){ unsubDgi(); unsubDgi = null; }
+        renderClientesSelect();
+        renderMes();
+        renderDGITable();
+        document.body.classList.remove('loading-data');
+        selectGuide(DEFAULT_GUIDE_ID);
+        return;
+      }
+
+      currentUserId = u.uid || 'default';
+      currentOrganizationId = (window.gsAuth && typeof gsAuth.getOrganizationId === 'function')
+        ? gsAuth.getOrganizationId()
+        : currentOrganizationId;
+      $('loginMsg').innerHTML = '<span class="ok">✅ Sesión activa</span>';
+      $('email').value = u.email || '';
+
+      currentDb = firebase.firestore();
+      storage = firebase.storage();
+
+      if(!$('filtroMes').value) $('filtroMes').value = mesActual();
+      $('dgiMes').value = $('filtroMes').value;
+      if(!$('fecha').value) $('fecha').value = hoy();
+
+      const cachedClientes = loadClientesCache(currentUserId);
+      if(cachedClientes && Array.isArray(cachedClientes.list)){
+        clientes = cachedClientes.list;
+        clientesLastUpdated = cachedClientes.updatedAt || null;
+      }
+      renderClientesSelect();
+
+      const cachedPagos = loadPagosCache(currentUserId);
+      if(cachedPagos && Array.isArray(cachedPagos.items)){
+        pagosMes = cachedPagos.items;
+        pagosLastUpdated = cachedPagos.updatedAt || null;
+        if(cachedPagos.mes){
+          $('filtroMes').value = cachedPagos.mes;
+          $('dgiMes').value = cachedPagos.mes;
+        }
+        renderMes(true);
+      }else{
+        pagosMes = [];
+        renderMes();
+      }
+
+      const cachedDgi = loadDgiCache(currentUserId);
+      if(cachedDgi && Array.isArray(cachedDgi.items)){
+        dgiMesActual = cachedDgi.mes || $('dgiMes').value;
+        $('dgiMes').value = dgiMesActual;
+        dgiItemsMes = cachedDgi.items;
+        dgiLastUpdated = cachedDgi.updatedAt || null;
+        renderDGITable(true);
+      }else{
+        dgiItemsMes = [];
+        renderDGITable();
+      }
+
+      document.body.classList.add('loading-data');
+
+      await cargarClientes(currentDb);
+      renderClientesSelect();
+      if(pagosMes.length){ renderMes(true); }
+      if(dgiItemsMes.length){ renderDGITable(true); }
+
+      $('btnMesActual').onclick = ()=>{
+        $('filtroMes').value = mesActual();
+        $('dgiMes').value = $('filtroMes').value;
+        document.body.classList.add('loading-data');
+        suscribirMes(currentDb);
+        suscribirDGIMes(currentDb);
+      };
+      $('filtroMes').onchange = ()=>{
+        $('dgiMes').value = $('filtroMes').value;
+        document.body.classList.add('loading-data');
+        suscribirMes(currentDb);
+        suscribirDGIMes(currentDb);
+      };
+
+      $('btnGuardar').onclick = ()=> guardarPago(currentDb);
+      $('btnGenerarPendientes').onclick = ()=> generarPendientes(currentDb);
+      $('btnDGIExportCsv').onclick = exportDGICsv;
+      $('btnDGIExportXlsx').onclick = exportDGIXlsx;
+      $('btnExportCsv').onclick = ()=> exportFinanzasCsv();
+      $('btnExportXlsx').onclick = ()=> exportFinanzasXlsx();
+      $('btnDGIMesActual').onclick = ()=>{ $('dgiMes').value = mesActual(); document.body.classList.add('loading-data'); suscribirDGIMes(currentDb); };
+
+      if(!listenersBound){
+        listenersBound = true;
+        document.body.addEventListener('click', async (e)=>{
+          const openGuide = e.target.getAttribute('data-open-guide');
+          if(openGuide){
+            e.preventDefault();
+            selectGuide(openGuide);
+            return;
+          }
+          const dbRef = currentDb;
+          if(!dbRef) return;
+          const rec = e.target.getAttribute('data-rec');
+          const del = e.target.getAttribute('data-del');
+          const markId = e.target.getAttribute('data-mark');
+          const delId  = e.target.getAttribute('data-del-dgi');
+          const upId   = e.target.getAttribute('data-upload');
+          if(rec){
+            if(!canManagePagos){ alert('Solo administradores pueden actualizar pagos.'); return; }
+            try{ await dbRef.collection('pagos').doc(rec).update({estado:'recibido'}); }
+            catch(err){ alert('Error: '+err.message); }
+          }
+          else if(del){
+            if(!canManagePagos){ alert('Solo administradores pueden eliminar pagos.'); return; }
+            if(confirm('¿Eliminar este registro?')){
+              try{ await dbRef.collection('pagos').doc(del).delete(); }
+              catch(err){ alert('Error: '+err.message); }
+            }
+          }
+          else if(markId){
+            if(!canManageChecklist){ alert('Solo administradores pueden actualizar el checklist.'); return; }
+            await togglePresentado(dbRef, markId);
+          }
+          else if(delId){
+            if(!canManageChecklist){ alert('Solo administradores pueden eliminar tareas del checklist.'); return; }
+            if(confirm('¿Eliminar esta tarea?')) await dbRef.collection('dgi_tareas').doc(delId).delete();
+          }
+          else if(upId){
+            if(!canManageChecklist){ alert('Solo administradores pueden adjuntar comprobantes.'); return; }
+            startUpload(upId);
+          }
+        });
+      }
+
+      $('btnCrearChecklist').onclick = ()=> crearChecklist(currentDb);
+
+      suscribirMes(currentDb);
+      suscribirDGIMes(currentDb);
+    });
+
+    gsAuth.onSession((session)=>{
+      canManagePagos = !!(session && session.abilities && session.abilities.managePagos);
+      canManageChecklist = !!(session && session.abilities && session.abilities.manageChecklist);
+      canExportData = !!(session && session.abilities && session.abilities.exportData);
+      const sessionOrgId = session && session.profile && session.profile.organizationId
+        ? session.profile.organizationId
+        : ((window.gsAuth && typeof gsAuth.getOrganizationId === 'function') ? gsAuth.getOrganizationId() : currentOrganizationId);
+      const normalizedOrg = sessionOrgId || 'default';
+      if(normalizedOrg !== currentOrganizationId){
+        currentOrganizationId = normalizedOrg;
+        if(currentUserId && !isDemoSession()){
+          const cachedClientes = loadClientesCache(currentUserId);
+          if(cachedClientes && Array.isArray(cachedClientes.list)){
+            clientes = cachedClientes.list;
+            clientesLastUpdated = cachedClientes.updatedAt || null;
+            renderClientesSelect();
+          }
+          const cachedPagos = loadPagosCache(currentUserId);
+          if(cachedPagos && Array.isArray(cachedPagos.items)){
+            pagosMes = cachedPagos.items;
+            pagosLastUpdated = cachedPagos.updatedAt || null;
+            if(cachedPagos.mes){
+              $('filtroMes').value = cachedPagos.mes;
+              $('dgiMes').value = cachedPagos.mes;
+            }
+            renderMes(true);
+          }
+          const cachedDgi = loadDgiCache(currentUserId);
+          if(cachedDgi && Array.isArray(cachedDgi.items)){
+            dgiItemsMes = cachedDgi.items;
+            dgiMesActual = cachedDgi.mes || $('dgiMes').value;
+            $('dgiMes').value = dgiMesActual;
+            dgiLastUpdated = cachedDgi.updatedAt || null;
+            renderDGITable(true);
+          }
+          if(currentDb){
+            document.body.classList.add('loading-data');
+            cargarClientes(currentDb).then(()=>{
+              renderClientesSelect();
+              suscribirMes(currentDb);
+              suscribirDGIMes(currentDb);
+            });
+          }
+        }
+      }
+      applyPermissionState();
+      if(pagosMes.length){ renderMes(true); }
+      renderDGITable(true);
+    });
+
+    /* ======================= CLIENTES ======================= */
+    function renderClientesSelect(){
+      const sel = $('selCliente');
+      if(!sel) return;
+      const current = sel.value;
+      sel.innerHTML='';
+      sel.appendChild(new Option('Seleccioná un cliente',''));
+      clientes.forEach(c => sel.appendChild(new Option(c.nombre || '', c.id)));
+      if(current){ sel.value = current; }
+    }
+
+    async function cargarClientes(db){
+      if(isDemoSession()){
+        return;
+      }
+      const orgId = currentOrganizationId || 'default';
+      let query = db.collection('clientes');
+      if(orgId && orgId !== 'default'){
+        query = query.where('organizationId','==',orgId);
+      }
+      const snap = await query.get();
+      let rows = snap.docs.map(d=>({id:d.id,...d.data()}));
+      if(orgId === 'default'){
+        rows = rows.filter(row=>{
+          const rowOrg = row.organizationId || row.organization || null;
+          return !rowOrg || rowOrg === 'default';
+        });
+      }
+      clientes = by(rows, x=>x.nombre||'');
+      clientesLastUpdated = Date.now();
+      renderClientesSelect();
+      saveClientesCache();
+    }
+
+    /* ======================= FINANZAS ======================= */
+    function suscribirMes(db){
+      if(isDemoSession()){
+        applyDemoFinanzas();
+        return;
+      }
+      if(unsubPagos){ unsubPagos(); unsubPagos = null; }
+      const mes = $('filtroMes').value || mesActual();
+      document.body.classList.add('loading-data');
+      const orgId = currentOrganizationId || 'default';
+      let query = db.collection('pagos').where('mes','==',mes);
+      if(orgId && orgId !== 'default'){
+        query = query.where('organizationId','==',orgId);
+      }
+      unsubPagos = query.onSnapshot(snap=>{
+        pagosMes = snap.docs.map(d=>({id:d.id,...d.data()})).filter((row)=>{
+          const rowOrg = row.organizationId || row.organization || null;
+          if(orgId === 'default'){
+            return !rowOrg || rowOrg === 'default';
+          }
+          return rowOrg === orgId;
+        });
+        pagosLastUpdated = Date.now();
+        renderMes();
+        savePagosCache(mes);
+      }, (err)=>{
+        console.error(err);
+        document.body.classList.remove('loading-data');
+      });
+    }
+
+    function renderMes(fromCache=false){
+      const mapCli = Object.fromEntries(clientes.map(c=>[c.id,c]));
+      const pend = pagosMes.filter(p=>p.estado==='pendiente');
+      const recib = pagosMes.filter(p=>p.estado==='recibido');
+
+      const tPend = pend.reduce((acc,p)=> acc + toNumber(p.monto), 0);
+      const tRec  = recib.reduce((acc,p)=> acc + toNumber(p.monto), 0);
+      const ultimo = by(recib, p=>p.fecha || '').slice(-1)[0]?.monto || 0;
+
+      $('kpiIngresos').textContent = fmtMoney(tRec);
+      $('kpiDeuda').textContent    = fmtMoney(tPend);
+      $('kpiUltimo').textContent   = fmtMoney(toNumber(ultimo));
+
+      pintarTabla('tbodyPend', pend, mapCli, true);
+      pintarTabla('tbodyRecib', recib, mapCli, false);
+
+      const updated = buildUpdated(pagosLastUpdated, fromCache);
+      $('pendInfo').textContent  = `${pend.length} pendientes · ${fmtMoney(tPend)}${updated}`;
+      $('recibInfo').textContent = `${recib.length} recibidos · ${fmtMoney(tRec)}${updated}`;
+      document.body.classList.remove('loading-data');
+    }
+
+    function pintarTabla(tbodyId, items, mapCli, esPendiente){
+      const tb = $(tbodyId); tb.innerHTML = '';
+      if(items.length===0){ tb.innerHTML = '<tr><td colspan="6">—</td></tr>'; return; }
+      items
+        .sort((a,b)=> (a.fecha||'').localeCompare(b.fecha||'') || (mapCli[a.clienteId]?.nombre||'').localeCompare(mapCli[b.clienteId]?.nombre||'','es'))
+        .forEach(p=>{
+          const c = mapCli[p.clienteId] || {};
+        const tr = document.createElement('tr');
+        const actions = canManagePagos
+          ? `${esPendiente ? `<button class="secondary" data-rec="${p.id}">Marcar recibido</button>` : ''} <button class="danger" data-del="${p.id}">Eliminar</button>`
+          : '<span class="read-only-label">Solo lectura</span>';
+        const montoVacio = p.monto === null || typeof p.monto === 'undefined' || String(p.monto).trim() === '';
+        const montoValor = toNumber(p.monto);
+        const montoTexto = montoVacio ? '—' : fmtMoney(montoValor);
+        tr.innerHTML = `
+          <td>${escapeHtml(p.fecha||'')}</td>
+          <td>${escapeHtml(c.nombre||'')}</td>
+          <td>${escapeHtml(p.concepto||'')}</td>
+          <td>${escapeHtml(montoTexto)}</td>
+          <td><span class="pill ${p.estado==='recibido'?'done':'pending'}">${escapeHtml(p.estado||'')}</span></td>
+          <td style="text-align:right">${actions}</td>`;
+        tb.appendChild(tr);
+      });
+    }
+
+    async function guardarPago(db){
+      if(!canManagePagos){
+        $('saveMsg').innerHTML = '<span class="err">Solo administradores pueden registrar movimientos.</span>';
+        return;
+      }
+      const clienteId = $('selCliente').value;
+      const fecha = $('fecha').value || hoy();
+      const monto = $('monto').value.trim();
+      const estado = $('estado').value;
+      const concepto = $('concepto').value.trim();
+      if(!clienteId || !monto){ $('saveMsg').innerHTML='<span class="err">Completá cliente y monto</span>'; return; }
+      const montoValor = toNumber(monto);
+      if(montoValor <= 0){ $('saveMsg').innerHTML = '<span class="err">Ingresá un monto mayor a cero.</span>'; return; }
+      const mes = (fecha || hoy()).slice(0,7);
+      try{
+        await db.collection('pagos').add({
+          clienteId,
+          fecha,
+          mes,
+          monto: Math.round(montoValor * 100) / 100,
+          estado,
+          concepto,
+          organizationId: currentOrganizationId || 'default',
+          createdAt: new Date().toISOString()
+        });
+        $('saveMsg').innerHTML='<span class="ok">✅ Guardado</span>';
+        $('monto').value=''; $('concepto').value='';
+      }catch(e){ $('saveMsg').innerHTML='<span class="err">❌ '+e.message + '</span>'; }
+    }
+
+    async function generarPendientes(db){
+      if(!canManagePagos){
+        alert('Solo administradores pueden generar pendientes.');
+        return;
+      }
+      const mes = $('filtroMes').value || mesActual();
+      const contratos = clientes.filter(c => !!c.contrato && !!c.monto);
+      if(contratos.length===0){ alert('No hay clientes con contrato y monto configurado.'); return; }
+
+      let query = db.collection('pagos').where('mes','==',mes);
+      const orgId = currentOrganizationId || 'default';
+      if(orgId && orgId !== 'default'){
+        query = query.where('organizationId','==',orgId);
+      }
+      const snap = await query.get();
+      const existe = new Set(snap.docs.map(d=>d.data().clienteId+'|'+d.data().concepto));
+
+      let creados = 0;
+      for(const c of contratos){
+        const concepto = `Abono ${mes}`;
+        const key = c.id+'|'+concepto;
+        if(existe.has(key)) continue;
+        const montoContrato = toNumber(c.monto);
+        if(montoContrato <= 0){ continue; }
+        await db.collection('pagos').add({
+          clienteId: c.id,
+          fecha: `${mes}-01`,
+          mes,
+          monto: Math.round(montoContrato * 100) / 100,
+          estado: 'pendiente',
+          concepto,
+          organizationId: currentOrganizationId || 'default',
+          createdAt: new Date().toISOString()
+        });
+        creados++;
+      }
+      alert(`Listo. Se generaron ${creados} pendientes.`);
+    }
+
+    function exportFinanzasCsv(){
+      if(!canExportData){ alert('Tu rol actual no permite exportar datos.'); return; }
+      const mes = $('filtroMes').value || mesActual();
+      const mapCli = Object.fromEntries(clientes.map(c=>[c.id,c]));
+      const rows = [["Mes","Fecha","Cliente","Concepto","Monto","Estado"]];
+      pagosMes.forEach(p=>{
+        const c = mapCli[p.clienteId] || {};
+        const montoValor = Math.round(toNumber(p.monto) * 100) / 100;
+        rows.push([p.mes, p.fecha||'', c.nombre||'', p.concepto||'', montoValor, p.estado||'']);
+      });
+      const BOM = '\ufeff';
+      const blob = new Blob([BOM+csv(rows)], {type:'text/csv;charset=utf-8;'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `finanzas_${mes}.csv`; a.click(); URL.revokeObjectURL(a.href);
+    }
+
+    function exportFinanzasXlsx(){
+      if(!canExportData){ alert('Tu rol actual no permite exportar datos.'); return; }
+      const mes = $('filtroMes').value || mesActual();
+      const mapCli = Object.fromEntries(clientes.map(c=>[c.id,c]));
+      const rows = [["Mes","Fecha","Cliente","Concepto","Monto","Estado"]];
+      pagosMes.forEach(p=>{
+        const c = mapCli[p.clienteId] || {};
+        const montoValor = Math.round(toNumber(p.monto) * 100) / 100;
+        rows.push([p.mes, p.fecha||'', c.nombre||'', p.concepto||'', montoValor, p.estado||'']);
+      });
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, `Finanzas ${mes}`); XLSX.writeFile(wb, `finanzas_${mes}.xlsx`);
+    }
+
+    /* ======================= DGI ======================= */
+
+    function suscribirDGIMes(db){
+      if(isDemoSession()){
+        applyDemoFinanzas();
+        return;
+      }
+      if(unsubDgi){ unsubDgi(); unsubDgi = null; }
+      const mes = $('dgiMes').value || mesActual();
+      dgiMesActual = mes;
+      document.body.classList.add('loading-data');
+      const orgId = currentOrganizationId || 'default';
+      let query = db.collection('dgi_tareas').where('mes','==',mes);
+      if(orgId && orgId !== 'default'){
+        query = query.where('organizationId','==',orgId);
+      }
+      unsubDgi = query.onSnapshot(snap=>{
+        dgiItemsMes = snap.docs.map(d=>({id:d.id, ...d.data()})).filter((row)=>{
+          const rowOrg = row.organizationId || row.organization || null;
+          if(orgId === 'default'){
+            return !rowOrg || rowOrg === 'default';
+          }
+          return rowOrg === orgId;
+        });
+        dgiLastUpdated = Date.now();
+        renderDGITable();
+        saveDgiCache();
+      }, (err)=>{
+        console.error(err);
+        document.body.classList.remove('loading-data');
+      });
+    }
+
+    function renderDGITable(fromCache=false){
+      const el = $('tbodyDGI'); el.innerHTML = '';
+      if(dgiItemsMes.length===0){
+        el.innerHTML = '<tr><td colspan="6">—</td></tr>';
+        const updated = buildUpdated(dgiLastUpdated, fromCache);
+        $('dgiInfo').textContent = `Sin checklist para este mes.${updated}`;
+        document.body.classList.remove('loading-data');
+        syncGuideHighlight();
+        return;
+      }
+      let presentados = 0;
+      dgiItemsMes.sort((a,b)=> (a.titulo||'').localeCompare(b.titulo||'','es')).forEach(t=>{
+        if(t.estado==='presentado') presentados++;
+        const tr = document.createElement('tr');
+        const notesHtml = formatGuideNotes(t);
+        tr.setAttribute('data-form-id', t.formId || t.id || '');
+        const fileInputDisabled = canManageChecklist ? '' : ' disabled aria-disabled="true"';
+        const uploadButton = canManageChecklist ? `<button class="secondary" data-upload="${t.id}">Subir archivo</button>` : '';
+        const fileLink = t.comprobanteUrl ? `<a class="secondary" href="${t.comprobanteUrl}" target="_blank" rel="noopener">Ver archivo</a>` : '';
+        const actions = canManageChecklist
+          ? `<button class="secondary" data-mark="${t.id}">${t.estado==='presentado'?'Desmarcar':'Marcar presentado'}</button> <button class="danger" data-del-dgi="${t.id}">Eliminar</button>`
+          : '<span class="read-only-label">Solo lectura</span>';
+        tr.innerHTML = `
+          <td>${escapeHtml(t.titulo||'')}</td>
+          <td>${t.url ? `<a href="${t.url}" target="_blank" rel="noopener">Abrir</a>` : '—'}</td>
+          <td>${notesHtml}</td>
+          <td><span class="pill ${t.estado==='presentado'?'done':'pending'}">${escapeHtml(t.estado||'pendiente')}</span></td>
+          <td>
+            <input data-url="${t.id}" placeholder="https://drive.google.com/..." value="${t.comprobanteUrl||''}" style="width:100%; margin-bottom:6px"${fileInputDisabled}>
+            <div class="no-print" style="display:flex; gap:6px; flex-wrap:wrap">
+              ${uploadButton}
+              ${fileLink}
+            </div>
+          </td>
+          <td style="text-align:right" class="no-print">${actions}</td>`;
+        el.appendChild(tr);
+      });
+      const updated = buildUpdated(dgiLastUpdated, fromCache);
+      $('dgiInfo').textContent = `${presentados}/${dgiItemsMes.length} presentados${updated}`;
+      document.body.classList.remove('loading-data');
+      syncGuideHighlight();
+    }
+
+    async function crearChecklist(db){
+      if(!canManageChecklist){
+        alert('Solo administradores pueden generar checklist fiscales.');
+        return;
+      }
+      const plantilla = $('plantillaDGI').value || 'monotributo';
+      const forms = getFormsForTemplate(plantilla);
+      if(forms.length===0){ alert('Plantilla vacía'); return; }
+      const orgId = currentOrganizationId || 'default';
+      let query = db.collection('dgi_tareas').where('mes','==', dgiMesActual);
+      if(orgId && orgId !== 'default'){
+        query = query.where('organizationId','==',orgId);
+      }
+      const snap = await query.get();
+      const ya = new Set(snap.docs.map(d=>d.data().formId));
+      let creados = 0;
+      for(const f of forms){
+        if(ya.has(f.id)) continue;
+        await db.collection('dgi_tareas').add({
+          mes: dgiMesActual, formId: f.id, titulo: f.titulo, url: f.url || '',
+          notas: f.ayuda || '', organismo: f.organismo || '', estado: 'pendiente', comprobanteUrl: '',
+          organizationId: currentOrganizationId || 'default',
+          createdAt: new Date().toISOString(), submittedAt: null, clienteId: null
+        });
+        creados++;
+      }
+      alert(`Checklist listo. Se agregaron ${creados} tareas.`);
+    }
+
+    async function togglePresentado(db, id){
+      if(!canManageChecklist) return;
+      const ref = db.collection('dgi_tareas').doc(id);
+      const snap = await ref.get();
+      const nuevo = (snap.data()?.estado==='presentado') ? {estado:'pendiente', submittedAt:null} : {estado:'presentado', submittedAt:new Date().toISOString()};
+      await ref.update(nuevo);
+    }
+
+    // ====== Subida a Storage ======
+    let _uploadTargetId = null;
+    function getUploader(){
+      let up = document.getElementById('uploader');
+      if(!up){
+        up = document.createElement('input');
+        up.type = 'file'; up.id = 'uploader'; up.accept = '.pdf,image/*'; up.style.display = 'none';
+        document.body.appendChild(up);
+      }
+      return up;
+    }
+    (function attachUploaderOnce(){
+      const up = getUploader();
+      if(!up._attached){
+        up.addEventListener('change', async (e)=>{
+          const file = e.target.files && e.target.files[0];
+          if(!file || !_uploadTargetId || !storage) return;
+          try{
+            if(file.size > 10*1024*1024){ alert('El archivo supera 10MB'); return; }
+            const path = `dgi/${dgiMesActual}/${_uploadTargetId}/${Date.now()}_${file.name}`;
+            const ref = storage.ref().child(path);
+            await ref.put(file);
+            const url = await ref.getDownloadURL();
+            const db = firebase.firestore();
+            await db.collection('dgi_tareas').doc(_uploadTargetId).update({ comprobanteUrl: url });
+            const tarea = dgiItemsMes.find(x=>x.id===_uploadTargetId);
+            if(tarea){ tarea.comprobanteUrl = url; renderDGITable(); }
+            _uploadTargetId = null; up.value = '';
+            alert('✅ Archivo subido y vinculado.');
+          }catch(err){ console.error(err); alert('Error al subir: ' + (err?.message || err)); }
+        });
+        up._attached = true;
+      }
+    })();
+    function startUpload(id){
+      if(!canManageChecklist) return;
+      _uploadTargetId = id; const up = getUploader(); up.value=''; up.click();
+    }
+
+    // ====== Export DGI (por si más tarde lo usás) ======
+    function exportDGICsv(){
+      if(!canExportData){ alert('Tu rol actual no permite exportar datos.'); return; }
+      const rows = [["Mes","Tarea","Estado","URL","Notas"]];
+      dgiItemsMes.forEach(t=> rows.push([t.mes||dgiMesActual, t.titulo||'', t.estado||'', t.comprobanteUrl||'', t.notas||'']));
+      const BOM = '\ufeff';
+      const blob = new Blob([BOM+csv(rows)], {type:'text/csv;charset=utf-8;'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `dgi_${dgiMesActual}.csv`; a.click(); URL.revokeObjectURL(a.href);
+    }
+    function exportDGIXlsx(){
+      if(!canExportData){ alert('Tu rol actual no permite exportar datos.'); return; }
+      const rows = [["Mes","Tarea","Estado","URL","Notas"]];
+      dgiItemsMes.forEach(t=> rows.push([t.mes||dgiMesActual, t.titulo||'', t.estado||'', t.comprobanteUrl||'', t.notas||'']));
+      const ws = XLSX.utils.aoa_to_sheet(rows); const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, `DGI ${dgiMesActual}`); XLSX.writeFile(wb, `dgi_${dgiMesActual}.xlsx`);
+    }
+  </script>
+</body>
+</html>

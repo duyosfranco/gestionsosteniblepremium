@@ -72,8 +72,15 @@
     .role-chip{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:rgba(16,113,150,.12);color:#0d2b3d;text-transform:capitalize}
     .role-chip.admin{background:rgba(176,0,32,.12);color:#8c1c21}
     .role-chip.control{background:rgba(29,191,115,.16);color:#136c43}
+    .role-chip.manager{background:rgba(255,171,0,.18);color:#8a4f00}
+    .role-chip.operator{background:rgba(16,113,150,.14);color:#0f3346}
+    .role-chip.viewer{background:rgba(13,43,61,.08);color:#0b1f2a}
     .table-muted{display:block;font-size:12px;color:var(--muted)}
     .muted{color:var(--muted);font-size:13px}
+    .security-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+    .security-card{border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:8px;background:linear-gradient(180deg,#ffffff 0%,#f7fbff 100%)}
+    .mini-title{margin:0;font-size:15px;color:var(--ink);display:flex;justify-content:space-between;align-items:center}
+    .activity-list{margin:0;padding-left:18px;display:grid;gap:6px;color:var(--ink)}
     .module-loader{display:none;position:fixed;inset:0;background:rgba(255,255,255,.86);backdrop-filter:blur(4px);align-items:center;justify-content:center;text-align:center;color:#0b1f2a;z-index:20;padding:24px}
     .module-loader .box{display:grid;gap:12px;max-width:320px}
     .module-loader .spinner{width:36px;height:36px;border-radius:50%;border:3px solid rgba(16,113,150,.18);border-top-color:var(--accent);animation:spin 1s linear infinite;margin:0 auto}
@@ -137,8 +144,11 @@
         </label>
         <label for="controlInviteRole">Tipo de acceso
           <select id="controlInviteRole" name="role" required>
-            <option value="control" selected>Control</option>
             <option value="admin">Administrador</option>
+            <option value="manager" selected>Manager</option>
+            <option value="operator">Operador</option>
+            <option value="viewer">Viewer</option>
+            <option value="control">Control (legacy)</option>
           </select>
         </label>
         <label for="controlInviteOrg">Organización
@@ -214,6 +224,68 @@
         </table>
       </div>
     </section>
+
+    <section class="card requires-auth" aria-labelledby="securityTitle">
+      <div class="page-head" style="align-items:center">
+        <div>
+          <h2 id="securityTitle" style="margin:0;font-size:20px;color:var(--ink)">Seguridad de sesión y autenticación</h2>
+          <p class="muted" style="margin:0">Configura timeouts, 2FA y recuperación de contraseñas desde el mismo panel.</p>
+        </div>
+        <span class="muted" id="securityStatus">Timeout activo.</span>
+      </div>
+      <div class="security-grid">
+        <div class="security-card">
+          <h3 class="mini-title">⏱️ Timeout de sesión <span class="status-chip actual" id="timeoutLabel">45 min</span></h3>
+          <label class="muted">Minutos de inactividad
+            <input id="timeoutInput" type="number" min="5" step="5" value="45" />
+          </label>
+          <button id="btnActualizarTimeout" type="button">Actualizar timeout</button>
+          <p class="muted" style="margin:0">Se cerrará sesión automáticamente tras inactividad para evitar secuestro de sesión.</p>
+        </div>
+        <div class="security-card">
+          <h3 class="mini-title">🔒 2FA por SMS</h3>
+          <label class="muted">Teléfono
+            <input id="twofaPhone" type="tel" placeholder="+598 94 000 000" />
+          </label>
+          <label class="muted">Código recibido
+            <input id="twofaCode" type="text" placeholder="123456" />
+          </label>
+          <div class="form-grid actions" style="padding:0;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+            <button id="btnEnviar2fa" type="button">Enviar código</button>
+            <button class="secondary" id="btnConfirmar2fa" type="button">Confirmar 2FA</button>
+            <button class="btn-ghost" id="btnDesactivar2fa" type="button">Desactivar</button>
+          </div>
+          <div class="muted" id="twofaStatus" aria-live="polite"></div>
+        </div>
+        <div class="security-card">
+          <h3 class="mini-title">🧯 Recuperación de contraseña</h3>
+          <label class="muted">Correo del usuario
+            <input id="recoveryEmail" type="email" placeholder="usuario@correo.com" />
+          </label>
+          <button id="btnEnviarRecovery" type="button">Enviar correo de recuperación</button>
+          <p class="muted" id="recoveryStatus">Se envía un enlace seguro usando Firebase Authentication.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card requires-auth" aria-labelledby="permsTitle">
+      <div class="page-head" style="align-items:center">
+        <div>
+          <h2 id="permsTitle" style="margin:0;font-size:20px;color:var(--ink)">Permisos por módulo y auditoría</h2>
+          <p class="muted" style="margin:0">Visualizá qué módulos puede operar cada rol y revisá el log de actividades.</p>
+        </div>
+      </div>
+      <div class="security-grid">
+        <div class="security-card">
+          <h3 class="mini-title">Permisos por rol</h3>
+          <ul class="activity-list" id="permsList"><li>Cargando permisos…</li></ul>
+        </div>
+        <div class="security-card">
+          <h3 class="mini-title">Actividad reciente</h3>
+          <ul class="activity-list" id="activityList"><li>Sin actividad registrada todavía.</li></ul>
+        </div>
+      </div>
+    </section>
   </div>
 
   <div class="module-loader" aria-live="polite" aria-atomic="true">
@@ -254,6 +326,21 @@
     const usersUpdated = $('usersUpdated');
     const moduleRole = $('moduleRole');
     const moduleStatus = $('moduleStatus');
+    const timeoutInput = $('timeoutInput');
+    const timeoutLabel = $('timeoutLabel');
+    const securityStatus = $('securityStatus');
+    const btnActualizarTimeout = $('btnActualizarTimeout');
+    const twofaPhone = $('twofaPhone');
+    const twofaCode = $('twofaCode');
+    const twofaStatus = $('twofaStatus');
+    const btnEnviar2fa = $('btnEnviar2fa');
+    const btnConfirmar2fa = $('btnConfirmar2fa');
+    const btnDesactivar2fa = $('btnDesactivar2fa');
+    const recoveryEmail = $('recoveryEmail');
+    const btnEnviarRecovery = $('btnEnviarRecovery');
+    const recoveryStatus = $('recoveryStatus');
+    const permsList = $('permsList');
+    const activityList = $('activityList');
 
     const FieldValue = (firebase.firestore && firebase.firestore.FieldValue)
       ? firebase.firestore.FieldValue
@@ -304,6 +391,8 @@
     let inviteProcessing = false;
     let activeOrgForSubscriptions = null;
     const deletingUsers = new Set();
+    let activityLog = [];
+    let pendingVerificationId = null;
     const isDemoSession = ()=> !!(window.gsAuth && typeof gsAuth.isDemoSession === 'function' && gsAuth.isDemoSession());
 
     const dateTimeFormatter = new Intl.DateTimeFormat('es-UY',{dateStyle:'short',timeStyle:'short'});
@@ -591,6 +680,117 @@
       moduleStatus.textContent = text;
     }
 
+    function formatModulePermissions(perms){
+      if(!perms) return '';
+      const top = Object.entries(perms).filter(([k])=> k!=='home').slice(0,4).map(([key,val])=> `${key}: ${val}`).join(', ');
+      return top || '';
+    }
+
+    function renderPermissionsMatrix(){
+      if(!permsList){ return; }
+      const matrix = (window.gsAuth && gsAuth.ROLE_MATRIX) ? gsAuth.ROLE_MATRIX : {};
+      permsList.innerHTML = '';
+      Object.entries(matrix).forEach(([role, abilities])=>{
+        const label = ROLE_LABELS[role] || role;
+        const perms = abilities && abilities.modulePermissions ? abilities.modulePermissions : {};
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${label}</strong><span class="table-muted">${formatModulePermissions(perms)}</span>`;
+        permsList.appendChild(li);
+      });
+    }
+
+    function renderActivityLog(){
+      if(!activityList){ return; }
+      activityList.innerHTML = '';
+      if(!activityLog.length){
+        activityList.innerHTML = '<li>Sin actividad registrada todavía.</li>';
+        return;
+      }
+      activityLog.slice(0,10).forEach((item)=>{
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${escapeHtml(item.event || '')}</strong> <span class="table-muted">${formatTs(item.occurredAt || item.createdAt)}</span>`;
+        activityList.appendChild(li);
+      });
+    }
+
+    async function loadActivityLog(){
+      if(!window.gsAuth || typeof gsAuth.fetchAuditLog !== 'function'){ return; }
+      try{
+        const res = await gsAuth.fetchAuditLog({ limit: 12 });
+        activityLog = Array.isArray(res && res.items) ? res.items : [];
+        renderActivityLog();
+      }catch(err){
+        activityLog = [];
+        renderActivityLog();
+      }
+    }
+
+    function refreshSecurityUi(){
+      if(!window.gsAuth) return;
+      const idleMs = typeof gsAuth.getIdleTimeout === 'function' ? gsAuth.getIdleTimeout() : 45*60*1000;
+      const minutes = Math.round((idleMs || 0)/60000);
+      if(timeoutInput){ timeoutInput.value = minutes || 45; }
+      if(timeoutLabel){ timeoutLabel.textContent = `${minutes} min`; }
+      if(securityStatus){ securityStatus.textContent = `Timeout activo (${minutes} min)`; }
+    }
+
+    async function handleTimeoutUpdate(){
+      if(!window.gsAuth || typeof gsAuth.setIdleTimeout !== 'function'){ return; }
+      const minutes = Number(timeoutInput?.value || 45);
+      const ms = Math.max(5, minutes) * 60000;
+      gsAuth.setIdleTimeout(ms);
+      refreshSecurityUi();
+      if(securityStatus){ securityStatus.textContent = `Timeout ajustado a ${Math.round(ms/60000)} min`; }
+    }
+
+    async function handleRecoveryRequest(){
+      if(!btnEnviarRecovery || !window.gsAuth || typeof gsAuth.sendPasswordResetEmail !== 'function'){ return; }
+      const email = (recoveryEmail && recoveryEmail.value || '').trim();
+      recoveryStatus.textContent = 'Enviando correo de recuperación…';
+      try{
+        await gsAuth.sendPasswordResetEmail(email);
+        recoveryStatus.textContent = 'Correo enviado si la cuenta existe. Revisá tu bandeja.';
+      }catch(err){
+        recoveryStatus.textContent = err?.message || 'No se pudo enviar el correo.';
+      }
+    }
+
+    async function handleSend2fa(){
+      if(!window.gsAuth || typeof gsAuth.startPhoneVerification !== 'function'){ return; }
+      const phone = (twofaPhone && twofaPhone.value || '').trim();
+      twofaStatus.textContent = 'Enviando código…';
+      try{
+        const res = await gsAuth.startPhoneVerification(phone, { containerId: 'loginForm' });
+        pendingVerificationId = res && res.verificationId ? res.verificationId : res;
+        twofaStatus.textContent = 'Código enviado. Ingresalo para confirmar.';
+      }catch(err){
+        twofaStatus.textContent = err?.message || 'No se pudo enviar el código.';
+      }
+    }
+
+    async function handleConfirm2fa(){
+      if(!window.gsAuth || typeof gsAuth.enableTwoFactor !== 'function'){ return; }
+      twofaStatus.textContent = 'Confirmando 2FA…';
+      try{
+        await gsAuth.enableTwoFactor({ phoneNumber: twofaPhone.value.trim(), verificationId: pendingVerificationId, code: twofaCode.value.trim() });
+        twofaStatus.textContent = '2FA habilitado correctamente.';
+        pendingVerificationId = null;
+      }catch(err){
+        twofaStatus.textContent = err?.message || 'No se pudo habilitar 2FA.';
+      }
+    }
+
+    async function handleDisable2fa(){
+      if(!window.gsAuth || typeof gsAuth.disableTwoFactor !== 'function'){ return; }
+      twofaStatus.textContent = 'Desactivando 2FA…';
+      try{
+        await gsAuth.disableTwoFactor();
+        twofaStatus.textContent = '2FA desactivado para esta cuenta.';
+      }catch(err){
+        twofaStatus.textContent = err?.message || 'No se pudo desactivar 2FA.';
+      }
+    }
+
     function renderInvites(){
       if(!invitesBody) return;
       invitesBody.innerHTML = '';
@@ -647,12 +847,14 @@
         const key = user.id || (user.email || '').toLowerCase();
         const isDeleting = key && deletingUsers.has(key);
         const orgLabel = formatOrganizationLabel({ organizationId: user.organizationId, organizationName: user.organizationName });
+        const permsLabel = formatModulePermissions(user.modulePermissions);
+        const twofaChip = user.twoFactorEnabled ? '<span class="status-chip alerta">2FA</span>' : '';
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${user.displayName ? escapeHtml(user.displayName) : '—'}${user.notes ? `<span class="table-muted">${escapeHtml(user.notes)}</span>` : ''}</td>
           <td>${escapeHtml(user.email || '')}${badge}${emailBadges.length ? ' ' + emailBadges.join(' ') : ''}</td>
-          <td><span class="role-chip ${roleKey}">${roleLabel}</span></td>
-          <td>${escapeHtml(orgLabel)}</td>
+          <td><span class="role-chip ${roleKey}">${roleLabel}</span> ${twofaChip}</td>
+          <td>${escapeHtml(orgLabel)}${permsLabel ? `<span class="table-muted">${escapeHtml(permsLabel)}</span>` : ''}</td>
           <td>${formatTs(user.lastAccessAt)}</td>
           <td>${formatTs(user.updatedAt)}</td>
         `;
@@ -857,6 +1059,8 @@
               notes: data.notes || '',
               organizationId: docOrgId,
               organizationName: data.organizationName || '',
+              modulePermissions: data.modulePermissions || ((window.gsAuth && gsAuth.ROLE_MATRIX && gsAuth.ROLE_MATRIX[role]) ? gsAuth.ROLE_MATRIX[role].modulePermissions : {}),
+              twoFactorEnabled: !!data.twoFactorEnabled,
               createdAt: toMillis(data.createdAt),
               lastAccessAt: toMillis(data.lastAccessAt),
               updatedAt: toMillis(data.updatedAt)
@@ -943,7 +1147,7 @@
 
     function normalizeRoleValue(role){
       const key = normalizeRole(role);
-      return (key === 'admin' || key === 'control') ? key : 'control';
+      return ['admin','manager','operator','viewer','control','demo'].includes(key) ? key : 'viewer';
     }
 
     function sessionCanManageUsers(session){
@@ -959,7 +1163,7 @@
         return true;
       }
       const normalized = normalizeRole(session && session.role);
-      return normalized === 'admin';
+      return normalized === 'admin' || normalized === 'manager';
     }
 
     function updateAccessUi(session){
@@ -1026,6 +1230,12 @@
         }
       });
     }
+
+    if(btnActualizarTimeout){ btnActualizarTimeout.addEventListener('click', handleTimeoutUpdate); }
+    if(btnEnviarRecovery){ btnEnviarRecovery.addEventListener('click', handleRecoveryRequest); }
+    if(btnEnviar2fa){ btnEnviar2fa.addEventListener('click', handleSend2fa); }
+    if(btnConfirmar2fa){ btnConfirmar2fa.addEventListener('click', handleConfirm2fa); }
+    if(btnDesactivar2fa){ btnDesactivar2fa.addEventListener('click', handleDisable2fa); }
 
     if(inviteOrg){
       inviteOrg.addEventListener('change', toggleOrgNameField);
@@ -1234,7 +1444,7 @@
       message: 'Iniciá sesión desde el tablero principal para gestionar cuentas y roles.',
       deniedMessage: 'Necesitás rol Administrador para crear o actualizar cuentas.',
       redirectTo: 'index.html#/usuarios',
-      allowedRoles: ['admin']
+      allowedRoles: ['admin','manager']
     });
 
     gsAuth.onSession((session)=>{
@@ -1254,6 +1464,9 @@
       }
       updateAccessUi(session);
       toggleLoader();
+      renderPermissionsMatrix();
+      refreshSecurityUi();
+      loadActivityLog();
     });
   </script>
 </body>

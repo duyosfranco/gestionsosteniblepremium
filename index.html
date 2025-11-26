@@ -1550,6 +1550,23 @@
     if(new URLSearchParams(window.location.search).get('login') === '1'){
       focusLoginForm();
     }
+    const LOGIN_HASHES = new Set(['#login', '#loginpanel', '#/login', '#/loginpanel']);
+    const openLoginFromHash = (hash)=>{
+      const normalized = (hash || '').toLowerCase();
+      if(LOGIN_HASHES.has(normalized)){
+        focusLoginForm();
+        return true;
+      }
+      return false;
+    };
+    if(openLoginFromHash(location.hash)){
+      requestAnimationFrame(()=>{
+        const normalized = (location.hash || '').toLowerCase();
+        if(normalized && normalized !== '#/'){
+          location.hash = '#/';
+        }
+      });
+    }
     const routes = {
       '/': {
         moduleKey: 'home',
@@ -2618,7 +2635,18 @@
       try{ localStorage.setItem(STORAGE_KEY, route === routes['/'] ? '/' : key); }
       catch(err){ /* almacenamiento no disponible */ }
     }
-    window.addEventListener('hashchange', navigate);
+    window.addEventListener('hashchange', ()=>{
+      if(openLoginFromHash(location.hash)){
+        requestAnimationFrame(()=>{
+          const normalized = (location.hash || '').toLowerCase();
+          if(normalized && normalized !== '#/'){
+            location.hash = '#/';
+          }
+        });
+        return;
+      }
+      navigate();
+    });
 
     function showLoader(title, subtitle){
       const defaultTitle = `${getActiveBrandName()} · Cargando`;

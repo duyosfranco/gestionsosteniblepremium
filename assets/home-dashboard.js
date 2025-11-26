@@ -6,6 +6,7 @@
     charts: {},
     metrics: null,
     predictions: null,
+    aiDataset: null,
     pendingActions: new Map()
   };
 
@@ -26,6 +27,36 @@
 
   function getDb(){ return global.firebase && global.firebase.firestore ? global.firebase.firestore() : null; }
   function getDemo(){ return global.GS_DEMO_DATA || global.demoData || {}; }
+
+  function buildMetricsFromDemo(){
+    const demo = getDemo();
+    const retiros = Array.isArray(demo.retiros?.items) ? demo.retiros.items : [];
+    const pagos = Array.isArray(demo.pagos?.items) ? demo.pagos.items : [];
+    const clientes = Array.isArray(demo.clientes) ? demo.clientes : [];
+    const retirosSeries = retiros.map((r)=> r.estado === 'realizado' ? 1 : 0);
+    const ingresosSeries = pagos.map((p)=> Number(String(p.monto||'').replace(/[^0-9.-]/g,'')) || 0);
+    const eficienciaBase = clientes.length ? Math.min(97, 70 + (retiros.length/Math.max(clientes.length,1))*22) : 86;
+    return {
+      period: state.period,
+      retiros: {
+        value: retiros.length,
+        change: computeChange(retirosSeries),
+        series: normalizeSeries(retirosSeries, 12)
+      },
+      ingresos: {
+        value: ingresosSeries.reduce((a,b)=> a+b,0),
+        change: computeChange(ingresosSeries),
+        series: normalizeSeries(ingresosSeries, 12)
+      },
+      eficiencia: {
+        value: eficienciaBase,
+        change: +(Math.random()*2.4).toFixed(1),
+        series: normalizeSeries([eficienciaBase-3, eficienciaBase-1, eficienciaBase, eficienciaBase+1], 8)
+      },
+      clientesActivos: clientes.length,
+      ultimasFechas: retiros.map((r)=> r.fecha || r.slot || '')
+    };
+  }
 
   function currency(value){
     if(value === null || value === undefined || Number.isNaN(Number(value))){ return '—'; }
@@ -50,7 +81,7 @@
     };
     const db = getDb();
     if(!db){
-      const sample = demo.analytics || {};
+      const sample = demo.analytics || buildMetricsFromDemo();
       return Object.assign({}, defaults, sample);
     }
     try{
@@ -75,7 +106,7 @@
       };
     }catch(err){
       console.warn('Fallo al cargar métricas, usando demo', err);
-      const sample = demo.analytics || {};
+      const sample = demo.analytics || buildMetricsFromDemo();
       return Object.assign({}, defaults, sample);
     }
   }
@@ -131,7 +162,8 @@
   }
 
   function resolvePalette(){
-    const styles = getComputedStyle(document.documentElement);
+    const root = document.getElementById('appView') || document.documentElement;
+    const styles = getComputedStyle(root);
     return {
       accent: styles.getPropertyValue('--accent').trim() || '#1DBF73',
       muted: styles.getPropertyValue('--muted').trim() || '#6b7c8a'
@@ -158,19 +190,29 @@
 
   function computePredictions(metrics){
     const base = metrics || state.metrics || {};
+    const retirosSeries = normalizeSeries(base.retiros?.series || [], 8);
+    const ingresosSeries = normalizeSeries(base.ingresos?.series || [], 8);
+    const efficiencySeries = normalizeSeries(base.eficiencia?.series || [], 8);
+    const smooth = (series)=>{
+      return series.reduce((acc, val, idx)=>{
+        const weight = 0.6 + (idx/series.length)*0.4;
+        return acc + weight * Number(val || 0);
+      }, 0) / Math.max(series.length,1);
+    };
+    const trend = (series)=>{
+      const n = series.length;
+      if(!n){ return 0; }
+      const mean = series.reduce((a,b)=> a+b,0)/n;
+      const num = series.reduce((acc, val, idx)=> acc + (idx- n/2)*(val-mean), 0);
+      return num / Math.max(n,1);
+    };
+    const retirosForecast = Math.max(0, Math.round(smooth(retirosSeries) + trend(retirosSeries)));
+    const ingresosForecast = Math.max(0, Math.round(smooth(ingresosSeries) * 1.05 + trend(ingresosSeries)*2));
+    const eficienciaForecast = Math.min(99, Math.round(smooth(efficiencySeries) + 1.5));
     return {
-      retiros: {
-        value: Math.round((base.retiros?.value || 0) * 1.15),
-        confidence: 0.82
-      },
-      ingresos: {
-        value: Math.round((base.ingresos?.value || 0) * 1.12),
-        confidence: 0.79
-      },
-      eficiencia: {
-        value: Math.min(98, Math.round((base.eficiencia?.value || 85) + 2)),
-        confidence: 0.76
-      }
+      retiros: { value: retirosForecast, confidence: 0.83 },
+      ingresos: { value: ingresosForecast, confidence: 0.8 },
+      eficiencia: { value: eficienciaForecast, confidence: 0.78 }
     };
   }
 
@@ -189,6 +231,25 @@
     if(status){ status.querySelector('.status-dot')?.classList.add('active'); }
   }
 
+  function renderAlerts(alerts){
+    const container = q('#alertsContent');
+    if(!container){ return; }
+    container.innerHTML = '';
+    if(!alerts.length){
+      container.innerHTML = '<div class="alert-item">Sin alertas activas.</div>';
+      return;
+    }
+    alerts.forEach((alert)=>{
+      const div = document.createElement('div');
+      div.className = `alert-item priority-${alert.priority || 'medium'}`;
+      div.innerHTML = `
+        <div class="alert-title">${alert.title}</div>
+        <div class="alert-desc">${alert.description}</div>
+      `;
+      container.appendChild(div);
+    });
+  }
+
   const recommendationCopy = {
     optimize_routes: {
       title: 'Optimizar rutas',
@@ -204,6 +265,21 @@
       title: 'Mantenimiento preventivo',
       description: 'Programá mantenimiento en unidades con desvíos de consumo.',
       module: 'configuracion'
+    },
+    churn_risk: {
+      title: 'Clientes con riesgo de baja',
+      description: 'Contactá a clientes con baja frecuencia de retiros y pagos atrasados.',
+      module: 'clientes'
+    },
+    high_value: {
+      title: 'Clientes de alto valor',
+      description: 'Ofrecé upgrade a clientes con alto ticket promedio y baja incidencia.',
+      module: 'clientes'
+    },
+    cashflow_alert: {
+      title: 'Refinanciar cobranzas',
+      description: 'Detectamos brecha de caja en 2 semanas. Activá recordatorios y escalamiento.',
+      module: 'finanzas'
     }
   };
 
@@ -264,6 +340,109 @@
       updateKpiCards(metrics);
       state.predictions = computePredictions(metrics);
       renderPredictions(state.predictions);
+      loadAiLayer();
+    });
+  }
+
+  function loadAiLayer(){
+    collectAiDataset().then((dataset)=>{
+      state.aiDataset = dataset;
+      const insights = runAiInsights(dataset);
+      renderAlerts(insights.alerts);
+      renderPredictions(insights.predictions || state.predictions || {});
+      renderRecommendations(insights.recommendations);
+    });
+  }
+
+  function collectAiDataset(){
+    const demo = getDemo();
+    const db = getDb();
+    if(!db){
+      return Promise.resolve({
+        clients: demo.clientes || [],
+        retiros: demo.retiros?.items || [],
+        pagos: demo.pagos?.items || []
+      });
+    }
+    return Promise.all([
+      db.collection('clientes').limit(200).get(),
+      db.collection('retiros').orderBy('fecha','desc').limit(200).get().catch(()=> db.collection('retiros').limit(200).get()),
+      db.collection('finanzas').orderBy('fecha','desc').limit(200).get().catch(()=> db.collection('finanzas').limit(200).get())
+    ]).then(([clientesSnap, retirosSnap, pagosSnap])=>{
+      return {
+        clients: clientesSnap ? clientesSnap.docs.map((d)=> ({ id: d.id, ...d.data() })) : [],
+        retiros: retirosSnap ? retirosSnap.docs.map((d)=> ({ id: d.id, ...d.data() })) : [],
+        pagos: pagosSnap ? pagosSnap.docs.map((d)=> ({ id: d.id, ...d.data() })) : []
+      };
+    }).catch(()=>({
+      clients: demo.clientes || [],
+      retiros: demo.retiros?.items || [],
+      pagos: demo.pagos?.items || []
+    }));
+  }
+
+  function runAiInsights(dataset){
+    const clients = dataset.clients || [];
+    const retiros = dataset.retiros || [];
+    const pagos = dataset.pagos || [];
+    const churnCandidates = clients.filter((c)=> (c.inactividadDias || c.inactiveDays || 0) > 25 || (c.estado === 'inactivo'));
+    const highValue = clients.filter((c)=> (c.valorMensual || c.monto || 0) > 20000);
+    const latePayments = pagos.filter((p)=> p.estado === 'pendiente');
+
+    const alerts = [];
+    if(churnCandidates.length){
+      alerts.push({ priority:'high', title:'Riesgo de churn', description:`${churnCandidates.length} clientes con baja actividad.` });
+    }
+    if(latePayments.length > 3){
+      alerts.push({ priority:'medium', title:'Cobranzas pendientes', description:`${latePayments.length} pagos atrasados.` });
+    }
+    const peakRoutes = retiros.filter((r)=> r.estado !== 'realizado').length;
+    if(peakRoutes > 10){ alerts.push({ priority:'medium', title:'Rutas cargadas', description:'Rebalancear carga entre choferes.' }); }
+
+    const revenueSeries = pagos.map((p)=> Number(p.monto||p.valor||0)).filter((v)=> Number.isFinite(v));
+    const routeSeries = retiros.map(()=>1);
+    const aiPreds = {
+      ingresos: { value: Math.round((revenueSeries.reduce((a,b)=> a+b,0)/Math.max(revenueSeries.length,1))*1.08), confidence: 0.81 },
+      retiros: { value: Math.round(routeSeries.length * 1.12), confidence: 0.8 },
+      eficiencia: state.predictions?.eficiencia || { value: 90, confidence: 0.75 }
+    };
+
+    const recommendations = [];
+    if(churnCandidates.length){ recommendations.push('churn_risk'); }
+    if(highValue.length){ recommendations.push('high_value'); }
+    if(latePayments.length){ recommendations.push('cashflow_alert'); }
+    recommendations.push('optimize_routes','adjust_schedule');
+
+    return { alerts, predictions: aiPreds, recommendations };
+  }
+
+  function renderRecommendations(keys){
+    const list = q(selectors.recommendations);
+    if(!list){ return; }
+    list.innerHTML = '';
+    (keys && keys.length ? keys : Object.keys(recommendationCopy)).forEach((key)=>{
+      const rec = recommendationCopy[key];
+      if(!rec){ return; }
+      const div = document.createElement('div');
+      div.className = 'recommendation-item priority-medium';
+      div.innerHTML = `
+        <div class="rec-priority">${rec.priority || 'Medio'}</div>
+        <div class="rec-content">
+          <div class="rec-title">${rec.title}</div>
+          <div class="rec-description">${rec.description}</div>
+          <div class="rec-actions">
+            <button class="rec-btn primary" data-key="${key}" data-action="implement">Implementar</button>
+            <button class="rec-btn secondary" data-key="${key}" data-action="details">Detalles</button>
+          </div>
+        </div>`;
+      list.appendChild(div);
+    });
+    list.querySelectorAll('button[data-action]').forEach((btn)=>{
+      btn.addEventListener('click', ()=>{
+        const key = btn.dataset.key;
+        if(btn.dataset.action === 'implement'){ implementRecommendation(key); }
+        else{ viewRecommendationDetails(key); }
+      });
     });
   }
 

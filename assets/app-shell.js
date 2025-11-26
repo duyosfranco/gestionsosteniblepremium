@@ -148,7 +148,8 @@
   function applyThemeToggle(){
     const saved = localStorage.getItem('gs:theme:mode');
     if(saved){
-      document.documentElement.setAttribute('data-theme', saved);
+      const appRoot = document.getElementById('appView');
+      if(appRoot){ appRoot.setAttribute('data-theme', saved); }
       if(global.gsTheme && typeof global.gsTheme.setTheme === 'function'){ global.gsTheme.setTheme(saved); }
     }
     const btn = document.createElement('button');
@@ -156,12 +157,13 @@
     btn.type = 'button';
     btn.textContent = '🌗 Tema';
     btn.addEventListener('click', ()=>{
-      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      const appRoot = document.getElementById('appView');
+      const current = (appRoot && appRoot.getAttribute('data-theme')) || document.documentElement.getAttribute('data-theme') || 'light';
       const next = current === 'dark' ? 'light' : 'dark';
       if(global.gsTheme && typeof global.gsTheme.setTheme === 'function'){
         global.gsTheme.setTheme(next);
       }else{
-        document.documentElement.setAttribute('data-theme', next);
+        if(appRoot){ appRoot.setAttribute('data-theme', next); }
       }
       localStorage.setItem('gs:theme:mode', next);
     });

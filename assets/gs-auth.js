@@ -1481,6 +1481,176 @@
     },{});
   }
 
+  const localStore = (()=>{
+    try{
+      const probe = '__gs_session_probe__';
+      global.localStorage.setItem(probe,'1');
+      global.localStorage.removeItem(probe);
+      return global.localStorage;
+    }catch(err){
+      return null;
+    }
+  })();
+
+  const CSRF_TOKEN_KEY = 'gs:csrf-token';
+  function ensureCsrfToken(){
+    if(!localStore){ return null; }
+    let token = localStore.getItem(CSRF_TOKEN_KEY);
+    if(!token){
+      token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStore.setItem(CSRF_TOKEN_KEY, token);
+    }
+    return token;
+  }
+
+  applySecurityHeaders();
+  ensureCsrfToken();
+
+  const SECURE_KEY = (firebaseConfig && firebaseConfig.projectId ? firebaseConfig.projectId : 'gs') + ':secure:v1';
+  function deriveKeyBytes(){
+    const base = SECURE_KEY + ':' + (global.navigator ? navigator.userAgent : '');
+    return Array.from(base).map((ch)=> ch.charCodeAt(0) % 255);
+  }
+
+  function encryptLocalPayload(data){
+    try{
+      const raw = JSON.stringify(data || {});
+      const key = deriveKeyBytes();
+      const encoded = Array.from(raw).map((ch,idx)=> String.fromCharCode(ch.charCodeAt(0) ^ key[idx % key.length])).join('');
+      return btoa(encoded);
+    }catch(err){
+      return null;
+    }
+  }
+
+  function decryptLocalPayload(payload){
+    try{
+      const decoded = atob(payload);
+      const key = deriveKeyBytes();
+      const original = Array.from(decoded).map((ch,idx)=> String.fromCharCode(ch.charCodeAt(0) ^ key[idx % key.length])).join('');
+      return JSON.parse(original);
+    }catch(err){
+      return null;
+    }
+  }
+
+  function validateIdTokenClaims(token){
+    if(typeof token !== 'string'){ return false; }
+    const parts = token.split('.');
+    if(parts.length !== 3){ return false; }
+    try{
+      const payload = JSON.parse(atob(parts[1]));
+      const now = Math.floor(Date.now()/1000);
+      if(payload.exp && payload.exp < now){ return false; }
+      if(payload.aud && firebaseConfig && firebaseConfig.projectId && !String(payload.aud).includes(firebaseConfig.projectId)){
+        return false;
+      }
+      return true;
+    }catch(err){
+      return false;
+    }
+  }
+
+  function applySecurityHeaders(){
+    if(!global.document){ return; }
+    const head = document.head || document.getElementsByTagName('head')[0];
+    if(!head) return;
+
+    const requiredConnectSrc = [
+      "'self'",
+      'https://firestore.googleapis.com',
+      'https://www.googleapis.com',
+      'https://identitytoolkit.googleapis.com',
+      'https://securetoken.googleapis.com'
+    ];
+
+    const buildDefaultCsp = ()=>[
+      "default-src 'self' https://www.gstatic.com https://firestore.googleapis.com https://www.googleapis.com data: blob:",
+      "frame-ancestors 'self'",
+      "script-src 'self' https://www.gstatic.com 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      `connect-src ${requiredConnectSrc.join(' ')}`,
+      "img-src 'self' data:"
+    ].join('; ');
+
+    const ensureConnectSrc = (meta)=>{
+      const content = (meta && meta.content) || '';
+      const connectRegex = /connect-src\s+([^;]+)/i;
+      if(connectRegex.test(content)){
+        const current = connectRegex.exec(content)[1].split(/\s+/).filter(Boolean);
+        requiredConnectSrc.forEach((src)=>{
+          if(!current.includes(src)){ current.push(src); }
+        });
+        meta.content = content.replace(connectRegex, `connect-src ${current.join(' ')}`);
+      } else {
+        const prefix = content ? content.replace(/;?\s*$/, '; ') : '';
+        meta.content = `${prefix}connect-src ${requiredConnectSrc.join(' ')};`;
+      }
+    };
+
+    const appendIfMissing = (selector, tag)=>{
+      if(!document.querySelector(selector)){
+        head.appendChild(tag);
+      }
+    };
+    let csp = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+    if(!csp){
+      const meta = document.createElement('meta');
+      meta.httpEquiv = 'Content-Security-Policy';
+      meta.content = buildDefaultCsp();
+      head.appendChild(meta);
+      csp = meta;
+    } else {
+      ensureConnectSrc(csp);
+    }
+    appendIfMissing('meta[http-equiv="Strict-Transport-Security"]', (()=>{ const meta = document.createElement('meta'); meta.httpEquiv='Strict-Transport-Security'; meta.content='max-age=63072000; includeSubDomains'; return meta; })());
+    appendIfMissing('meta[http-equiv="X-Content-Type-Options"]', (()=>{ const meta = document.createElement('meta'); meta.httpEquiv='X-Content-Type-Options'; meta.content='nosniff'; return meta; })());
+    appendIfMissing('meta[name="referrer"]', (()=>{ const meta = document.createElement('meta'); meta.name='referrer'; meta.content='same-origin'; return meta; })());
+  }
+
+  function hardenFormSecurity(form){
+    if(!form || typeof form.addEventListener !== 'function'){ return; }
+    form.addEventListener('submit',(ev)=>{
+      if(ev && ev.target){
+        const elements = ev.target.elements || [];
+        Array.from(elements).forEach((el)=>{
+          if(el && 'value' in el){
+            el.value = sanitizeInputValue(String(el.value||''));
+          }
+        });
+      }
+    });
+    form.addEventListener('input',(ev)=>{
+      const target = ev && ev.target;
+      if(target && 'value' in target){
+        target.value = sanitizeInputValue(String(target.value||''));
+      }
+    });
+  }
+
+  function sanitizeInputValue(value){
+    if(typeof value !== 'string'){ return ''; }
+    const trimmed = value.trim();
+    const blocked = /(\b(select|update|delete|insert|drop|union|--|#)\b)/i;
+    if(blocked.test(trimmed)){ return ''; }
+    return trimmed.replace(/[<>"'`;]/g, '').slice(0, 2800);
+  }
+
+  function sanitizeObjectPayload(obj){
+    if(!obj || typeof obj !== 'object'){ return {}; }
+    return Object.keys(obj).reduce((acc,key)=>{
+      const value = obj[key];
+      if(typeof value === 'string'){
+        acc[key] = sanitizeInputValue(value);
+      }else if(value && typeof value === 'object'){
+        acc[key] = sanitizeObjectPayload(value);
+      }else{
+        acc[key] = value;
+      }
+      return acc;
+    },{});
+  }
+
   const CSRF_TOKEN_KEY = 'gs:csrf-token';
   function ensureCsrfToken(){
     if(!localStore){ return null; }

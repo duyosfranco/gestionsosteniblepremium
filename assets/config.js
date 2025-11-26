@@ -100,10 +100,5 @@
     lastRoute: 'gs:lastRoute'
   });
 
-  const AI_CONFIG = Object.freeze({
-    inferenceEndpoint: null,
-    tenant: 'default'
-  });
-
-  global.gsConfig = Object.freeze({ ROUTES, SELECTORS, STORAGE_KEYS, DEFAULT_MODULE_LABELS, AI_CONFIG });
+  global.gsConfig = Object.freeze({ ROUTES, SELECTORS, STORAGE_KEYS, DEFAULT_MODULE_LABELS });
 })(window);

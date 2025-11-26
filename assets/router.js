@@ -138,7 +138,6 @@
     if(refs.homeView){ refs.homeView.classList.remove('hidden'); }
     if(refs.viewer){ refs.viewer.classList.add('hidden'); }
     if(refs.pageSubtitle && ROUTES['/'].subtitle){ refs.pageSubtitle.textContent = ROUTES['/'].subtitle; }
-    if(global.gsHomeDashboard && typeof global.gsHomeDashboard.activate === 'function'){ global.gsHomeDashboard.activate(); }
     hideLoader();
   }
 
@@ -146,7 +145,6 @@
     const refs = state.refs;
     if(refs.homeView){ refs.homeView.classList.add('hidden'); }
     if(refs.viewer){ refs.viewer.classList.remove('hidden'); }
-    if(global.gsHomeDashboard && typeof global.gsHomeDashboard.deactivate === 'function'){ global.gsHomeDashboard.deactivate(); }
     const frame = ensureFrame(route);
     if(!frame){
       showModuleError(route.label || 'el módulo', 'Archivo no encontrado.');

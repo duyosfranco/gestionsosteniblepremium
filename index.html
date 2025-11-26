@@ -47,6 +47,8 @@
     body.app-ready #loginView{display:none!important}
 
     .login-panel{display:none}
+    /* Fallback para abrir login sin JS (al apuntar a #loginPanel) */
+    #loginPanel:target{display:grid}
     body.login-open .login-panel{display:grid}
     body.login-open .landing-shell{display:none}
 
@@ -2819,6 +2821,10 @@
 
     function handleLogin(session){
       const uid = session && session.user ? (session.user.uid || 'default') : 'default';
+      if(loginFallbackTimer){
+        clearTimeout(loginFallbackTimer);
+        loginFallbackTimer = null;
+      }
       homeFetchToken += 1;
       homeLastRefresh = 0;
       homeUserId = uid;

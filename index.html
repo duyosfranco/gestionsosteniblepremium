@@ -45,6 +45,8 @@
     body.app-ready #loginView{display:none!important}
 
     .login-panel{display:none}
+    /* Fallback para abrir login sin JS (al apuntar a #loginPanel) */
+    #loginPanel:target{display:grid}
     body.login-open .login-panel{display:grid}
     body.login-open .landing-shell{display:none}
 
@@ -1414,7 +1416,8 @@
   <script src="assets/demo-data.js"></script>
   <script src="assets/gs-auth.js"></script>
 
-  <script>
+  <script type="text/javascript">
+    //<![CDATA[
     // Refs
     const $ = sel => document.querySelector(sel);
     const loginView = $('#loginView');
@@ -1500,6 +1503,31 @@
     if(new URLSearchParams(window.location.search).get('login') === '1'){
       focusLoginForm();
     }
+    const LOGIN_HASHES = new Set(['#login', '#loginpanel', '#/login', '#/loginpanel']);
+    const openLoginFromHash = (hash)=>{
+      const normalized = (hash || '').toLowerCase();
+      if(LOGIN_HASHES.has(normalized)){
+        focusLoginForm();
+        return true;
+      }
+      return false;
+    };
+    if(openLoginFromHash(location.hash)){
+      requestAnimationFrame(()=>{
+        const normalized = (location.hash || '').toLowerCase();
+        if(normalized && normalized !== '#/'){
+          location.hash = '#/';
+        }
+      });
+    }
+
+    let loginFallbackTimer = null;
+
+    // Fallback defensivo para mostrar el panel de login si nada responde
+    loginFallbackTimer = setTimeout(()=>{
+      if(document.body.classList.contains('app-ready')) return;
+      focusLoginForm();
+    }, 1400);
     const routes = {
       '/': {
         moduleKey: 'home',
@@ -2567,7 +2595,18 @@
       try{ localStorage.setItem(STORAGE_KEY, route === routes['/'] ? '/' : key); }
       catch(err){ /* almacenamiento no disponible */ }
     }
-    window.addEventListener('hashchange', navigate);
+    window.addEventListener('hashchange', ()=>{
+      if(openLoginFromHash(location.hash)){
+        requestAnimationFrame(()=>{
+          const normalized = (location.hash || '').toLowerCase();
+          if(normalized && normalized !== '#/'){
+            location.hash = '#/';
+          }
+        });
+        return;
+      }
+      navigate();
+    });
 
     function showLoader(title, subtitle){
       const defaultTitle = `${getActiveBrandName()} · Cargando`;
@@ -2739,6 +2778,10 @@
 
     function handleLogin(session){
       const uid = session && session.user ? (session.user.uid || 'default') : 'default';
+      if(loginFallbackTimer){
+        clearTimeout(loginFallbackTimer);
+        loginFallbackTimer = null;
+      }
       homeFetchToken += 1;
       homeLastRefresh = 0;
       homeUserId = uid;
@@ -4293,7 +4336,8 @@
     }
 
     applyNavPermissions();
-  </script>  
+    //]]>
+  </script>
   <!-- SVG Icons para Executive Command Center -->
   <svg width="0" height="0" class="sr-only">
     <symbol id="icon-refresh" viewBox="0 0 24 24">

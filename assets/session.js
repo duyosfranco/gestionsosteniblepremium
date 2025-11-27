@@ -6,7 +6,6 @@
   let currentSession = null;
   let unsubscribeAuth = null;
   let demoAutostartTimer = null;
-  let demoRecoveryTimer = null;
 
   const autoDemoAllowedHosts = ['localhost', '127.0.0.1', ''];
   const autoDemoRequested = new URLSearchParams(location.search).get('autodemo') === '1';
@@ -22,47 +21,25 @@
     document.dispatchEvent(new CustomEvent(SESSION_EVENT, { detail: currentSession }));
   }
 
-  function hasFirebaseApp(){
-    try{ return !!(global.firebase && Array.isArray(global.firebase.apps) && global.firebase.apps.length); }
-    catch(err){ return false; }
-  }
-
-  function startDemoFallback(reason){
-    const dataset = global.GS_DEMO_DATA || global.demoData;
-    if(!dataset || !global.gsAuth || typeof global.gsAuth.startDemoSession !== 'function'){ return; }
-    const hostOk = autoDemoAllowedHosts.includes(location.hostname) || location.protocol === 'file:';
-    if(!allowAutoDemo && !hostOk && reason !== 'no-auth'){ return; }
-    const hasSession = !!(currentSession && currentSession.user);
-    if(hasSession || document.body.classList.contains('app-ready')){ return; }
-    try{ global.gsAuth.startDemoSession(dataset, { persist: false, resetTheme: false }); }
-    catch(err){ console.warn('No se pudo iniciar la demo automática', err); }
-  }
-
   function scheduleDemoAutostart(){
+    const dataset = global.GS_DEMO_DATA || global.demoData;
+    if(!allowAutoDemo || !dataset || !global.gsAuth || typeof global.gsAuth.startDemoSession !== 'function'){ return; }
     clearTimeout(demoAutostartTimer);
-    demoAutostartTimer = setTimeout(()=> startDemoFallback('requested'), 2600);
-  }
-
-  function scheduleDemoRecovery(){
-    clearTimeout(demoRecoveryTimer);
-    demoRecoveryTimer = setTimeout(()=>{
+    demoAutostartTimer = setTimeout(()=>{
       const hasSession = !!(currentSession && currentSession.user);
-      if(hasSession){ return; }
-      if(!hasFirebaseApp() || !global.gsAuth){
-        startDemoFallback('no-auth');
-      }
-    }, 3200);
+      if(document.body.classList.contains('app-ready') || hasSession){ return; }
+      try{ global.gsAuth.startDemoSession(dataset, { persist: false, resetTheme: false }); }
+      catch(err){ console.warn('No se pudo iniciar la demo automática', err); }
+    }, 2600);
   }
 
   function initSession({ onReady, onError }={}){
     if(!global.gsAuth || typeof global.gsAuth.onSession !== 'function'){
       scheduleDemoAutostart();
-      scheduleDemoRecovery();
       onError && onError(new Error('gsAuth no está disponible todavía.'));
       return { unsubscribe: ()=>{} };
     }
     scheduleDemoAutostart();
-    scheduleDemoRecovery();
     if(unsubscribeAuth){ try{ unsubscribeAuth(); }catch(err){ /* noop */ } }
     unsubscribeAuth = global.gsAuth.onSession((session)=>{
       notify(session);

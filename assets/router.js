@@ -180,9 +180,6 @@
       showLoader();
       showModule(route);
     }
-    try{
-      document.dispatchEvent(new CustomEvent('gs:route', { detail: route }));
-    }catch(err){ /* noop */ }
   }
 
   function recoverFromIframeError(){
